@@ -10,6 +10,9 @@ require '../paginas/conexion.php';
 $cedula = $_SESSION['cliente_cedula'];
 $nombre = $_SESSION['cliente_nombre'];
 
+// Depuración de errores en servidor (Opcional, quitar en producción)
+// error_reporting(E_ALL); ini_set('display_errors', 1);
+
 // Cargar bancos para el reporte manual
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');
 $bancosArr = json_decode($json_bancos, true) ?: [];
@@ -52,7 +55,7 @@ $sql_contratos = "
     LEFT JOIN planes p ON c.id_plan = p.id_plan
     LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
     WHERE c.cedula = ? AND c.estado != 'ELIMINADO'
-    GROUP BY c.id
+    GROUP BY c.id, c.estado, c.direccion, c.monto_plan, p.nombre_plan
 ";
 $stmt = $conn->prepare($sql_contratos);
 if ($stmt) {

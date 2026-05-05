@@ -22,7 +22,7 @@ $sql = "SELECT c.*, p.nombre_plan,
         LEFT JOIN planes p ON c.id_plan = p.id_plan
         LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
         WHERE c.id = ? AND c.cedula = ? AND c.estado != 'ELIMINADO'
-        GROUP BY c.id";
+        GROUP BY c.id, c.cedula, c.direccion, c.estado, c.monto_plan, p.nombre_plan";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("is", $id_contrato, $cedula);
 $stmt->execute();
