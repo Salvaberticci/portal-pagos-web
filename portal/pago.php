@@ -15,12 +15,14 @@ if ($id_contrato <= 0) {
     exit;
 }
 
-// Obtener detalles del contrato
+// Obtener detalles del contrato (Optimizado con JOIN)
 $sql = "SELECT c.*, p.nombre_plan,
-               (SELECT SUM(monto_total) FROM cuentas_por_cobrar cxc WHERE cxc.id_contrato = c.id AND cxc.estado IN ('PENDIENTE', 'VENCIDO')) as deuda_mensualidades
+               SUM(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.monto_total ELSE 0 END) as deuda_mensualidades
         FROM contratos c
         LEFT JOIN planes p ON c.id_plan = p.id_plan
-        WHERE c.id = ? AND c.cedula = ? AND c.estado != 'ELIMINADO'";
+        LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+        WHERE c.id = ? AND c.cedula = ? AND c.estado != 'ELIMINADO'
+        GROUP BY c.id";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("is", $id_contrato, $cedula);
 $stmt->execute();
@@ -35,21 +37,30 @@ if (!$contrato) {
 $deuda = floatval($contrato['deuda_mensualidades'] ?? 0);
 $monto_plan = floatval($contrato['monto_plan']);
 
-// Tasa BCV
+// Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;
-$url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
-$ch = curl_init($url_bcv);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-$resp_bcv = curl_exec($ch);
-if (!curl_errno($ch)) {
-    $data_bcv = json_decode($resp_bcv, true);
-    if (isset($data_bcv['promedio'])) {
-        $tasa_bcv = floatval($data_bcv['promedio']);
+$cache_file = 'tasa_cache.json';
+$cache_time = 3600; // 1 hora
+
+if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
+    $data_cache = json_decode(file_get_contents($cache_file), true);
+    $tasa_bcv = $data_cache['tasa'] ?? 1;
+} else {
+    $url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
+    $ch = curl_init($url_bcv);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    $resp_bcv = curl_exec($ch);
+    if (!curl_errno($ch)) {
+        $data_bcv = json_decode($resp_bcv, true);
+        if (isset($data_bcv['promedio'])) {
+            $tasa_bcv = floatval($data_bcv['promedio']);
+            @file_put_contents($cache_file, json_encode(['tasa' => $tasa_bcv, 'fecha' => date('Y-m-d H:i:s')]));
+        }
     }
+    curl_close($ch);
 }
-curl_close($ch);
 
 // Bancos
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');

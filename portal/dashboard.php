@@ -14,33 +14,45 @@ $nombre = $_SESSION['cliente_nombre'];
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');
 $bancosArr = json_decode($json_bancos, true) ?: [];
 
-// Intentar obtener tasa BCV
+// Intentar obtener tasa BCV (con cache de 1 hora para evitar lentitud)
 $tasa_bcv = 1;
 $tasa_fecha = '';
-$url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
-$ch = curl_init($url_bcv);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-$resp_bcv = curl_exec($ch);
-if (!curl_errno($ch)) {
-    $data_bcv = json_decode($resp_bcv, true);
-    if (isset($data_bcv['promedio'])) {
-        $tasa_bcv = floatval($data_bcv['promedio']);
-        $tasa_fecha = date('d/m/Y h:i A', strtotime($data_bcv['fechaActualizacion'] ?? 'now'));
-    }
-}
-curl_close($ch);
+$cache_file = 'tasa_cache.json';
+$cache_time = 3600; // 1 hora
 
-// Obtener contratos del cliente y su plan
+if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
+    $data_cache = json_decode(file_get_contents($cache_file), true);
+    $tasa_bcv = $data_cache['tasa'] ?? 1;
+    $tasa_fecha = $data_cache['fecha'] ?? '';
+} else {
+    $url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
+    $ch = curl_init($url_bcv);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    $resp_bcv = curl_exec($ch);
+    if (!curl_errno($ch)) {
+        $data_bcv = json_decode($resp_bcv, true);
+        if (isset($data_bcv['promedio'])) {
+            $tasa_bcv = floatval($data_bcv['promedio']);
+            $tasa_fecha = date('d/m/Y h:i A', strtotime($data_bcv['fechaActualizacion'] ?? 'now'));
+            @file_put_contents($cache_file, json_encode(['tasa' => $tasa_bcv, 'fecha' => $tasa_fecha]));
+        }
+    }
+    curl_close($ch);
+}
+
+// Obtener contratos del cliente y su plan (Optimizado con JOIN)
 $contratos = [];
 $sql_contratos = "
     SELECT c.id, c.estado as estado_contrato, c.direccion, c.monto_plan, p.nombre_plan,
-           (SELECT SUM(monto_total) FROM cuentas_por_cobrar cxc WHERE cxc.id_contrato = c.id AND cxc.estado IN ('PENDIENTE', 'VENCIDO')) as deuda_mensualidades,
-           (SELECT MIN(fecha_vencimiento) FROM cuentas_por_cobrar cxc WHERE cxc.id_contrato = c.id AND cxc.estado IN ('PENDIENTE', 'VENCIDO')) as vencimiento_pendiente
+           SUM(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.monto_total ELSE 0 END) as deuda_mensualidades,
+           MIN(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.fecha_vencimiento ELSE NULL END) as vencimiento_pendiente
     FROM contratos c
     LEFT JOIN planes p ON c.id_plan = p.id_plan
+    LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
     WHERE c.cedula = ? AND c.estado != 'ELIMINADO'
+    GROUP BY c.id
 ";
 $stmt = $conn->prepare($sql_contratos);
 if ($stmt) {
