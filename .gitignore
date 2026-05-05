@@ -10,3 +10,6 @@ node_modules/
 # Logs (IGNORAR para evitar conflictos en hosting)
 paginas/principal/logs/
 *.log
+
+# Cache Dinámica
+portal/tasa_cache.json
