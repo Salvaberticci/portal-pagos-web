@@ -63,7 +63,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $conn->commit();
-            $message = "¡Pago aprobado y registrado exitosamente!";
+            
+            // --- NUEVO: Eliminar el capture del servidor tras aprobación para ahorrar espacio ---
+            if (!empty($path_archivo)) {
+                $full_file_path = "../../" . $path_archivo;
+                if (file_exists($full_file_path)) {
+                    unlink($full_file_path);
+                }
+            }
+
+            $message = "¡Pago aprobado y registrado exitosamente! El comprobante ha sido eliminado para ahorrar espacio.";
             $class = "success";
         } catch (Exception $e) {
             $conn->rollback();
@@ -72,10 +81,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($accion === 'RECHAZAR') {
         $motivo = isset($_POST['motivo']) ? $conn->real_escape_string($_POST['motivo']) : 'Sin motivo especificado.';
-        $sql_rej = "UPDATE pagos_reportados SET estado = 'RECHAZADO', concepto = CONCAT(concepto, '\n\nMOTIVO RECHAZO: ', '$motivo') WHERE id_reporte = $id_reporte";
+        
+        // Obtener ruta del archivo antes de actualizar (para borrarlo)
+        $sql_f = "SELECT capture_path FROM pagos_reportados WHERE id_reporte = $id_reporte";
+        $res_f = $conn->query($sql_f);
+        if ($res_f && $res_f->num_rows > 0) {
+            $reporte = $res_f->fetch_assoc();
+            $file_path = "../../" . $reporte['capture_path'];
+            if (!empty($reporte['capture_path']) && file_exists($file_path)) {
+                unlink($file_path);
+            }
+        }
+
+        $sql_rej = "UPDATE pagos_reportados SET estado = 'RECHAZADO', motivo_rechazo = '$motivo' WHERE id_reporte = $id_reporte";
 
         if ($conn->query($sql_rej)) {
-            $message = "El reporte ha sido rechazado correctamente.";
+            $message = "El reporte ha sido rechazado correctamente y la imagen eliminada.";
             $class = "warning";
         } else {
             $message = "Error al rechazar el reporte: " . $conn->error;

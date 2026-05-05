@@ -70,6 +70,26 @@ if ($stmt) {
         $contratos[] = $row;
     }
 }
+
+// NUEVO: Obtener estados de pagos reportados
+$pagos_recientes = [];
+$sql_pagos = "
+    SELECT id_reporte, estado, fecha_registro, monto_bs, referencia, meses_pagados, fecha_pago, monto_usd, motivo_rechazo
+    FROM pagos_reportados 
+    WHERE cedula_titular = ? 
+      AND visto_por_cliente = 0
+      AND (estado = 'PENDIENTE' OR ((estado = 'APROBADO' OR estado = 'RECHAZADO') AND fecha_registro >= DATE_SUB(NOW(), INTERVAL 2 DAY)))
+    ORDER BY fecha_registro DESC
+";
+$stmt_pagos = $conn->prepare($sql_pagos);
+if ($stmt_pagos) {
+    $stmt_pagos->bind_param("s", $cedula);
+    $stmt_pagos->execute();
+    $res_pagos = $stmt_pagos->get_result();
+    while ($p = $res_pagos->fetch_assoc()) {
+        $pagos_recientes[] = $p;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
@@ -146,6 +166,70 @@ if ($stmt) {
             </div>
         <?php endif; ?>
 
+        <!-- SECCIÓN DE ESTADOS DE PAGO -->
+        <?php if (!empty($pagos_recientes)): ?>
+            <div class="mb-4">
+                <?php foreach ($pagos_recientes as $pago): ?>
+                    <?php if ($pago['estado'] === 'PENDIENTE'): ?>
+                        <div class="glass-panel p-3 mb-2 border-start border-warning border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(245, 158, 11, 0.05);">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-warning bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-clock text-warning"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-main">Pago en revisión (Ref: <?php echo $pago['referencia']; ?>)</div>
+                                        <div class="small text-muted">Estamos verificando tu reporte de $<?php echo number_format($pago['monto_usd'], 2); ?>.</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div class="badge bg-warning text-dark me-2">PENDIENTE</div>
+                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php elseif ($pago['estado'] === 'APROBADO'): ?>
+                        <div class="glass-panel p-3 mb-2 border-start border-success border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(16, 185, 129, 0.05);">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-main">¡Pago Aprobado!</div>
+                                        <div class="small text-muted">Tu pago de la fecha <?php echo date('d/m/Y', strtotime($pago['fecha_pago'])); ?> ha sido verificado correctamente.</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div class="badge bg-success me-2">APROBADO</div>
+                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php elseif ($pago['estado'] === 'RECHAZADO'): ?>
+                        <div class="glass-panel p-3 mb-2 border-start border-danger border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(239, 68, 68, 0.05);">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-main">Pago Rechazado (Ref: <?php echo $pago['referencia']; ?>)</div>
+                                        <div class="small text-danger fw-bold">Motivo: <?php echo htmlspecialchars($pago['motivo_rechazo'] ?: 'No especificado'); ?></div>
+                                        <div class="small text-muted mt-1">Por favor, verifica tus datos e intenta reportar de nuevo.</div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <div class="badge bg-danger me-2">RECHAZADO</div>
+                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
         <div class="row g-4">
             <?php if (empty($contratos)): ?>
                 <div class="col-12 text-center py-5 glass-panel">
@@ -212,13 +296,13 @@ if ($stmt) {
                                     </div>
 
                                     <?php if ($c['deuda_mensualidades'] > 0): ?>
-                                        <button type="button" class="btn btn-premium w-100 py-3" data-bs-toggle="modal" data-bs-target="#modalPago_<?php echo $c['id']; ?>">
+                                        <a href="pago.php?id_contrato=<?php echo $c['id']; ?>" class="btn btn-premium w-100 py-3">
                                             <i class="fas fa-credit-card me-2"></i> PROCEDER AL PAGO
-                                        </button>
+                                        </a>
                                     <?php else: ?>
-                                        <button type="button" class="btn btn-premium w-100" data-bs-toggle="modal" data-bs-target="#modalPago_<?php echo $c['id']; ?>">
+                                        <a href="pago.php?id_contrato=<?php echo $c['id']; ?>" class="btn btn-premium w-100">
                                             <i class="fas fa-arrow-up me-2"></i> ADELANTAR PAGO
-                                        </button>
+                                        </a>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -234,138 +318,12 @@ if ($stmt) {
         </footer>
     </div>
 
-    <!-- Generación de Modales fuera del flujo principal (Evita bug del backdrop de Bootstrap) -->
-    <?php if (!empty($contratos)): ?>
-        <?php foreach ($contratos as $c): ?>
-            <!-- Modal de Pago para este contrato -->
-            <div class="modal fade" id="modalPago_<?php echo $c['id']; ?>" tabindex="-1" aria-labelledby="modalPagoLabel_<?php echo $c['id']; ?>" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content glass-panel" style="border: 1px solid rgba(255,255,255,0.15);">
-                        <div class="modal-header border-bottom border-secondary border-opacity-25">
-                            <h5 class="modal-title fw-bold" id="modalPagoLabel_<?php echo $c['id']; ?>">
-                                <i class="fas fa-wallet text-primary me-2"></i> Procesar Pago
-                            </h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data" class="form-reporte-pago">
-                            <div class="modal-body p-4">
-                                <div class="text-center mb-4">
-                                    <img src="../images/logo-galanet.png" alt="Logo Galanet" class="mb-3" style="height: 50px; border-radius: 8px;">
-                                    <h6 class="text-white mb-1">Contrato #<?php echo $c['id']; ?></h6>
-                                    <p class="text-muted small mb-0"><?php echo htmlspecialchars($c['nombre_plan']); ?></p>
-                                </div>
-
-                                <input type="hidden" name="id_contrato" value="<?php echo $c['id']; ?>">
-                                <input type="hidden" name="tasa_dolar" value="<?php echo $tasa_bcv; ?>">
-                                <input type="hidden" name="monto_usd" class="monto_usd_hidden" value="<?php echo ($c['deuda_mensualidades'] > 0 ? $c['deuda_mensualidades'] : $c['monto_plan']); ?>">
-                                
-                                <div class="p-3 mb-4 rounded" style="background: rgba(0,0,0,0.3);">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <span class="text-muted">Deuda Pendiente:</span>
-                                        <span class="fw-bold text-white">$<?php echo number_format($c['deuda_mensualidades'], 2); ?></span>
-                                    </div>
-                                    <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Valor Mensualidad:</span>
-                                        <span class="fw-bold text-white">$<?php echo number_format($c['monto_plan'], 2); ?></span>
-                                    </div>
-                                </div>
-
-                                <!-- Selección de Meses -->
-                                <div class="mb-3">
-                                    <label class="form-label text-white small">¿Qué deseas pagar?</label>
-                                    <select name="meses_adelanto" class="form-select glass-input select-meses" data-deuda="<?php echo $c['deuda_mensualidades']; ?>" data-mensualidad="<?php echo $c['monto_plan']; ?>">
-                                        <?php if ($c['deuda_mensualidades'] > 0): ?>
-                                            <option value="0">Solo deuda actual ($<?php echo number_format($c['deuda_mensualidades'],2); ?>)</option>
-                                            <option value="1">Deuda + 1 mes ($<?php echo number_format($c['deuda_mensualidades'] + $c['monto_plan'],2); ?>)</option>
-                                            <option value="2">Deuda + 2 meses ($<?php echo number_format($c['deuda_mensualidades'] + ($c['monto_plan']*2),2); ?>)</option>
-                                            <option value="3">Deuda + 3 meses ($<?php echo number_format($c['deuda_mensualidades'] + ($c['monto_plan']*3),2); ?>)</option>
-                                        <?php else: ?>
-                                            <option value="1">Adelantar 1 mes ($<?php echo number_format($c['monto_plan'],2); ?>)</option>
-                                            <option value="2">Adelantar 2 meses ($<?php echo number_format($c['monto_plan']*2,2); ?>)</option>
-                                            <option value="3">Adelantar 3 meses ($<?php echo number_format($c['monto_plan']*3,2); ?>)</option>
-                                        <?php endif; ?>
-                                    </select>
-                                </div>
-
-                                <!-- Monto a Pagar Display -->
-                                <div class="mb-3">
-                                    <label class="form-label text-white small">Total a Transferir</label>
-                                    <div class="input-group mb-1">
-                                        <span class="input-group-text glass-input text-success fw-bold">$</span>
-                                        <input type="text" class="form-control glass-input fw-bold text-success display-usd" value="<?php echo number_format(($c['deuda_mensualidades'] > 0 ? $c['deuda_mensualidades'] : $c['monto_plan']), 2); ?>" readonly>
-                                    </div>
-                                    <?php if ($tasa_bcv > 1): ?>
-                                    <div class="input-group">
-                                        <span class="input-group-text glass-input text-primary fw-bold">Bs</span>
-                                        <input type="text" class="form-control glass-input fw-bold text-primary display-bs" value="<?php echo number_format((($c['deuda_mensualidades'] > 0 ? $c['deuda_mensualidades'] : $c['monto_plan']) * $tasa_bcv), 2, ',', '.'); ?>" readonly>
-                                    </div>
-                                    <div class="form-text text-muted" style="font-size: 0.75rem;">Calculado a tasa BCV: <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Método de Pago y Banco -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <label class="form-label text-white small">Método</label>
-                                        <select name="metodo_pago" class="form-select glass-input select-metodo" required>
-                                            <option value="">Seleccione...</option>
-                                            <option value="Pago Móvil">Pago Móvil</option>
-                                            <option value="Transferencia">Transferencia</option>
-                                            <option value="Zelle">Zelle</option>
-                                            <option value="Efectivo">Efectivo</option>
-                                            <option value="Divisas">Divisas</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label text-white small">Banco Destino</label>
-                                        <select name="id_banco_destino" class="form-select glass-input select-banco" required>
-                                            <option value="">Seleccione banco...</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <!-- Box de Datos del Banco Dinámico -->
-                                <div class="banco-info-box alert alert-info p-2 mb-3 d-none" style="background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); font-size: 0.8rem; color: #bae6fd;">
-                                    <div class="fw-bold mb-1"><i class="fas fa-university me-1"></i> Datos para el pago:</div>
-                                    <div class="banco-detalles"></div>
-                                </div>
-
-                                <!-- Referencia y Capture -->
-                                <div class="row g-2 mb-3">
-                                    <div class="col-12">
-                                        <label class="form-label text-white small">Fecha de Pago</label>
-                                        <input type="date" name="fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" required max="<?php echo date('Y-m-d'); ?>">
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label text-white small">N° de Referencia</label>
-                                        <input type="text" name="referencia" class="form-control glass-input" placeholder="Ej: 123456" required pattern="[0-9A-Za-z]{4,}">
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-white small">Capture o Comprobante</label>
-                                    <input type="file" name="capture_pago" class="form-control glass-input" accept="image/*" required>
-                                    <div class="form-text text-muted" style="font-size: 0.75rem;">Sube la imagen de tu transferencia o pago móvil.</div>
-                                </div>
-
-                            </div>
-                            <div class="modal-footer border-top border-secondary border-opacity-25">
-                                <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="submit" class="btn btn-premium"><i class="fas fa-paper-plane me-1"></i> Enviar Reporte</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-
-    <!-- Bootstrap JS para Modales -->
+    <!-- Bootstrap JS -->
     <script src="../js/bootstrap.bundle.min.js"></script>
 
-    <!-- Lógica del Formulario de Pago -->
+    <!-- GESTIÓN DE TEMA -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- GESTIÓN DE TEMA ---
         const themeBtn = document.getElementById('themeToggleBtn');
         const html = document.documentElement;
         const themeIcon = themeBtn.querySelector('i');
@@ -378,7 +336,6 @@ if ($stmt) {
             }
         }
 
-        // Sincronizar icono inicial
         updateThemeIcon(html.getAttribute('data-theme'));
 
         themeBtn.addEventListener('click', function() {
@@ -389,93 +346,21 @@ if ($stmt) {
             localStorage.setItem('theme', newTheme);
             updateThemeIcon(newTheme);
         });
+    });
 
-        // --- LÓGICA DE PAGOS ---
-        const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
-        const tasaBcv = <?php echo $tasa_bcv; ?>;
-
-        document.querySelectorAll('.form-reporte-pago').forEach(form => {
-            const selectMeses = form.querySelector('.select-meses');
-            const displayUsd = form.querySelector('.display-usd');
-            const displayBs = form.querySelector('.display-bs');
-            const inputHiddenUsd = form.querySelector('.monto_usd_hidden');
-            
-            const selectMetodo = form.querySelector('.select-metodo');
-            const selectBanco = form.querySelector('.select-banco');
-            const infoBox = form.querySelector('.banco-info-box');
-            const detallesDiv = form.querySelector('.banco-detalles');
-
-            // 1. Recalcular montos al cambiar los meses a pagar
-            selectMeses.addEventListener('change', function() {
-                const meses = parseInt(this.value);
-                const deuda = parseFloat(this.getAttribute('data-deuda'));
-                const mensualidad = parseFloat(this.getAttribute('data-mensualidad'));
-                
-                let montoTotalUsd = 0;
-                if (deuda > 0) {
-                    montoTotalUsd = deuda + (mensualidad * meses);
-                } else {
-                    montoTotalUsd = mensualidad * meses;
-                }
-
-                inputHiddenUsd.value = montoTotalUsd.toFixed(2);
-                displayUsd.value = montoTotalUsd.toFixed(2);
-                
-                if (displayBs) {
-                    const montoTotalBs = montoTotalUsd * tasaBcv;
-                    displayBs.value = montoTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                }
-            });
-
-            // 2. Filtrar bancos según método de pago
-            selectMetodo.addEventListener('change', function() {
-                const metodo = this.value;
-                selectBanco.innerHTML = '<option value="">Seleccione banco...</option>';
-                infoBox.classList.add('d-none'); // Ocultar info box al cambiar
-
-                if (metodo) {
-                    const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(metodo));
-                    filtrados.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b.id_banco;
-                        opt.textContent = b.nombre_banco;
-                        selectBanco.appendChild(opt);
-                    });
-                }
-            });
-
-            // 3. Mostrar detalles del banco seleccionado
-            selectBanco.addEventListener('change', function() {
-                const idBanco = this.value;
-                infoBox.classList.add('d-none');
-                
-                if (idBanco) {
-                    const banco = todosLosBancos.find(b => b.id_banco == idBanco);
-                    if (banco && banco.numero_cuenta !== '$' && banco.numero_cuenta !== 'Bolivares') {
-                        let html = '';
-                        if (selectMetodo.value === 'Pago Móvil') {
-                            html += `<div><strong>Teléfono:</strong> ${banco.numero_cuenta}</div>`;
-                            html += `<div><strong>Cédula/RIF:</strong> ${banco.cedula_propietario}</div>`;
-                        } else if (selectMetodo.value === 'Transferencia') {
-                            html += `<div><strong>N° Cuenta:</strong> ${banco.numero_cuenta}</div>`;
-                            html += `<div><strong>Titular:</strong> ${banco.nombre_propietario}</div>`;
-                            html += `<div><strong>RIF:</strong> ${banco.cedula_propietario}</div>`;
-                        } else if (selectMetodo.value === 'Zelle') {
-                            html += `<div><strong>Correo/Usuario:</strong> ${banco.numero_cuenta}</div>`;
-                            html += `<div><strong>Titular:</strong> ${banco.nombre_propietario}</div>`;
-                        } else {
-                            html += `<div><strong>Detalle:</strong> ${banco.numero_cuenta}</div>`;
-                        }
-                        
-                        if (html) {
-                            detallesDiv.innerHTML = html;
-                            infoBox.classList.remove('d-none');
-                        }
+    function dismissNotif(id) {
+        fetch('marcar_leido_pago.php?id=' + id)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    const el = document.getElementById('notif_' + id);
+                    if (el) {
+                        el.style.opacity = '0';
+                        setTimeout(() => el.remove(), 300);
                     }
                 }
             });
-        });
-    });
+    }
     </script>
 </body>
 </html>

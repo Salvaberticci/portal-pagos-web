@@ -364,8 +364,14 @@ $resultado = $conn->query($sql);
                         <input type="hidden" name="id_reporte" id="rej_id_reporte">
                         <input type="hidden" name="accion" value="RECHAZAR">
                         <i class="fas fa-exclamation-circle fa-4x text-danger mb-3"></i>
-                        <h5 class="mb-3">Â¿Seguro que desea rechazar este reporte?</h5>
+                        <h5 class="mb-3">¿Seguro que desea rechazar este reporte?</h5>
                         <p class="text-muted">Esta acción no registrará el pago y marcará el reporte como rechazado.</p>
+                        
+                        <div class="mb-3 text-start">
+                            <label class="form-label text-white small">Motivo del rechazo (opcional)</label>
+                            <textarea name="motivo" class="form-control glass-input" rows="3" placeholder="Ej: Referencia inválida, capture ilegible..."></textarea>
+                        </div>
+
                         <div class="modal-footer border-top-0 pt-0">
                             <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
                             <button type="submit" class="btn btn-danger px-4 fw-bold">RECHAZAR PAGO</button>
@@ -414,6 +420,15 @@ $resultado = $conn->query($sql);
     let currentCapturePath = '';
 
     $(document).ready(function () {
+        // Limpiar parámetros de URL para que el mensaje no se repita al recargar
+        if (window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('message');
+            url.searchParams.delete('class');
+            url.searchParams.delete('maintenance_done');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+
         // Initialize modals safely after Bootstrap is loaded from layout_foot.php
         const elAprobar = document.getElementById('modalConfirmarAprobacion');
         const elRechazar = document.getElementById('modalRechazar');
@@ -439,7 +454,7 @@ $resultado = $conn->query($sql);
                     })
                     .catch(err => console.error("Error en auto-refresh:", err));
             }
-        }, 5000);
+        }, 15000);
 
         // Permitir buscar al presionar Enter
         $('#busqueda_manual_contrato').on('keypress', function (e) {

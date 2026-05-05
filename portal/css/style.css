@@ -338,3 +338,100 @@ h1, h2, h3, h4, h5, h6 {
 .animate-pulse-slow {
     animation: pulse-slow 3s ease-in-out infinite;
 }
+
+/* --- Wizard / Pago.php Specific Styles --- */
+.wizard-step { display: none; }
+.wizard-step.active { display: block; animation: fadeIn 0.4s ease; }
+
+.selection-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-glass);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.selection-card:hover {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.05);
+    transform: translateY(-2px);
+}
+
+.selection-card.selected {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px var(--primary);
+}
+
+.selection-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    background: rgba(59, 130, 246, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    color: var(--primary);
+    margin-right: 18px;
+}
+
+.bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-glass);
+    padding: 20px 0;
+    z-index: 1000;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.copy-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.bank-logo-placeholder {
+    width: 70px;
+    height: 70px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+}
+
+.text-ves { 
+    color: var(--text-muted); 
+    font-size: 0.85rem; 
+    font-weight: 500;
+}
+
+.upload-area {
+    border: 2px dashed var(--border-glass);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.wizard-title-container {
+    padding-bottom: 24px;
+}
