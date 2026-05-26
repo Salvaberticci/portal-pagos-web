@@ -212,15 +212,15 @@ $sOrder = "";
 if (isset($aSearchColumns[$sortColIndex])) {
     $direction = $conn->real_escape_string($sortDir);
     if ($sortColIndex == 0) {
-        // Ordenar por ID garantiza el orden cronológico exacto de inserción (fecha y hora real)
-        $sOrder = "ORDER BY cxc.id_cobro $direction";
+        // Ordenar por fecha garantiza orden cronológico real, y secundariamente por ID
+        $sOrder = "ORDER BY COALESCE(cxc.fecha_pago, cxc.fecha_emision) $direction, cxc.id_cobro $direction";
     } else {
         $sOrder = "ORDER BY " . $aSearchColumns[$sortColIndex] . " $direction";
     }
 }
 
 if ($sOrder == "") {
-    $sOrder = "ORDER BY cxc.id_cobro DESC";
+    $sOrder = "ORDER BY COALESCE(cxc.fecha_pago, cxc.fecha_emision) DESC, cxc.id_cobro DESC";
 }
 
 // 6. Final Queries

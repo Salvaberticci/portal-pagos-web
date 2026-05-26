@@ -2893,7 +2893,8 @@ if ($planes_query) {
         // Si hay data, intentar poblar meses
         if (data && data.justificacion) {
             const desc = data.justificacion.toUpperCase();
-            const match = desc.match(/(\d+)\s*MESES/);
+            const systemPart = desc.split(' - ')[0];
+            const match = systemPart.match(/(\d+)\s*MES\/ES/) || systemPart.match(/(\d+)\s*MESES/);
             if (match) {
                 cantInp.value = match[1];
                 editActualizarMesesDinamicos(cantInp);
@@ -3117,7 +3118,8 @@ if ($planes_query) {
                         // 2. ¿Es una categoría específica por etiqueta?
                         else if (desc.includes('[MENSUALIDAD]') || desc.includes('MENSUAL') || desc.match(/\bMES\b/)) {
                             aggregated.mensualidad.monto += montoVal;
-                            const match = desc.match(/(\d+)\s*MESES/);
+                            const systemPart = desc.split(' - ')[0];
+                            const match = systemPart.match(/(\d+)\s*MES\/ES/) || systemPart.match(/(\d+)\s*MESES/);
                             aggregated.mensualidad.cant += match ? parseInt(match[1]) : 1;
                             // Extraer mes (Busca [Mes] o simplemente Mes en la justificación)
                             NOMBRES_MESES_EDIT.forEach(m => {
