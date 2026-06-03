@@ -325,6 +325,11 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             document.querySelectorAll('#step-1 .selection-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             updateSummary();
+            
+            // Auto-avanzar al Paso 2
+            setTimeout(() => {
+                nextStep(2);
+            }, 250);
         }
 
         function selectMethod(method, el) {
@@ -357,6 +362,11 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             });
             
             updateSummary();
+            
+            // Auto-avanzar al Paso 3
+            setTimeout(() => {
+                nextStep(3);
+            }, 250);
         }
 
         function selectBank(bank, el) {
@@ -365,6 +375,12 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             document.querySelectorAll('#step-3 .selection-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             updateSummary();
+            
+            // Auto-avanzar al Paso 4 preparando primero la información final
+            setTimeout(() => {
+                prepareStep4();
+                nextStep(4);
+            }, 250);
         }
 
         function prepareStep4() {
