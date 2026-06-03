@@ -177,16 +177,17 @@ function createSheet(Spreadsheet $spreadsheet, $title) {
 }
 
 // Crear hojas principales
+$row_counts = [];
 foreach ($sheet_mapping as $id => $name) {
     $sheets[$id] = createSheet($spreadsheet, $name);
-    $sheets[$id]->row_count = 3; // Empezar en fila 3
+    $row_counts[$name] = 3; // Empezar en fila 3
 }
 
 // Hojas extras
 $sheet_mensualidad = createSheet($spreadsheet, 'MENSUALIDAD');
-$sheet_mensualidad->row_count = 3;
+$row_counts['MENSUALIDAD'] = 3;
 $sheet_instalaciones = createSheet($spreadsheet, 'INSTALACIONES-EQUIPOS');
-$sheet_instalaciones->row_count = 3;
+$row_counts['INSTALACIONES-EQUIPOS'] = 3;
 
 // 4. DISTRIBUIR DATOS
 foreach ($data as $row) {
@@ -210,23 +211,25 @@ foreach ($data as $row) {
     // Distribuir por Banco
     if (isset($sheets[$row['id_banco']])) {
         $sheet = $sheets[$row['id_banco']];
-        $sheet->fromArray($rowData, NULL, 'A' . $sheet->row_count);
-        $sheet->row_count++;
+        $sheet_name = $sheet->getTitle();
+        $sheet->fromArray($rowData, NULL, 'A' . $row_counts[$sheet_name]);
+        $row_counts[$sheet_name]++;
     }
     
     // Distribuir por Categoría (Mensualidad vs Instalación)
     if (!empty($row['id_plan_cobrado'])) {
-        $sheet_mensualidad->fromArray($rowData, NULL, 'A' . $sheet_mensualidad->row_count);
-        $sheet_mensualidad->row_count++;
+        $sheet_mensualidad->fromArray($rowData, NULL, 'A' . $row_counts['MENSUALIDAD']);
+        $row_counts['MENSUALIDAD']++;
     } else {
-        $sheet_instalaciones->fromArray($rowData, NULL, 'A' . $sheet_instalaciones->row_count);
-        $sheet_instalaciones->row_count++;
+        $sheet_instalaciones->fromArray($rowData, NULL, 'A' . $row_counts['INSTALACIONES-EQUIPOS']);
+        $row_counts['INSTALACIONES-EQUIPOS']++;
     }
 }
 
 // Aplicar estilos de tabla y formatos numéricos a todas las hojas
 foreach ($spreadsheet->getAllSheets() as $sheet) {
-    $lastRow = (isset($sheet->row_count)) ? $sheet->row_count - 1 : 2;
+    $sheet_name = $sheet->getTitle();
+    $lastRow = (isset($row_counts[$sheet_name])) ? $row_counts[$sheet_name] - 1 : 2;
     if ($lastRow >= 3) {
         $sheet->getStyle('A3:J' . $lastRow)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
         $sheet->getStyle('G3:I' . $lastRow)->getNumberFormat()->setFormatCode('#,##0.00');
