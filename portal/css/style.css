@@ -435,3 +435,96 @@ h1, h2, h3, h4, h5, h6 {
 .wizard-title-container {
     padding-bottom: 24px;
 }
+
+/* ============================================
+   DASHBOARD - LAYOUT & CONTRACT CARDS
+   ============================================ */
+
+.main-container {
+    padding: 0 1rem 5rem;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+    .main-container {
+        padding-bottom: 2rem;
+    }
+}
+
+.contract-card {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.contract-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .contract-card:hover {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================
+   STATUS BADGES
+   ============================================ */
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: rgba(5, 150, 105, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(5, 150, 105, 0.25);
+}
+
+[data-theme="dark"] .status-active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #4ade80;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.status-suspended {
+    background: rgba(220, 38, 38, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+[data-theme="dark"] .status-suspended {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.status-pending {
+    background: rgba(217, 119, 6, 0.1);
+    color: var(--warning);
+    border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+[data-theme="dark"] .status-pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* ============================================
+   ULTIMO PAGO CARD
+   ============================================ */
+
+.ultimo-pago-card {
+    border-left: 4px solid var(--success) !important;
+    background: rgba(5, 150, 105, 0.05);
+    transition: background 0.3s ease;
+}
+
+[data-theme="dark"] .ultimo-pago-card {
+    background: rgba(16, 185, 129, 0.06);
+}

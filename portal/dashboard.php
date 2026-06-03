@@ -104,6 +104,36 @@ if ($stmt_pagos) {
     while ($p = $res_pagos->fetch_assoc()) {
         $pagos_recientes[] = $p;
     }
+    $stmt_pagos->close();
+}
+
+// Obtener el último pago de mensualidad realizado por el cliente
+$ultimo_pago = null;
+$sql_ultimo_pago = "
+    SELECT cxc.fecha_pago, cxc.monto_total, h.justificacion, c.id AS id_contrato, p.nombre_plan
+    FROM cuentas_por_cobrar cxc
+    JOIN cobros_manuales_historial h ON cxc.id_cobro = h.id_cobro_cxc
+    JOIN contratos c ON cxc.id_contrato = c.id
+    LEFT JOIN planes p ON c.id_plan = p.id_plan
+    WHERE c.cedula = ? 
+      AND cxc.estado = 'PAGADO' 
+      AND h.justificacion LIKE '[MENSUALIDAD]%'
+    ORDER BY cxc.fecha_pago DESC, cxc.id_cobro DESC
+    LIMIT 1
+";
+$stmt_last = $conn->prepare($sql_ultimo_pago);
+if ($stmt_last) {
+    $stmt_last->bind_param("s", $cedula);
+    $stmt_last->execute();
+    $res_last = $stmt_last->get_result();
+    if ($res_last->num_rows > 0) {
+        $ultimo_pago = $res_last->fetch_assoc();
+        $ultimo_pago['mes'] = 'N/A';
+        if (preg_match('/\[MENSUALIDAD\]\s*\[([^\]]+)\]/i', $ultimo_pago['justificacion'], $matches)) {
+            $ultimo_pago['mes'] = $matches[1];
+        }
+    }
+    $stmt_last->close();
 }
 ?>
 <!DOCTYPE html>
@@ -179,6 +209,33 @@ if ($stmt_pagos) {
             <div class="alert alert-danger glass-panel mb-4">
                 <i class="fas fa-times-circle me-2"></i> <?php echo $_SESSION['pago_err']; unset($_SESSION['pago_err']); ?>
             </div>
+        <?php endif; ?>
+
+        <!-- TARJETA: ÚLTIMO PAGO REGISTRADO -->
+        <?php if ($ultimo_pago): ?>
+        <div class="glass-panel p-3 mb-4 border-0 shadow-sm d-flex align-items-center gap-3 flex-wrap ultimo-pago-card">
+            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 46px; height: 46px; background: rgba(16, 185, 129, 0.12);">
+                <i class="fas fa-receipt text-success"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-bold text-main" style="font-size: 0.92rem;">
+                    Último Pago: <span class="text-success"><?php echo htmlspecialchars($ultimo_pago['mes']); ?></span>
+                    &nbsp;&mdash;&nbsp;
+                    <span class="text-success fw-bold">$<?php echo number_format($ultimo_pago['monto_total'], 2); ?></span>
+                </div>
+                <div class="small text-muted mt-1">
+                    <i class="fas fa-calendar-check me-1"></i>
+                    Registrado el <?php echo date('d/m/Y', strtotime($ultimo_pago['fecha_pago'])); ?>
+                    &nbsp;|&nbsp;
+                    <i class="fas fa-satellite-dish me-1"></i><?php echo htmlspecialchars($ultimo_pago['nombre_plan']); ?>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-success px-3 py-2">
+                    <i class="fas fa-check me-1"></i>PAGADO
+                </span>
+            </div>
+        </div>
         <?php endif; ?>
 
         <!-- SECCIÓN DE ESTADOS DE PAGO -->
