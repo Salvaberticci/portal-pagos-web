@@ -130,34 +130,34 @@ if ($planes_query) {
 
     /* Pestañas (Tabs) Estilo Premium */
     .nav-tabs-custom {
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid var(--border-glass, rgba(255,255,255,0.1));
         padding: 0 1rem;
     }
     .nav-tabs-custom .nav-link {
         border: none;
         border-bottom: 3px solid transparent;
-        color: rgba(255,255,255,0.6);
+        color: var(--text-muted, rgba(255,255,255,0.6));
         font-weight: 700;
         padding: 1rem 1.5rem;
         transition: all 0.3s ease;
     }
     .nav-tabs-custom .nav-link:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-main, white);
+        background: rgba(128, 128, 128, 0.05);
     }
     .nav-tabs-custom .nav-link.active {
-        color: #4facfe;
-        border-bottom-color: #4facfe;
+        color: var(--primary, #4facfe);
+        border-bottom-color: var(--primary, #4facfe);
         background: transparent;
-        text-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+        text-shadow: 0 0 10px rgba(37, 99, 235, 0.25);
     }
     .nav-tabs-custom .nav-link.active.tab-sae-pendiente {
-        color: #ef4444;
-        border-bottom-color: #ef4444;
+        color: var(--danger, #ef4444);
+        border-bottom-color: var(--danger, #ef4444);
     }
     .nav-tabs-custom .nav-link.active.tab-sae-cargado {
-        color: #10b981;
-        border-bottom-color: #10b981;
+        color: var(--success, #10b981);
+        border-bottom-color: var(--success, #10b981);
     }
     .nav-tabs-custom .badge {
         font-size: 0.7rem;
