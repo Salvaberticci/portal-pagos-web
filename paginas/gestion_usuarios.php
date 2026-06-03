@@ -161,10 +161,91 @@ require_once 'includes/layout_head.php';
 require_once 'includes/sidebar.php';
 ?>
 
+<style>
+    :root {
+        --primary: #0d6efd;
+        --primary-rgb: 13, 110, 253;
+        --bg-card: #ffffff;
+        --text-main: #212529;
+        --border-glass: rgba(0, 0, 0, 0.08);
+    }
+    [data-theme="dark"] {
+        --bg-card: #1a2234;
+        --text-main: #e2e8f0;
+        --border-glass: rgba(255, 255, 255, 0.1);
+    }
+    .text-gradient {
+        background: linear-gradient(45deg, var(--primary), #00c6ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .glass-panel {
+        background: var(--bg-card) !important;
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-glass) !important;
+        border-radius: 20px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05) !important;
+        transition: all 0.3s ease;
+    }
+    .table-premium th,
+    .table-premium td {
+        text-align: center !important;
+        vertical-align: middle !important;
+        padding: 15px 12px !important;
+        background: transparent !important;
+    }
+    .table-premium thead th {
+        background: rgba(var(--primary-rgb), 0.03) !important;
+        color: var(--text-main) !important;
+        border: none !important;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    [data-theme="dark"] .table-premium thead th {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+    .btn-glass {
+        background: rgba(var(--primary-rgb), 0.1);
+        color: var(--primary);
+        border: 1px solid rgba(var(--primary-rgb), 0.2);
+        backdrop-filter: blur(5px);
+        transition: all 0.3s ease;
+    }
+    .btn-glass:hover {
+        background: var(--primary);
+        color: white;
+    }
+    .form-control, .form-select {
+        background-color: var(--bg-card) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-glass) !important;
+    }
+    [data-theme="dark"] .modal-content {
+        background-color: #1a2234 !important;
+        color: #e2e8f0 !important;
+    }
+    [data-theme="dark"] .modal-header, [data-theme="dark"] .modal-footer {
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+</style>
+
 <main class="main-content">
     <?php include 'includes/header.php'; ?>
 
     <div class="page-content">
+        <!-- Header -->
+        <div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1 text-gradient">Gestión de Usuarios</h2>
+                <p class="text-muted mb-0"><i class="fa-solid fa-user-shield me-2"></i>Control de accesos y perfiles del sistema</p>
+            </div>
+            <button type="button" class="btn btn-primary px-4 py-2 shadow-sm rounded-3" data-bs-toggle="modal"
+                data-bs-target="#modalModificacionUsuario" data-id="" data-nombre="" data-usuario=""
+                data-rol="">
+                <i class="fa-solid fa-plus me-2"></i>Nuevo Usuario
+            </button>
+        </div>
 
         <?php if ($message): ?>
             <div class="alert alert-<?php echo $message_class == 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show"
@@ -174,89 +255,110 @@ require_once 'includes/sidebar.php';
             </div>
         <?php endif; ?>
 
-        <div class="card">
-            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-center">
-                <h5 class="mb-3 mb-md-0">Listado de Usuarios</h5>
-                <div class="d-flex gap-2 w-100 w-md-auto">
-                    <form action="gestion_usuarios.php" method="GET" class="d-flex gap-2 flex-grow-1 header-search">
-                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar..."
+        <!-- Filtros y Búsqueda -->
+        <div class="glass-panel mb-4">
+            <div class="p-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small fw-bold text-muted text-uppercase">Usuarios Registrados:</span>
+                    <span class="badge bg-primary rounded-pill"><?php echo count($data); ?></span>
+                </div>
+                <form action="gestion_usuarios.php" method="GET" class="d-flex gap-2" style="max-width: 400px; flex-grow: 1;">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-transparent border-end-0 text-muted">
+                            <i class="fa-solid fa-search"></i>
+                        </span>
+                        <input type="text" name="search" class="form-control border-start-0 ps-0" placeholder="Buscar por nombre, usuario o rol..."
                             value="<?php echo htmlspecialchars($search_term); ?>">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-search"></i></button>
-                    </form>
-                    <button type="button" class="btn btn-primary btn-sm text-nowrap" data-bs-toggle="modal"
-                        data-bs-target="#modalModificacionUsuario" data-id="" data-nombre="" data-usuario=""
-                        data-rol="">
-                        <i class="fa-solid fa-plus"></i> Nuevo
-                    </button>
-                </div>
+                        <button type="submit" class="btn btn-primary px-3">Buscar</button>
+                    </div>
+                </form>
             </div>
+        </div>
 
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-4">ID</th>
-                                <th>Nombre Completo</th>
-                                <th>Usuario</th>
-                                <th>Rol</th>
-                                <th class="text-end pe-4">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($data)): ?>
-                                <?php foreach ($data as $row): ?>
-                                    <tr>
-                                        <td class="ps-4 text-muted">#<?php echo htmlspecialchars($row['id_usuario']); ?></td>
-                                        <td class="fw-bold text-dark"><?php echo htmlspecialchars($row['nombre_completo']); ?>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-light text-dark border">
-                                                <i class="fa-solid fa-user me-1"></i>
-                                                <?php echo htmlspecialchars($row['usuario']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <?php
-                                            $badgeClass = $row['rol'] === 'Administrador' ? 'bg-primary' : 'bg-secondary';
-                                            ?>
-                                            <span
-                                                class="badge <?php echo $badgeClass; ?> bg-opacity-10 text-primary border border-primary border-opacity-10">
-                                                <?php echo htmlspecialchars($row['rol']); ?>
-                                            </span>
-                                        </td>
-                                        <td class="text-end pe-4">
-                                            <div class="btn-group">
-                                                <a href="#" data-bs-toggle="modal" data-bs-target="#modalModificacionUsuario"
-                                                    data-id="<?php echo htmlspecialchars($row['id_usuario']); ?>"
-                                                    data-nombre="<?php echo htmlspecialchars($row['nombre_completo']); ?>"
-                                                    data-usuario="<?php echo htmlspecialchars($row['usuario']); ?>"
-                                                    data-rol="<?php echo htmlspecialchars($row['rol']); ?>"
-                                                    class="btn btn-light btn-sm text-primary" title="Modificar">
-                                                    <i class="fa-solid fa-pen"></i>
-                                                </a>
-                                                <a href="#"
-                                                    data-bs-href="gestion_usuarios.php?action=delete_user&id=<?php echo urlencode($row['id_usuario']); ?>"
-                                                    data-bs-toggle="modal" data-bs-target="#eliminaModal"
-                                                    class="btn btn-light btn-sm text-danger" title="Eliminar">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+        <!-- Tabla Resultados -->
+        <div class="glass-panel overflow-hidden mb-4">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 table-premium">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">ID</th>
+                            <th>Nombre Completo</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th class="text-end pe-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($data)): ?>
+                            <?php foreach ($data as $row): ?>
                                 <tr>
-                                    <td colspan="5" class="text-center p-4 text-muted">No se encontraron usuarios.</td>
+                                    <td class="ps-4 text-muted small">#<?php echo htmlspecialchars($row['id_usuario']); ?></td>
+                                    <td>
+                                        <span class="fw-bold text-main"><?php echo htmlspecialchars($row['nombre_completo']); ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="d-inline-flex align-items-center px-3 py-1 rounded-pill bg-light text-dark border small">
+                                            <i class="fa-solid fa-user-circle me-2 opacity-50"></i>
+                                            <?php echo htmlspecialchars($row['usuario']); ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php
+                                        $badgeClass = 'primary';
+                                        switch($row['rol']) {
+                                            case 'Administrador': $badgeClass = 'danger'; break;
+                                            case 'Operador': $badgeClass = 'info'; break;
+                                            case 'Vendedor': $badgeClass = 'success'; break;
+                                        }
+                                        ?>
+                                        <span class="badge bg-<?php echo $badgeClass; ?> bg-opacity-10 text-<?php echo $badgeClass; ?> border border-<?php echo $badgeClass; ?> border-opacity-25 px-3 py-1 rounded-pill" style="font-size: 0.7rem;">
+                                            <i class="fa-solid fa-shield-halved me-1"></i>
+                                            <?php echo htmlspecialchars($row['rol']); ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            <button type="button" data-bs-toggle="modal" data-bs-target="#modalModificacionUsuario"
+                                                data-id="<?php echo htmlspecialchars($row['id_usuario']); ?>"
+                                                data-nombre="<?php echo htmlspecialchars($row['nombre_completo']); ?>"
+                                                data-usuario="<?php echo htmlspecialchars($row['usuario']); ?>"
+                                                data-rol="<?php echo htmlspecialchars($row['rol']); ?>"
+                                                class="btn btn-sm btn-glass rounded-pill px-3 shadow-none" title="Editar">
+                                                <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+                                            </button>
+                                            <button type="button"
+                                                data-bs-href="gestion_usuarios.php?action=delete_user&id=<?php echo urlencode($row['id_usuario']); ?>"
+                                                data-bs-toggle="modal" data-bs-target="#eliminaModal"
+                                                class="btn btn-sm btn-light text-danger rounded-pill px-3 shadow-none" title="Eliminar">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="fa-solid fa-user-slash fa-3x mb-3 opacity-25"></i>
+                                    <p class="mb-0">No se encontraron usuarios registrados.</p>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Footer Informativo -->
+            <div class="p-3 px-4 border-top border-light-subtle d-flex justify-content-center align-items-center" style="background: rgba(0,0,0,0.01);">
+                <div class="small text-muted fw-medium">
+                    Mostrando <?php echo count($data); ?> registros encontrados
                 </div>
             </div>
-            <div class="card-footer bg-white border-top-0 d-flex justify-content-center p-3">
-                <!-- Pagination could go here -->
-            </div>
+        </div>
+
+        <div class="text-center mt-4 mb-4">
+            <a href="menu.php" class="btn btn-glass px-5 py-2">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+            </a>
         </div>
     </div>
 </main>

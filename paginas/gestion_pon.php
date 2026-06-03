@@ -192,44 +192,22 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
 <main class="main-content">
     <div class="page-content">
         <div class="container-fluid">
-            <!-- Header de la página -->
-            <div class="row mb-4">
-                <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div>
-                        <h2 class="h4 fw-bold mb-1 text-primary">Gestión de PON</h2>
-                        <p class="text-muted mb-0">Administración de Puntos de Distribución</p>
-                    </div>
-                    <div>
-                        <a href="registro_pon.php" class="btn btn-primary d-flex align-items-center gap-2">
-                            <i class="fa-solid fa-plus"></i>
-                            <span>Nuevo PON</span>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Alertas -->
-            <?php if (!empty($get_message)): ?>
-                <div class="alert alert-<?php echo $get_class === 'success' ? 'success' : ($get_class === 'warning' ? 'warning' : 'danger'); ?> alert-dismissible fade show shadow-sm"
-                    role="alert">
-                    <div class="d-flex align-items-center gap-2">
-                        <i
-                            class="fa-solid <?php echo $get_class === 'success' ? 'fa-circle-check' : ($get_class === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-xmark'); ?>"></i>
-                        <div><?php echo htmlspecialchars($get_message); ?></div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-
             <!-- Contenedor Principal -->
-            <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="card glass-panel border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Gestión de PON</h5>
+                    <a href="registro_pon.php" class="btn btn-premium btn-sm d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nuevo PON</span>
+                    </a>
+                </div>
                 <div class="card-body p-0">
                     <!-- Buscador -->
-                    <div class="p-4 bg-light border-bottom">
+                    <div class="p-4 bg-white bg-opacity-5 border-bottom border-white border-opacity-10">
                         <form action="gestion_pon.php" method="GET" class="row g-3 align-items-center">
                             <div class="col-md-6">
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white border-end-0 text-muted">
+                                <div class="input-group glass-input-group">
+                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="fa-solid fa-magnifying-glass"></i>
                                     </span>
                                     <input type="text" name="search" class="form-control border-start-0 ps-0"
@@ -238,7 +216,7 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                                 </div>
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary w-100">Buscar</button>
+                                <button type="submit" class="btn btn-premium w-100">Buscar</button>
                             </div>
                             <?php if (!empty($search_term)): ?>
                                 <div class="col-md-2">
@@ -251,7 +229,7 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                     <!-- Tabla -->
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                            <thead class="bg-white bg-opacity-10">
                                 <tr>
                                     <th class="ps-4">ID</th>
                                     <th>Nombre del PON</th>
@@ -268,13 +246,13 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                                             data-olt-id="<?php echo htmlspecialchars($row['id_olt']); ?>"
                                             data-descripcion="<?php echo htmlspecialchars($row['descripcion']); ?>">
 
-                                            <td class="ps-4 fw-medium text-secondary">
+                                            <td class="ps-4 fw-medium text-muted">
                                                 #<?php echo htmlspecialchars($row['id_pon']); ?></td>
-                                            <td class="fw-bold text-dark"><?php echo htmlspecialchars($row['nombre_pon']); ?>
+                                            <td class="fw-bold text-main"><?php echo htmlspecialchars($row['nombre_pon']); ?>
                                             </td>
                                             <td>
                                                 <span
-                                                    class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3">
+                                                    class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3">
                                                     <?php echo htmlspecialchars($row['nombre_olt']); ?>
                                                 </span>
                                             </td>
@@ -286,13 +264,13 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                                                 <div class="btn-group gap-2">
                                                     <button type="button" data-bs-toggle="modal" data-bs-target="#modificaModal"
                                                         data-id="<?php echo htmlspecialchars($row['id_pon']); ?>"
-                                                        class="btn btn-sm btn-outline-primary rounded-2" title="Modificar">
+                                                        class="btn btn-sm btn-glass text-primary rounded-2" title="Modificar">
                                                         <i class="fa-solid fa-pen-to-square"></i>
                                                     </button>
                                                     <button type="button"
                                                         data-bs-href="gestion_pon.php?action=delete_pon&id=<?php echo htmlspecialchars($row['id_pon']); ?>"
                                                         data-bs-toggle="modal" data-bs-target="#eliminaModal"
-                                                        class="btn btn-sm btn-outline-danger rounded-2" title="Eliminar">
+                                                        class="btn btn-sm btn-glass text-danger rounded-2" title="Eliminar">
                                                         <i class="fa-solid fa-trash-can"></i>
                                                     </button>
                                                 </div>
@@ -315,7 +293,11 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                 </div>
             </div>
 
-
+            <div class="mt-4 text-center">
+                <a href="menu.php" class="btn btn-outline-secondary px-4">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+                </a>
+            </div>
         </div>
     </div>
 
@@ -326,7 +308,7 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
 <div class="modal fade" id="modificaModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header modal-header-gradient border-0 text-white">
                 <h5 class="modal-title fw-bold" id="modificaModalLabel">
                     <i class="fa-solid fa-pen-to-square me-2 opacity-75"></i>Modificar PON
                 </h5>
@@ -367,7 +349,7 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                             placeholder="Detalles adicionales..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top-0 py-3">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-outline-secondary px-4"
                         data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary px-4" id="btn-actualizar-pon">Guardar Cambios</button>
@@ -385,11 +367,11 @@ $get_class = isset($_GET['class']) ? $_GET['class'] : $message_class;
                 <div class="mb-3 text-danger">
                     <i class="fa-solid fa-circle-exclamation fa-3x"></i>
                 </div>
-                <h5 class="mb-2 fw-bold text-dark">¿Eliminar registro?</h5>
+                <h5 class="mb-2 fw-bold">¿Eliminar registro?</h5>
                 <p class="text-muted small mb-4">Esta acción no se puede deshacer.</p>
                 <div class="d-grid gap-2">
                     <a href="#" class="btn btn-danger btn-ok fw-medium">Eliminar</a>
-                    <button type="button" class="btn btn-light text-secondary fw-medium"
+                    <button type="button" class="btn btn-outline-secondary fw-medium"
                         data-bs-dismiss="modal">Cancelar</button>
                 </div>
             </div>

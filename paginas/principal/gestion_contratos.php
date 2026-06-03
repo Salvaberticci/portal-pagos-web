@@ -18,190 +18,196 @@ require_once '../includes/sidebar.php';
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
-    /* Estilos para tabla ancha */
+    /* Estilos para tabla ancha y DataTables */
     .dataTables_wrapper {
         width: 100%;
+        padding: 0;
+        background: transparent;
+    }
+
+    .table-responsive {
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid var(--border-glass);
         overflow-x: auto;
     }
 
-    /* Headers mas compactos */
+    #mitabla {
+        border-collapse: collapse !important;
+        width: auto !important;
+        min-width: 100%;
+        background: transparent !important;
+    }
+
     #mitabla thead th {
-        font-size: 0.8rem;
-        white-space: nowrap;
-        vertical-align: middle;
-        text-align: center;
-        background-color: #f8f9fa;
-        color: #495057;
-    }
-
-    /* Nuevos estilos para Signature Pad y secciones */
-    .section-title {
-        background-color: #f8f9fa;
-        padding: 10px 15px;
-        border-radius: 4px;
-        font-size: 0.9rem;
+        background: var(--table-header-bg) !important;
+        color: var(--text-muted) !important;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        padding: 15px 12px !important;
+        border: none !important;
+        border-bottom: 2px solid var(--border-glass) !important;
+        white-space: nowrap !important;
+        text-align: center !important;
     }
 
-    .signature-pad {
-        border: 2px dashed #ccc;
-        border-radius: 5px;
-        width: 100%;
-        height: 180px;
-        background-color: #fff;
-        touch-action: none;
+    table.dataTable tbody tr.odd, table.dataTable tbody tr.even, table.dataTable tbody tr {
+        background-color: var(--bg-card) !important;
+        transition: all 0.2s ease;
     }
 
-    .signature-prev {
-        max-height: 120px;
-        border: 1px solid #dee2e6;
-        padding: 5px;
-        border-radius: 4px;
-        background: #f8f9fa;
-        display: block;
-        margin-bottom: 10px;
+    table.dataTable tbody tr:hover, table.dataTable tbody tr:hover > td.sorting_1 {
+        background-color: var(--table-header-bg) !important;
     }
 
-    /* Celdas mas compactas y estables */
-    #mitabla tbody td {
+    table.dataTable tbody td, table.dataTable tbody tr > td.sorting_1 {
         font-size: 0.85rem;
-        vertical-align: middle;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        padding: 4px 8px;
+        color: var(--text-main) !important;
+        padding: 12px !important;
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid var(--table-border) !important;
+        white-space: nowrap !important;
+        text-align: center !important;
     }
 
-    /* Forzar el ancho en columnas específicas si exceden el límite */
-    .col-fixed-sm { max-width: 100px; }
-    .col-fixed-md { max-width: 200px; }
-    .col-fixed-lg { max-width: 300px; }
-
-    .editable-cell {
-        cursor: text;
-        transition: background-color 0.2s, border-color 0.2s;
-        padding: 4px;
-        border-radius: 4px;
+    /* Stats Cards */
+    .stat-card {
+        background: var(--bg-card) !important;
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--border-glass) !important;
+        border-radius: 20px !important;
+        box-shadow: var(--card-shadow) !important;
     }
 
-    /* Clase para truncar texto con elipsis */
-    .text-truncate-scroll {
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        display: block;
+    .stat-icon-wrapper {
+        width: 65px;
+        height: 65px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 18px;
+        font-size: 1.8rem;
+        background: var(--table-header-bg);
+        border: 1px solid var(--border-glass);
     }
 
-    .editable-cell:hover {
-        background-color: #f1f3f5;
-        border: 1px solid #ced4da;
+    .stat-number {
+        color: var(--text-main) !important;
     }
 
-    .editable-cell:focus {
-        background-color: #fff;
-        outline: 2px solid #86b7fe;
-        color: #212529;
+    /* Botones Glass */
+    .btn-glass {
+        background: var(--table-header-bg) !important;
+        border: 1px solid var(--border-glass) !important;
+        color: var(--text-main) !important;
+        font-weight: 600 !important;
+        backdrop-filter: blur(var(--glass-blur));
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
     }
 
-    /* Scrollbar personalizado si se desea */
-    .table-responsive::-webkit-scrollbar {
-        height: 10px;
+    .btn-glass:hover {
+        background: var(--table-border) !important;
+        border-color: var(--primary) !important;
+        color: var(--primary) !important;
+        transform: translateY(-2px);
     }
 
-    .table-responsive::-webkit-scrollbar-thumb {
-        background-color: #ccc;
-        border-radius: 5px;
+    .dataTables_filter input {
+        width: 250px !important;
     }
-
-    /* Grupos de Headers (opcional, por ahora simple) */
 </style>
 
 <main class="main-content">
     <?php include '../includes/header.php'; ?>
 
     <div class="page-content">
-        <div class="card">
+        <div class="glass-panel animate-fade mb-4">
             <!-- ── HEADER: TÍTULO Y BOTÓN PRINCIPAL ── -->
-            <div class="card-header bg-white border-bottom-0 pt-4 px-4 pb-2">
+            <div class="card-header border-0 pt-4 px-4 pb-2">
                 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
                     <div>
-                        <h5 class="fw-bold text-primary mb-1">Contratos</h5>
-                        <p class="text-muted small mb-0">Gestión integral de contratos y servicios</p>
+                        <h4 class="fw-bold text-gradient mb-1">Gestión de Contratos</h4>
+                        <p class="text-muted small mb-0">Control centralizado de suscripciones y servicios</p>
                     </div>
-                    <a href="nuevo.php" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm px-4 py-2">
-                        <i class="fa-solid fa-circle-plus"></i>
-                        <strong>Nuevo Contrato</strong>
+                    <a href="nuevo.php" class="btn btn-premium btn-sm d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nuevo Contrato</span>
                     </a>
                 </div>
 
                 <!-- ── FILA 2: BARRA DE HERRAMIENTAS SECUNDARIA ── -->
-                <div class="d-flex flex-wrap gap-2 align-items-center border-top pt-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center pt-3 border-top border-white border-opacity-5">
+
                     
                     <!-- Reportes y Datos -->
-                    <div class="btn-group shadow-sm">
-                        <button type="button" class="btn btn-outline-success d-flex align-items-center gap-1"
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalStats" id="btnOpenStats">
-                            <i class="fa-solid fa-chart-line"></i>
+                            <i class="fa-solid fa-chart-bar text-success"></i>
                             <span class="d-none d-lg-inline">Estadísticas</span>
                         </button>
-                        <button type="button" class="btn btn-success d-flex align-items-center gap-1"
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             onclick="exportExcel()">
-                            <i class="fa-solid fa-file-excel"></i>
+                            <i class="fa-solid fa-file-excel text-success"></i>
                             <span class="d-none d-lg-inline">Exportar</span>
                         </button>
-                        <button type="button" class="btn btn-outline-success d-flex align-items-center gap-1"
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalImportExcel">
-                            <i class="fa-solid fa-file-import"></i>
+                            <i class="fa-solid fa-file-import text-success"></i>
                             <span class="d-none d-lg-inline">Importar</span>
                         </button>
                     </div>
 
-                    <div class="vr mx-1 d-none d-md-block"></div>
+                    <div class="vr mx-1 opacity-25"></div>
 
                     <!-- Configuración Técnica -->
-                    <div class="btn-group shadow-sm">
-                        <button type="button" class="btn btn-outline-info d-flex align-items-center gap-1"
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalTipos">
-                            <i class="fa-solid fa-network-wired"></i>
+                            <i class="fa-solid fa-network-wired text-info"></i>
                             <span class="d-none d-xl-inline">Conexiones</span>
                         </button>
-                        <button type="button" class="btn btn-outline-info d-flex align-items-center gap-1"
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalTiposInstalacion">
-                            <i class="fa-solid fa-tools"></i>
+                            <i class="fa-solid fa-tools text-info"></i>
                             <span class="d-none d-xl-inline">Instalaciones</span>
                         </button>
                     </div>
 
-                    <div class="vr mx-1 d-none d-md-block"></div>
+                    <div class="vr mx-1 opacity-25"></div>
 
                     <!-- Catálogos y Personal -->
-                    <div class="btn-group shadow-sm">
-                        <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1"
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalInstaladores">
-                            <i class="fa-solid fa-hard-hat"></i>
+                            <i class="fa-solid fa-helmet-safety text-muted"></i>
                             <span class="d-none d-xl-inline">Instaladores</span>
                         </button>
-                        <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1"
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalVendedores">
-                            <i class="fa-solid fa-user-friends"></i>
+                            <i class="fa-solid fa-user-tie text-muted"></i>
                             <span class="d-none d-xl-inline">Vendedores</span>
                         </button>
                     </div>
 
-                    <div class="vr mx-1 d-none d-md-block"></div>
+                    <div class="vr mx-1 opacity-25"></div>
 
                     <!-- Configuración General -->
-                    <div class="btn-group shadow-sm">
-                        <button type="button" class="btn btn-outline-warning d-flex align-items-center gap-1"
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalProrrateo">
-                            <i class="fa-solid fa-dollar-sign"></i>
-                            <span class="d-none d-lg-inline">Planes Prorrateo</span>
+                            <i class="fa-solid fa-dollar-sign text-warning"></i>
+                            <span class="d-none d-lg-inline">Planes</span>
                         </button>
-                        <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-1"
+                        <button type="button" class="btn btn-glass d-flex align-items-center gap-2"
                             data-bs-toggle="modal" data-bs-target="#modalUbicaciones">
-                            <i class="fa-solid fa-map-marked-alt"></i>
+                            <i class="fa-solid fa-map-marked-alt text-primary"></i>
                             <span class="d-none d-lg-inline">Ubicaciones</span>
                         </button>
                     </div>
@@ -209,13 +215,14 @@ require_once '../includes/sidebar.php';
             </div>
 
             <div class="card-body px-4">
-                <!-- Filtros Extra (Poc) -->
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <div class="input-group shadow-sm">
-                            <span class="input-group-text bg-light border-primary"><i
-                                    class="fa-solid fa-filter text-primary"></i></span>
-                            <select id="filter_empty" class="form-select border-primary">
+                <!-- Filtros Extra -->
+                <div class="row g-3 mb-4 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-transparent border-end-0 text-primary" style="border-color: var(--input-border);">
+                                <i class="fa-solid fa-filter"></i>
+                            </span>
+                            <select id="filter_empty" class="form-select border-start-0" style="border-color: var(--input-border);">
                                 <option value="">Todos los registros</option>
                                 <option value="1">Vacío: SAR (Fecha)</option>
                                 <option value="2">Vacío: Cédula</option>
@@ -257,48 +264,48 @@ require_once '../includes/sidebar.php';
                                 <option value="34">Vacío: Foto</option>
                                 <option value="35">Vacío: Firma Cliente</option>
                                 <option value="36">Vacío: Firma Técnico</option>
-                                <option value="37">Vacío: Vendedor (Edit)</option>
-                                <option value="38">Vacío: SAE Plus (Edit)</option>
-                                <option value="39">Vacío: Plan</option>
-                                <option value="40">Vacío: OLT</option>
-                                <option value="41">Vacío: PON</option>
                                 <option value="42">Vacío: Estado</option>
                             </select>
                         </div>
                     </div>
                     <div class="col-md-2">
-                        <button type="button" class="btn btn-outline-secondary w-100 shadow-sm"
-                            id="btn_clear_main_filters">
-                            <i class="fa-solid fa-filter-circle-xmark me-2"></i>Limpiar Filtros
+                        <button type="button" class="btn btn-glass w-100" id="btn_clear_main_filters">
+                            <i class="fa-solid fa-eraser me-2"></i>Limpiar
                         </button>
                     </div>
                 </div>
 
                 <!-- Dashboard Cards -->
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3 mb-md-0">
-                        <div class="card bg-primary text-white h-100 shadow-sm border-0">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3">
-                                    <i class="fa-solid fa-users fa-2x"></i>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card stat-card border-0 shadow-sm overflow-hidden">
+                            <div class="card-body d-flex align-items-center p-4">
+                                <div class="stat-icon-wrapper text-primary me-4">
+                                    <i class="fa-solid fa-users"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 text-white-50">Total Clientes</h6>
-                                    <h2 class="mb-0 fw-bold" id="statTotalClients">...</h2>
+                                    <p class="text-muted small fw-bold mb-1 text-uppercase" style="letter-spacing: 1.5px;">Total Clientes</p>
+                                    <h2 class="mb-0 fw-bold stat-number" id="statTotalClients">...</h2>
                                 </div>
+                            </div>
+                            <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                <i class="fa-solid fa-users fa-4x"></i>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card bg-success text-white h-100 shadow-sm border-0">
-                            <div class="card-body d-flex align-items-center">
-                                <div class="rounded-circle bg-white bg-opacity-25 p-3 me-3">
-                                    <i class="fa-solid fa-file-contract fa-2x"></i>
+                        <div class="card stat-card border-0 shadow-sm overflow-hidden">
+                            <div class="card-body d-flex align-items-center p-4">
+                                <div class="stat-icon-wrapper text-success me-4">
+                                    <i class="fa-solid fa-file-contract"></i>
                                 </div>
                                 <div>
-                                    <h6 class="mb-0 text-white-50">Total Contratos</h6>
-                                    <h2 class="mb-0 fw-bold" id="statTotalContracts">...</h2>
+                                    <p class="text-muted small fw-bold mb-1 text-uppercase" style="letter-spacing: 1.5px;">Total Contratos</p>
+                                    <h2 class="mb-0 fw-bold stat-number" id="statTotalContracts">...</h2>
                                 </div>
+                            </div>
+                            <div class="position-absolute end-0 bottom-0 opacity-10 p-3">
+                                <i class="fa-solid fa-file-contract fa-4x"></i>
                             </div>
                         </div>
                     </div>
@@ -372,22 +379,22 @@ require_once '../includes/sidebar.php';
                         </tbody>
                     </table>
                 </div>
-
-                <div class="d-flex justify-content-center mt-4">
-                    <a href="../../paginas/menu.php" class="btn btn-outline-secondary">
-                        <i class="fa-solid fa-arrow-left me-2"></i> Volver al Menú
-                    </a>
-                </div>
             </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="../menu.php" class="btn btn-outline-secondary px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+            </a>
         </div>
     </div>
     <!-- MODAL GESTION TIPOS INSTALACION -->
     <div class="modal fade" id="modalTipos" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-info text-dark">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-tags me-2"></i>Tipos de Conexión</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="list-group mb-3" id="listTipos" style="max-height: 400px; overflow-y: auto;">
@@ -415,9 +422,9 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalTiposInstalacion" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-info text-dark">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-wrench me-2"></i>Tipos de Instalación</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="list-group mb-3" id="listTiposInstalacion" style="max-height: 400px; overflow-y: auto;">
@@ -445,7 +452,7 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalInstaladores" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-secondary text-white">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-helmet-safety me-2"></i>Gestionar Instaladores
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -472,7 +479,7 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalVendedores" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-secondary text-white">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-user-tie me-2"></i>Gestionar Vendedores</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
@@ -494,10 +501,10 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalProrrateo" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Planes Prorrateo
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="list-group mb-3" id="listProrrateo" style="max-height: 400px; overflow-y: auto;"></div>
@@ -523,9 +530,9 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalUbicaciones" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-map-location-dot me-2"></i>Gestionar Ubicaciones</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -586,7 +593,7 @@ require_once '../includes/sidebar.php';
     <div class="modal fade" id="modalStats" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-scrollable" style="max-width: 97vw; width: 97vw;">
             <div class="modal-content">
-                <div class="modal-header bg-success text-white">
+                <div class="modal-header modal-header-gradient text-white">
                     <h5 class="modal-title fw-bold"><i class="fa-solid fa-chart-bar me-2"></i>Estadísticas [VERSIÓN 3 -
                         BARRAS]
                     </h5>
@@ -595,7 +602,7 @@ require_once '../includes/sidebar.php';
                 </div>
                 <div class="modal-body">
                     <!-- Filtros -->
-                    <div class="card bg-light border-0 mb-4">
+                    <div class="glass-panel mb-4">
                         <div class="card-body">
                             <h6 class="fw-bold mb-3">Filtros de Búsqueda</h6>
                             <div class="row g-3">
@@ -649,7 +656,7 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-success text-center mb-3"><i
                                     class="fa-solid fa-user-tie me-2"></i>Ventas por Vendedor</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:1500px; width:100%">
                                 <canvas id="chartVendor"></canvas>
                             </div>
@@ -657,7 +664,7 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-info text-center mb-3"><i
                                     class="fa-solid fa-map-location-dot me-2"></i>Contratos por Ubicación</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:800px; width:100%">
                                 <canvas id="chartLocation"></canvas>
                             </div>
@@ -667,7 +674,7 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-warning text-center mb-3"><i
                                     class="fa-solid fa-list-check me-2"></i>Tipo de Instalación</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:1000px; width:100%">
                                 <canvas id="chartType"></canvas>
                             </div>
@@ -675,7 +682,7 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-secondary text-center mb-3"><i
                                     class="fa-solid fa-tower-broadcast me-2"></i>Tipo de Conexión</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:800px; width:100%">
                                 <canvas id="chartConnection"></canvas>
                             </div>
@@ -683,9 +690,9 @@ require_once '../includes/sidebar.php';
 
                         <!-- FILA 3: SAE Plus (Ancho completo) -->
                         <div class="col-md-12">
-                            <h6 class="fw-bold fs-5 text-dark text-center mt-3 mb-3"><i
+                            <h6 class="fw-bold fs-5 text-center mt-3 mb-3"><i
                                     class="fa-solid fa-database me-2"></i>Desglose Carga en SAE Plus (FTTH / Radio)</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:500px; width:100%">
                                 <canvas id="chartSae"></canvas>
                             </div>
@@ -695,7 +702,7 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-danger text-center mb-3"><i
                                     class="fa-solid fa-calendar-days me-2"></i>Instalaciones Mensuales</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:2000px; width:100%">
                                 <canvas id="chartMonthly"></canvas>
                             </div>
@@ -703,14 +710,14 @@ require_once '../includes/sidebar.php';
                         <div class="col-md-6">
                             <h6 class="fw-bold text-primary text-center mb-3"><i
                                     class="fa-solid fa-helmet-safety me-2"></i>Instalaciones por Instalador</h6>
-                            <div class="chart-container shadow-sm border rounded p-3 bg-white"
+                            <div class="chart-container shadow-sm border rounded p-3"
                                 style="position: relative; height:1200px; width:100%">
                                 <canvas id="chartInstaller"></canvas>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-danger" id="btnExportPDF"><i
                             class="fa-solid fa-file-pdf me-2"></i>Exportar PDF</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -883,33 +890,45 @@ require_once '../includes/sidebar.php';
         }
 
         function renderStatsChartV4(canvasId, data, labelKey, title, isHorizontal = false, customColor = null, denominator = null) {
-            console.log('Rendering V4 Chart:', canvasId, title);
             const ctx = document.getElementById(canvasId).getContext('2d');
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            
+            // --- Theme-Aware Colors ---
+            const textColor = isDark ? '#cbd5e1' : '#1e293b';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)';
+            const labelBg = isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+            const labelBorder = isDark ? '#475569' : '#cbd5e1';
+            const labelText = isDark ? '#f8fafc' : '#1e293b';
+            const canvasBg = isDark ? '#1e293b' : '#ffffff';
 
             if (chartInstances[canvasId]) {
                 chartInstances[canvasId].destroy();
             }
 
-            // Filtrar datos para quitar los que tienen total = 0 (limpieza de ruido visual)
             const filteredData = data ? data.filter(item => parseInt(item.total) > 0) : [];
 
             if (filteredData.length === 0) {
-                // Ajustar altura mínima para mensaje "Sin Datos"
                 const container = document.getElementById(canvasId).parentElement;
                 container.style.height = '450px';
 
                 chartInstances[canvasId] = new Chart(ctx, {
                     type: 'bar',
-                    data: { labels: ['Sin Datos'], datasets: [{ data: [0], backgroundColor: ['#e9ecef'] }] },
+                    data: { labels: ['Sin Datos'], datasets: [{ data: [0], backgroundColor: [isDark ? '#334155' : '#e9ecef'] }] },
                     options: {
                         indexAxis: isHorizontal ? 'y' : 'x',
-                        plugins: { legend: { display: false }, title: { display: true, text: 'Sin Resultados' } }
+                        plugins: { 
+                            legend: { display: false }, 
+                            title: { display: true, text: 'Sin Resultados', color: textColor } 
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor }, grid: { display: false } },
+                            y: { ticks: { color: textColor }, grid: { display: false } }
+                        }
                     }
                 });
                 return;
             }
 
-            // CALCULAR ALTURA DINÁMICA: Asegurar al menos 60px por barra en modo horizontal
             if (isHorizontal) {
                 const calculatedHeight = Math.max(450, filteredData.length * 60);
                 document.getElementById(canvasId).parentElement.style.height = calculatedHeight + 'px';
@@ -918,35 +937,29 @@ require_once '../includes/sidebar.php';
             const labels = filteredData.map(item => item[labelKey]);
             const values = filteredData.map(item => item.total);
 
-            // Lógica de colores semánticos avanzados para SAE Plus (Tecnología + Estado)
             let colors;
             if (canvasId === 'chartSae') {
                 colors = labels.map(lbl => {
                     const isLoaded = lbl.includes('(CARGADO)');
                     const isFTTH = lbl.toUpperCase().includes('FTTH');
                     const isRadio = lbl.toUpperCase().includes('RADIO');
-
-                    if (isFTTH) return isLoaded ? '#10b981' : '#a855f7'; // Esmeralda vs Púrpura
-                    if (isRadio) return isLoaded ? '#3b82f6' : '#f59e0b'; // Azul vs Naranja
-
-                    // Fallback para otros o indefinidos
+                    if (isFTTH) return isLoaded ? '#10b981' : '#a855f7';
+                    if (isRadio) return isLoaded ? '#3b82f6' : '#f59e0b';
                     return isLoaded ? '#059669' : '#94a3b8';
                 });
             } else {
-                colors = customColor ? new Array(data.length).fill(customColor) : generateColors(data.length);
+                colors = customColor ? new Array(filteredData.length).fill(customColor) : generateColors(filteredData.length);
             }
 
-            // Pre-calcular totales por categoría para SAE Plus (FTTH vs RADIO)
             const categoryTotals = {};
             if (canvasId === 'chartSae') {
                 filteredData.forEach(item => {
                     const lbl = item[labelKey];
-                    const category = lbl.split(' (')[0]; // Extrae "FTTH" o "RADIO"
+                    const category = lbl.split(' (')[0];
                     categoryTotals[category] = (categoryTotals[category] || 0) + parseInt(item.total);
                 });
             }
 
-            // Calcular el valor máximo para el eje con un margen del 25% para las etiquetas
             const maxVal = Math.max(...values);
             const axisMax = maxVal > 0 ? Math.ceil(maxVal * 1.25) : 10;
 
@@ -971,7 +984,7 @@ require_once '../includes/sidebar.php';
                         const { ctx } = chart;
                         ctx.save();
                         ctx.globalCompositeOperation = 'destination-over';
-                        ctx.fillStyle = 'white';
+                        ctx.fillStyle = canvasBg;
                         ctx.fillRect(0, 0, chart.width, chart.height);
                         ctx.restore();
                     }
@@ -985,27 +998,25 @@ require_once '../includes/sidebar.php';
                         legend: { display: false },
                         title: { display: false },
                         datalabels: {
-                            display: true, // Forzar visualización en todas las barras
+                            display: true,
                             anchor: 'end',
                             align: isHorizontal ? 'right' : 'top',
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                            borderColor: '#ccc',
+                            backgroundColor: labelBg,
+                            borderColor: labelBorder,
                             borderWidth: 1,
                             borderRadius: 4,
                             padding: { top: 2, bottom: 2, left: 4, right: 4 },
-                            color: '#000',
+                            color: labelText,
                             font: { weight: 'bold', size: canvasId === 'chartSae' ? 14 : 12 },
                             offset: 4,
                             formatter: function (value, context) {
                                 if (value <= 0) return '';
                                 const label = context.chart.data.labels[context.dataIndex];
-
                                 if (canvasId === 'chartSae') {
                                     const category = label.split(' (')[0];
                                     const catTotal = categoryTotals[category] || 0;
                                     const localPerc = catTotal > 0 ? ((value / catTotal) * 100).toFixed(1) : '0.0';
                                     const fiabPerc = denominator > 0 ? ((value / denominator) * 100).toFixed(1) : '0.0';
-
                                     return `${value}\n${localPerc}% (${category})\nFiabilidad: ${fiabPerc}%`;
                                 } else {
                                     const dataset = context.chart.data.datasets[0].data;
@@ -1019,24 +1030,26 @@ require_once '../includes/sidebar.php';
                     scales: {
                         x: {
                             display: true,
-                            grid: { display: false },
+                            grid: { color: gridColor, drawBorder: false },
                             max: isHorizontal ? axisMax : undefined,
                             ticks: {
+                                color: textColor,
                                 autoSkip: false,
                                 maxRotation: isHorizontal ? 0 : 90,
                                 minRotation: isHorizontal ? 0 : 45,
-                                font: { size: 13 }
+                                font: { size: 12 }
                             }
                         },
                         y: {
                             beginAtZero: true,
                             max: !isHorizontal ? axisMax : undefined,
                             ticks: {
+                                color: textColor,
                                 stepSize: 1,
                                 precision: 0,
-                                font: { size: 13 }
+                                font: { size: 12 }
                             },
-                            grid: { display: false }
+                            grid: { color: gridColor, drawBorder: false }
                         }
                     }
                 }
@@ -1566,23 +1579,23 @@ require_once '../includes/sidebar.php';
                     </div>
                     <div class="row g-4 mb-2 text-center">
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold d-block text-secondary text-uppercase">Instalación</label>
-                            <div id="prev_evidencia_foto_div" class="mb-2 border rounded p-1 bg-white" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
+                            <label class="form-label small fw-bold d-block text-uppercase">Instalación</label>
+                            <div id="prev_evidencia_foto_div" class="mb-2 border rounded p-1 glass-preview-box" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
                                 <img id="prev_evidencia_foto" src="" alt="Instalación" class="img-fluid rounded" style="max-height: 120px; display:none;">
                                 <span id="no_evidencia_foto" class="text-muted small">Sin imagen</span>
                             </div>
                             <input type="file" class="form-control form-control-sm" id="edit_evidencia_foto" name="evidencia_foto" accept="image/*">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold d-block text-secondary text-uppercase">Documento ID</label>
-                            <div id="prev_evidencia_documento_div" class="mb-2 border rounded p-1 bg-white" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
+                            <label class="form-label small fw-bold d-block text-uppercase">Documento ID</label>
+                            <div id="prev_evidencia_documento_div" class="mb-2 border rounded p-1 glass-preview-box" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
                                 <img id="prev_evidencia_documento" src="" alt="Documento" class="img-fluid rounded" style="max-height: 120px; display:none;">
                                 <span id="no_evidencia_documento" class="text-muted small">Sin imagen</span>
                             </div>
                             <input type="file" class="form-control form-control-sm" id="edit_evidencia_documento" name="evidencia_documento_file" accept="image/*">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label small fw-bold d-block text-secondary text-uppercase">Fibra (ID / Detalle)</label>
+                            <label class="form-label small fw-bold d-block text-uppercase">Fibra (ID / Detalle)</label>
                             <div class="input-group input-group-sm mt-1">
                                 <input type="text" class="form-control" id="edit_evidencia_fibra" name="evidencia_fibra" placeholder="ID Fibra">
                                 <span class="input-group-text"><i class="fa-solid fa-barcode"></i></span>
@@ -1680,8 +1693,10 @@ require_once '../includes/sidebar.php';
 
         if (!canvasCliente || !canvasTecnico) return;
 
-        if (!padEditCliente) padEditCliente = new SignaturePad(canvasCliente);
-        if (!padEditTecnico) padEditTecnico = new SignaturePad(canvasTecnico);
+        const penColor = '#000000'; // Always black for consistency
+
+        if (!padEditCliente) padEditCliente = new SignaturePad(canvasCliente, { penColor: penColor });
+        if (!padEditTecnico) padEditTecnico = new SignaturePad(canvasTecnico, { penColor: penColor });
     }
 
     function clearEditPad(type) {
@@ -1878,10 +1893,6 @@ require_once '../includes/sidebar.php';
     // Configuración DataTables original
     $(document).ready(function () {
         var table = $('#mitabla').DataTable({
-            "scrollX": true,      // Habilitar scroll horizontal nativo de DataTables
-            "fixedColumns": {     // Si se quisiera fijar columnas (requiere extension FixedColumns, probalo basico primero)
-                // leftColumns: 2 
-            },
             "order": [[0, "desc"]], // Ordenar por ID descendente por defecto
             // (más recientes primero)
             "language": {
@@ -1896,7 +1907,7 @@ require_once '../includes/sidebar.php';
             "bProcessing": true,
             "bServerSide": true,
             "sAjaxSource": "server_process.php",
-            "autoWidth": false, // Evitar que DataTables recalcule anchos automáticamente
+            "autoWidth": true, // DataTables measures content and sizes columns automatically
             "fnServerParams": function (aoData) {
                 aoData.push({ "name": "empty_filter", "value": $('#filter_empty').val() });
             },
@@ -1904,13 +1915,13 @@ require_once '../includes/sidebar.php';
                 { "bVisible": false, "aTargets": [0] }, // Ocultar ID
                 { "className": "text-center", "aTargets": "_all" }, // Centrar todo por defecto
                 
-                // Renderizado con Truncado y Tooltip (Title)
+                // Tooltip en columnas con texto largo
                 {
-                    "aTargets": [3, 7, 18, 33],
-                    "mRender": function (data, type, full) {
+                    "aTargets": [3, 7, 10, 11, 18, 33],
+                    "mRender": function (data) {
                         if (!data) return '';
-                        var strData = data.toString().replace(/"/g, '&quot;');
-                        return '<span class="text-truncate-scroll" title="' + strData + '">' + data + '</span>';
+                        var s = data.toString().replace(/"/g, '&quot;');
+                        return '<span title="' + s + '">' + data + '</span>';
                     }
                 },
                 // Badge para Plan ($)
@@ -1919,20 +1930,8 @@ require_once '../includes/sidebar.php';
                     "mRender": function (data, type, full) {
                         return '<span class="badge bg-light text-dark border">$' + data + '</span>';
                     }
-                },
-
-                // Anchos Fijos para estabilidad (Indices 0-based)
-                { "sWidth": "120px", "aTargets": [1] },  // SAR
-                { "sWidth": "100px", "aTargets": [2] },  // Cédula
-                { "sWidth": "220px", "aTargets": [3] },  // Cliente
-                { "sWidth": "300px", "aTargets": [7] },  // Dirección
-                { "sWidth": "250px", "aTargets": [18] }, // Observ.
-                { "sWidth": "250px", "aTargets": [33] }, // Sugerencias
-                { "sWidth": "180px", "aTargets": [22] }, // IP ONU
-                { "sWidth": "120px", "aTargets": [21] }, // MAC/Serial
-                { "sWidth": "100px", "aTargets": [23] }  // Caja NAP
-            ],
-            // Callback tras dibujar la tabla (para bindings si fuera necesario, pero delegamos eventos al tbody)
+                }
+            ]
         });
 
         // --- Inline Edit Logic ---

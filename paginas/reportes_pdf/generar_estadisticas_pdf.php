@@ -2,6 +2,9 @@
 // Muestra todos los errores de PHP para una mejor depuración
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+ini_set('memory_limit', '512M');
+set_time_limit(300);
+
 
 // Carga el autoloader de Dompdf
 require '../../dompdf/vendor/autoload.php';
@@ -229,17 +232,8 @@ if ($stmt) {
     $stmt->close();
 }
 
-$stats_connection = [];
-$stmt = $conn->prepare($sql_connection);
-if ($stmt) {
-    if (!empty($types))
-        $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    while ($row = $res->fetch_assoc())
-        $stats_connection[] = $row;
-    $stmt->close();
-}
+
+
 
 $stats_installers = [];
 $stmt = $conn->prepare($sql_installers);
@@ -380,8 +374,8 @@ function render_native_charts($canvasId, $rows, $navy, $denominator = null)
         }
 
         $html .= "<tr>";
-        // Label Column
-        $html .= "<td style='padding:6px 0; width:180px; font-size:10px; color:#4a5568; vertical-align:middle; border-bottom:1px solid #edf2f7;'>" . htmlspecialchars($label) . "</td>";
+        // Label Column (Stripping tags for clean chart labels)
+        $html .= "<td style='padding:6px 0; width:180px; font-size:10px; color:#4a5568; vertical-align:middle; border-bottom:1px solid #edf2f7;'>" . htmlspecialchars(strip_tags($label)) . "</td>";
 
         // Bar Column
         $html .= "<td style='padding:6px 5px; vertical-align:middle; border-bottom:1px solid #edf2f7;'>";
@@ -521,7 +515,6 @@ $html = '<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <title>Reporte Estadístico — Wireless Supply, C.A.</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         @page { margin: 0; }
         * { margin:0; padding:0; box-sizing:border-box; }
@@ -603,7 +596,7 @@ $html .= '</body></html>';
 
 // ── GENERATE PDF ─────────────────────────────────────────────────────────────
 $options = new Options();
-$options->set('isRemoteEnabled', true);
+$options->set('isRemoteEnabled', false);
 $dompdf = new Dompdf($options);
 $dompdf->setPaper('letter', 'portrait');
 $dompdf->loadHtml($html);

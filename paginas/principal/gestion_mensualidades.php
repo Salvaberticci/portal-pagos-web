@@ -108,7 +108,7 @@ if ($planes_query) {
     }
 
     .fecha-detalle {
-        color: #2c3e50;
+        color: var(--text-main, #2c3e50);
         font-weight: 700;
         font-size: 1.05rem;
         text-shadow: 0 0 1px rgba(0,0,0,0.1);
@@ -128,35 +128,36 @@ if ($planes_query) {
         background-color: rgba(13, 110, 253, 0.1) !important;
     }
 
-    /* Pestañas (Tabs) Estilo Gestión de Fallas */
+    /* Pestañas (Tabs) Estilo Premium */
     .nav-tabs-custom {
-        border-bottom: 2px solid #dee2e6;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
         padding: 0 1rem;
     }
     .nav-tabs-custom .nav-link {
         border: none;
         border-bottom: 3px solid transparent;
-        color: #6c757d;
+        color: rgba(255,255,255,0.6);
         font-weight: 700;
         padding: 1rem 1.5rem;
-        transition: all 0.2s;
+        transition: all 0.3s ease;
     }
     .nav-tabs-custom .nav-link:hover {
-        color: #0d6efd;
-        background: rgba(13, 110, 253, 0.05);
+        color: white;
+        background: rgba(255, 255, 255, 0.05);
     }
     .nav-tabs-custom .nav-link.active {
-        color: #0d6efd;
-        border-bottom-color: #0d6efd;
+        color: #4facfe;
+        border-bottom-color: #4facfe;
         background: transparent;
+        text-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
     }
     .nav-tabs-custom .nav-link.active.tab-sae-pendiente {
-        color: #dc3545;
-        border-bottom-color: #dc3545;
+        color: #ef4444;
+        border-bottom-color: #ef4444;
     }
     .nav-tabs-custom .nav-link.active.tab-sae-cargado {
-        color: #198754;
-        border-bottom-color: #198754;
+        color: #10b981;
+        border-bottom-color: #10b981;
     }
     .nav-tabs-custom .badge {
         font-size: 0.7rem;
@@ -218,36 +219,49 @@ if ($planes_query) {
         text-align: center;
         opacity: 0.95;
     }
+
+    /* Ajuste para DataTables en modo oscuro */
+    #tabla_mensualidades_unica thead th {
+        background-color: transparent !important;
+        color: var(--text-main, #333) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .nav-tabs-custom .nav-link {
+        border-radius: 8px 8px 0 0;
+        margin-bottom: -1px;
+    }
 </style>
 
 <main class="main-content">
     <?php include '../includes/header.php'; ?>
 
     <div class="page-content">
-        <!-- Header Página -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="fw-bold text-primary mb-1">Lista de Mensualidades y Pagos</h4>
-                <p class="text-muted small mb-0">Gestión unificada de mensualidades, cargos y pagos manuales.</p>
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-                <div class="bg-white p-2 rounded shadow-sm border me-2">
-                    <span id="tasa_display" class="text-secondary small">Cargando tasa...</span>
+        <div class="glass-panel animate-fade mb-4">
+            <div class="d-flex justify-content-between align-items-center py-3 px-4">
+                <div>
+                    <h4 class="fw-bold text-primary mb-1">Mensualidades y Pagos</h4>
+                    <p class="text-main small mb-0">Gestión de facturación y control de recaudación</p>
                 </div>
-                <?php
-                // Contar clientes deudores pendientes (Solo deudas, no créditos)
-                $res_pend = $conn->query("SELECT COUNT(*) FROM clientes_deudores WHERE estado = 'PENDIENTE' AND tipo_registro = 'DEUDA'");
-                $cant_pend = $res_pend ? $res_pend->fetch_array()[0] : 0;
-                if ($cant_pend > 0):
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-transparent border border-white border-opacity-10 rounded px-3 py-1 text-center shadow-sm d-none d-md-block">
+                        <span class="text-muted d-block fw-bold" style="font-size:0.65rem;">TASA BCV</span>
+                        <span class="fw-bold text-success" style="font-size:0.9rem;" id="header_tasa_bcv">Cargando...</span>
+                    </div>
+                    <?php
+                    // Contar clientes deudores pendientes (Solo deudas, no créditos)
+                    $res_pend = $conn->query("SELECT COUNT(*) FROM clientes_deudores WHERE estado = 'PENDIENTE' AND tipo_registro = 'DEUDA'");
+                    $cant_pend = $res_pend ? $res_pend->fetch_array()[0] : 0;
+                    if ($cant_pend > 0):
                     ?>
-                    <a href="gestion_deudores.php" class="btn btn-warning shadow-sm me-2 fw-bold pulse-warning">
-                        <i class="fas fa-bell me-2"></i> <?php echo $cant_pend; ?> Deudores Pendientes
-                    </a>
-                <?php endif; ?>
-                <button type="button" class="btn btn-success shadow-sm" data-bs-toggle="modal"
-                    data-bs-target="#modalGenerarCobro">
-                    <i class="fas fa-plus-circle me-1"></i> Generar Cobro
-                </button>
+                        <a href="gestion_deudores.php" class="btn btn-warning shadow-sm fw-bold pulse-warning d-flex align-items-center">
+                            <i class="fas fa-bell me-2"></i> <?php echo $cant_pend; ?> Deudores
+                        </a>
+                    <?php endif; ?>
+                    <button type="button" class="btn btn-premium px-4 fw-bold shadow-sm d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#modalGenerarCobro">
+                        <i class="fas fa-plus-circle me-1"></i> Generar Cobro
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -260,7 +274,7 @@ if ($planes_query) {
         <?php endif; ?>
 
         <!-- Filtros -->
-        <div class="card border-0 shadow-sm mb-4">
+        <div class="card glass-panel border-0 shadow-sm mb-4">
             <div class="card-body p-3">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-2">
@@ -359,25 +373,25 @@ if ($planes_query) {
         </div>
 
         <!-- Tabla Unificada -->
-        <div class="card border-0 shadow-sm overflow-hidden">
-            <div class="card-header bg-white p-0 border-bottom-0">
-                <ul class="nav nav-tabs nav-tabs-custom" id="mensualidadesTabs" role="tablist">
+        <div class="card glass-panel border-0 shadow-sm overflow-hidden mb-4">
+            <div class="card-header bg-transparent p-0 border-bottom border-white border-opacity-10">
+                <ul class="nav nav-tabs nav-tabs-custom border-0" id="mensualidadesTabs" role="tablist">
                     <li class="nav-item">
                         <button class="nav-link active" id="tab-general" data-tab="general" type="button">
                             <i class="fas fa-list-ul me-2"></i>General 
-                            <span class="badge bg-primary" id="count-general">0</span>
+                            <span class="badge bg-primary text-white border border-primary border-opacity-25 ms-1" id="count-general">0</span>
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link tab-sae-pendiente" id="tab-sae-pendiente" data-tab="sae_pendiente" type="button">
                             <i class="fas fa-times-circle me-2"></i>No Cargado SAE Plus 
-                            <span class="badge bg-danger" id="count-sae-pendiente">0</span>
+                            <span class="badge bg-danger text-white border border-danger border-opacity-25 ms-1" id="count-sae-pendiente">0</span>
                         </button>
                     </li>
                     <li class="nav-item">
                         <button class="nav-link tab-sae-cargado" id="tab-sae-cargado" data-tab="sae_cargado" type="button">
                             <i class="fas fa-check-double me-2"></i>Cargados SAE Plus 
-                            <span class="badge bg-success" id="count-sae-cargado">0</span>
+                            <span class="badge bg-success text-white border border-success border-opacity-25 ms-1" id="count-sae-cargado">0</span>
                         </button>
                     </li>
                 </ul>
@@ -385,8 +399,8 @@ if ($planes_query) {
             </div>
             <div class="card-body p-4">
                 <div class="table-responsive">
-                    <table class="display table table-striped table-hover w-100" id="tabla_mensualidades_unica">
-                        <thead class="bg-light">
+                    <table class="display table table-striped table-hover w-100 text-main" id="tabla_mensualidades_unica">
+                        <thead class="bg-transparent text-main">
                             <tr>
                                 <th>Fecha de registro</th>
                                 <th>Cédula</th>
@@ -408,6 +422,12 @@ if ($planes_query) {
                 </div>
             </div>
         </div>
+
+        <div class="text-center mb-4">
+            <a href="../menu.php" class="btn btn-glass px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+            </a>
+        </div>
     </div>
 </main>
 
@@ -418,7 +438,7 @@ if ($planes_query) {
 <div class="modal fade" id="modalPagar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header modal-header-gradient text-white">
                 <h5 class="modal-title fw-bold">Registrar Pago</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -480,7 +500,7 @@ if ($planes_query) {
 <div class="modal fade" id="modalGenerarCobro" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-success text-white">
+            <div class="modal-header modal-header-gradient text-white">
                 <h5 class="modal-title fw-bold">Generar Cargo Manual</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -813,7 +833,7 @@ if ($planes_query) {
 <div class="modal fade" id="modalJustificacion" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white">
+            <div class="modal-header modal-header-gradient text-white">
                 <h5 class="modal-title fw-bold text-white"><i class="fas fa-info-circle me-2"></i>Detalles del Pago</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -837,15 +857,15 @@ if ($planes_query) {
                         </div>
                     </div>
 
-                    <div class="bg-light rounded p-3 border mb-4 shadow-sm">
+                    <div class="bg-transparent rounded p-3 border border-white border-opacity-10 mb-4 shadow-sm">
                         <div class="row g-2">
                             <div class="col-6">
                                 <label class="small text-muted fw-bold d-block mb-0" style="font-size: 0.65rem;">Referencia</label>
-                                <span class="fw-bold text-dark" id="justif_referencia">---</span>
+                                <span class="fw-bold text-main" id="justif_referencia">---</span>
                             </div>
                             <div class="col-6">
                                 <label class="small text-muted fw-bold d-block mb-0" style="font-size: 0.65rem;">Banco Receptor</label>
-                                <span class="fw-bold text-dark" id="justif_banco">---</span>
+                                <span class="fw-bold text-main" id="justif_banco">---</span>
                             </div>
                             <div class="col-12 mt-2">
                                 <label class="small text-muted fw-bold d-block mb-0" style="font-size: 0.65rem;">Autorizado por</label>
@@ -856,8 +876,8 @@ if ($planes_query) {
 
                     <h6 class="fw-bold small text-muted mb-2 text-uppercase" style="letter-spacing: 0.5px;">Conceptos del Pago:</h6>
                     <div class="table-responsive mb-4">
-                        <table class="table table-sm table-bordered bg-white small mb-0">
-                            <thead class="bg-light">
+                        <table class="table table-sm table-bordered bg-transparent border-white border-opacity-10 text-main small mb-0">
+                            <thead class="bg-transparent border-bottom border-white border-opacity-10">
                                 <tr>
                                     <th>Factura #</th>
                                     <th>Descripción / Concepto</th>
@@ -868,7 +888,7 @@ if ($planes_query) {
                                 <!-- Dinámico -->
                             </tbody>
                             <tfoot>
-                                <tr class="fw-bold bg-light">
+                                <tr class="fw-bold bg-transparent border-top border-white border-opacity-10">
                                     <td colspan="2" class="text-end">Total Pagado:</td>
                                     <td class="text-end text-success" id="justif_total_pagado">$0.00</td>
                                 </tr>
@@ -876,17 +896,17 @@ if ($planes_query) {
                         </table>
                     </div>
 
-                    <div class="alert alert-secondary border-0 bg-light p-3 small mb-3 scroll-premium" style="max-height: 120px; overflow-y: auto; line-height: 1.5;" id="justif_texto">
+                    <div class="border border-white border-opacity-10 rounded bg-transparent text-main p-3 small mb-3 scroll-premium" style="max-height: 120px; overflow-y: auto; line-height: 1.5;" id="justif_texto">
                         ---
                     </div>
 
                     <h6 class="fw-bold small text-muted mb-2 text-uppercase" style="letter-spacing: 0.5px;">Evidencia del Capture:</h6>
-                    <div id="justif_capture_container" class="border rounded bg-white text-center p-2 d-none shadow-sm">
+                    <div id="justif_capture_container" class="border border-white border-opacity-10 rounded bg-transparent text-center p-2 d-none shadow-sm">
                         <a href="" target="_blank" id="justif_capture_link">
                             <img src="" id="justif_capture_img" class="img-fluid rounded" style="max-height: 350px;" alt="Capture de pago">
                         </a>
                     </div>
-                    <div id="justif_no_capture" class="text-center py-3 bg-light rounded border border-dashed d-none">
+                    <div id="justif_no_capture" class="text-center py-3 bg-transparent rounded border border-white border-opacity-25 border-dashed d-none">
                         <i class="fas fa-image-slash fa-2x opacity-25 mb-2"></i>
                         <p class="small text-muted mb-0">Sin comprobante digital disponible</p>
                     </div>
@@ -903,14 +923,14 @@ if ($planes_query) {
 <div class="modal fade" id="modalHistorial" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-info text-white">
+            <div class="modal-header modal-header-gradient text-white">
                 <h5 class="modal-title fw-bold">Historial de Pagos - <span id="hist_cliente_nombre"></span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <div class="table-responsive">
-                    <table class="table table-hover w-100" style="font-size: 0.85rem;">
-                        <thead class="bg-light text-muted">
+                    <table class="table table-hover w-100 text-main" style="font-size: 0.85rem;">
+                        <thead class="bg-transparent text-main border-bottom border-white border-opacity-10">
                             <tr>
                                 <th>ID</th>
                                 <th>Emisión</th>
@@ -939,9 +959,9 @@ if ($planes_query) {
 <div class="modal fade" id="modalEditarCobro" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header modal-header-gradient text-white">
                 <h5 class="modal-title fw-bold">Modificar Pago #<span id="edit_id_cobro_display"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="formEditarCobro" enctype="multipart/form-data">
                 <div class="modal-body p-0">
@@ -958,7 +978,7 @@ if ($planes_query) {
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold text-muted small mb-1">Cliente / Contrato</label>
-                                    <div class="p-2 bg-light border rounded fw-bold text-dark small" id="edit_cliente_info_static">
+                                    <div class="p-2 bg-light bg-opacity-10 border border-secondary border-opacity-25 rounded fw-bold text-main small" id="edit_cliente_info_static">
                                         ---
                                     </div>
                                     <input type="hidden" name="id_contrato" id="edit_id_contrato_hidden">
@@ -973,8 +993,8 @@ if ($planes_query) {
                                 </div>
                             </div>
 
-                            <div class="mb-4 bg-light p-3 rounded border shadow-sm">
-                                <label class="form-label fw-bold text-dark small d-block mb-3">Monto Total Reportado</label>
+                            <div class="mb-4 bg-transparent p-3 rounded border border-white border-opacity-10 shadow-sm">
+                                <label class="form-label fw-bold text-main small d-block mb-3">Monto Total Reportado</label>
                                 <div class="row g-3 align-items-center">
                                     <div class="col-md-7">
                                         <div class="input-group">
@@ -1017,12 +1037,12 @@ if ($planes_query) {
                             
                             <div class="desglose-scroll pe-2" style="max-height: 280px; overflow-y: auto;">
                                 <!-- Mensualidad -->
-                                <div class="mb-2 bg-white border-start border-4 border-primary rounded p-2 shadow-sm">
+                                <div class="mb-2 bg-transparent border-start border-4 border-primary rounded p-2 shadow-sm border border-white border-opacity-10">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="form-check form-switch me-3 mb-0">
                                             <input class="form-check-input desglose-switch-edit" type="checkbox" id="edit_switch_mensualidad" name="desglose_mensualidad_activado" value="1">
                                         </div>
-                                        <label class="form-check-label fw-bold text-dark small mb-0" for="edit_switch_mensualidad">Mensualidad</label>
+                                        <label class="form-check-label fw-bold text-main small mb-0" for="edit_switch_mensualidad">Mensualidad</label>
                                     </div>
                                     <div class="d-none desglose-fields-edit row g-2 mt-1" id="edit_fields_mensualidad">
                                         <div class="col-4">
@@ -1043,12 +1063,12 @@ if ($planes_query) {
                                 </div>
 
                                 <!-- Instalación -->
-                                <div class="mb-2 bg-white border-start border-4 border-info rounded p-2 shadow-sm">
+                                <div class="mb-2 bg-transparent border-start border-4 border-info rounded p-2 shadow-sm border border-white border-opacity-10">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="form-check form-switch me-3 mb-0">
                                             <input class="form-check-input desglose-switch-edit" type="checkbox" id="edit_switch_instalacion" name="desglose_instalacion_activado" value="1">
                                         </div>
-                                        <label class="form-check-label fw-bold text-dark small mb-0" for="edit_switch_instalacion">Instalación</label>
+                                        <label class="form-check-label fw-bold text-main small mb-0" for="edit_switch_instalacion">Instalación</label>
                                     </div>
                                     <div class="d-none desglose-fields-edit mt-1" id="edit_fields_instalacion">
                                         <label class="small text-muted fw-bold mb-1" style="font-size: 0.65rem;">Monto $</label>
@@ -1057,12 +1077,12 @@ if ($planes_query) {
                                 </div>
 
                                 <!-- Equipos -->
-                                <div class="mb-2 bg-white border-start border-4 border-secondary rounded p-2 shadow-sm">
+                                <div class="mb-2 bg-transparent border-start border-4 border-secondary rounded p-2 shadow-sm border border-white border-opacity-10">
                                     <div class="d-flex align-items-center mb-2">
                                         <div class="form-check form-switch me-3 mb-0">
                                             <input class="form-check-input desglose-switch-edit" type="checkbox" id="edit_switch_equipo" name="desglose_equipo_activado" value="1">
                                         </div>
-                                        <label class="form-check-label fw-bold text-dark small mb-0" for="edit_switch_equipo">Equipos/Materiales</label>
+                                        <label class="form-check-label fw-bold text-main small mb-0" for="edit_switch_equipo">Equipos/Materiales</label>
                                     </div>
                                     <div class="d-none desglose-fields-edit mt-1" id="edit_fields_equipo">
                                         <label class="small text-muted fw-bold mb-1" style="font-size: 0.65rem;">Monto $</label>
@@ -1072,12 +1092,12 @@ if ($planes_query) {
 
                                 <div class="row g-2 mb-2">
                                     <div class="col-12">
-                                        <div class="bg-white border-start border-4 border-danger rounded p-2 shadow-sm h-100">
+                                        <div class="bg-transparent border-start border-4 border-danger rounded p-2 shadow-sm h-100 border border-white border-opacity-10">
                                             <div class="d-flex align-items-center mb-2">
                                                 <div class="form-check form-switch me-2 mb-0">
                                                     <input class="form-check-input desglose-switch-edit" type="checkbox" id="edit_switch_prorrateo" name="desglose_prorrateo_activado" value="1">
                                                 </div>
-                                                <label class="form-check-label fw-bold text-dark small mb-0" for="edit_switch_prorrateo" style="font-size: 0.75rem;">Prorrateo</label>
+                                                <label class="form-check-label fw-bold text-main small mb-0" for="edit_switch_prorrateo" style="font-size: 0.75rem;">Prorrateo</label>
                                             </div>
                                             <div class="d-none desglose-fields-edit mt-1" id="edit_fields_prorrateo">
                                                 <label class="small text-muted fw-bold mb-1" style="font-size: 0.65rem;">Monto $</label>
@@ -1088,7 +1108,7 @@ if ($planes_query) {
                                 </div>
 
                                 <!-- Mensualidad Extra (Pago de Tercero) -->
-                                <div class="mb-3 bg-white border rounded p-3 shadow-sm border-info mt-3">
+                                <div class="mb-3 bg-transparent border border-white border-opacity-10 rounded p-3 shadow-sm border-info mt-3">
                                     <div class="d-flex align-items-center mb-1">
                                         <div class="form-check form-switch me-3 mb-0">
                                             <input class="form-check-input desglose-switch-edit" type="checkbox" id="edit_switch_extra" name="desglose_extra_activado" value="1">
@@ -1141,10 +1161,10 @@ if ($planes_query) {
                         </div>
 
                         <!-- COLUMNA DERECHA: CAPTURE -->
-                        <div class="col-md-5 ps-lg-4 bg-light p-4 rounded-end d-flex flex-column">
+                        <div class="col-md-5 ps-lg-4 bg-transparent border-start border-white border-opacity-10 p-4 rounded-end d-flex flex-column">
                             <h6 class="fw-bold text-primary mb-3"><i class="fas fa-image me-1"></i> Evidencia del Pago</h6>
                             
-                            <div class="mb-3 bg-white p-3 rounded shadow-sm border">
+                            <div class="mb-3 bg-transparent p-3 rounded shadow-sm border border-white border-opacity-10">
                                 <label class="small fw-bold text-muted mb-2 d-block">Actualizar/Subir Nuevo Capture</label>
                                 <input class="form-control form-control-sm" type="file" name="capture_archivo" id="edit_capture_upload" accept="image/*">
                             </div>
@@ -1155,7 +1175,7 @@ if ($planes_query) {
                                     <span class="small fw-bold text-secondary">Imagen Actual/Nueva:</span>
                                     <button type="button" class="btn btn-sm text-danger p-0 border-0 d-none" id="btn_clear_edit_capture">Limpiar Selección</button>
                                 </div>
-                                <div class="border rounded shadow-sm bg-white" style="height: 600px; overflow-y: auto;">
+                                <div class="border border-white border-opacity-10 rounded shadow-sm bg-transparent" style="height: 600px; overflow-y: auto;">
                                     <img id="edit_capture_preview_img" src="" alt="Capture" class="img-fluid" style="width: 100%;">
                                     <div id="edit_capture_empty" class="h-100 d-flex flex-column justify-content-center align-items-center text-muted opacity-50">
                                         <i class="fas fa-image fa-4x mb-2"></i>
@@ -1166,12 +1186,12 @@ if ($planes_query) {
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top-0">
+                <div class="modal-footer bg-transparent border-top-0">
                     <div class="me-auto">
                          <span class="small text-muted fw-bold">Total Desglose: $<span id="edit_val_suma_desglose">0.00</span></span>
                     </div>
                     <button type="button" class="btn btn-secondary shadow-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-warning shadow-sm border-0 fw-bold px-4">Guardar Cambios</button>
+                    <button type="submit" class="btn btn-premium shadow-sm border-0 fw-bold px-4">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -1216,8 +1236,10 @@ if ($planes_query) {
                     const inputTasaHidden = document.getElementById('tasa_aplicada_hidden');
                     if (inputTasaHidden) inputTasaHidden.value = TASA_BCV;
                     $('#tasa_display').html(`<strong>Tasa BCV/Ref:</strong> Bs. ${TASA_BCV.toFixed(2)}`);
+                    $('#header_tasa_bcv').text(`Bs. ${TASA_BCV.toFixed(2)}`);
                 } else {
                     $('#tasa_display').html(`<span class="text-danger">Error Tasa</span>`);
+                    $('#header_tasa_bcv').html(`<span class="text-danger">Error</span>`);
                 }
             });
 
@@ -3332,7 +3354,7 @@ if ($planes_query) {
                             const tr = document.createElement('tr');
                             tr.innerHTML = `
                                 <td>${c.id_cobro}</td>
-                                <td><span class="fw-bold text-dark">${formatConcept(c.justificacion, montoVal)}</span></td>
+                                <td><span class="fw-bold text-main">${formatConcept(c.justificacion, montoVal)}</span></td>
                                 <td class="text-end fw-bold">$${montoVal.toFixed(2)}</td>
                             `;
                             tbody.appendChild(tr);

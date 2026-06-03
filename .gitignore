@@ -11,6 +11,5 @@ node_modules/
 paginas/principal/logs/
 *.log
 
-# Caches locales (IGNORAR)
+# Cache Dinámica (IGNORAR)
 portal/tasa_cache.json
-

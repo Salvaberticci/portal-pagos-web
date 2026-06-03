@@ -19,30 +19,59 @@ $sql = "
     LEFT JOIN bancos b ON pr.id_banco_destino = b.id_banco
     WHERE pr.estado = 'PENDIENTE'
     ORDER BY pr.fecha_registro DESC
+    LIMIT 100
 ";
 $resultado = $conn->query($sql);
 ?>
 
 
 
-<script src="<?php echo $path_to_root; ?>js/jquery.min.js"></script>
-<script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<style>
+    .page-content {
+        padding: 1.5rem;
+        flex: 1;
+    }
+    
+    .main-content {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    @keyframes pulse-mismatch {
+        0% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.7; transform: scale(0.98); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+    .animate-pulse {
+        animation: pulse-mismatch 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .badge-ocr-mismatch {
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
+    
+    /* Optimization: Reduce transitions during layout heavy sections */
+    .table-responsive {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+</style>
 
 <main class="main-content">
     <?php include '../includes/header.php'; ?>
 
-    <div class="page-content">
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white py-3">
+    <div class="page-content container-fluid">
+        <div class="glass-panel animate-fade mb-4">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-4 px-4">
                 <div class="row align-items-center">
                     <div class="col">
-                        <h5 class="fw-bold text-primary mb-0">Reportes de Pago Pendientes</h5>
-                        <p class="text-muted small mb-0">Revisión manual de reportes enviados por clientes vía link
-                            público</p>
+                        <h4 class="fw-bold text-gradient mb-1">Reportes de Pago Pendientes</h4>
+                        <p class="text-muted small mb-0">Revisión manual de reportes enviados por clientes vía portal</p>
                     </div>
                     <div class="col-auto">
-                        <a href="historial_pagos_reportados.php" class="btn btn-outline-primary btn-sm">
+                        <a href="historial_pagos_reportados.php" class="btn btn-glass btn-sm">
                             <i class="fas fa-history me-1"></i> Ver Historial
                         </a>
                     </div>
@@ -58,26 +87,26 @@ $resultado = $conn->query($sql);
                     </div>
                 </div>
             <?php endif; ?>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle" id="tablaAprobacion">
-                        <thead class="table-light">
+                    <table class="table table-hover align-middle mb-0" id="tablaAprobacion">
+                        <thead>
                             <tr>
-                                <th>Fecha Reporte</th>
+                                <th class="ps-4">Fecha Reporte</th>
                                 <th>Cliente / Cédula</th>
                                 <th>Detalle Pago</th>
                                 <th>Monto (Bs)</th>
                                 <th>Meses</th>
                                 <th>Comprobante</th>
-                                <th class="text-center">Acciones</th>
+                                <th class="text-center pe-4">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyReportes">
                             <?php if ($resultado && $resultado->num_rows > 0): ?>
                                 <?php while ($row = $resultado->fetch_assoc()): ?>
                                     <tr>
-                                        <td>
-                                            <span class="d-block fw-bold">
+                                        <td class="ps-4">
+                                            <span class="d-block fw-bold text-main">
                                                 <?php echo date('d/m/Y', strtotime($row['fecha_registro'])); ?>
                                             </span>
                                             <small class="text-muted">
@@ -85,10 +114,10 @@ $resultado = $conn->query($sql);
                                             </small>
                                         </td>
                                         <td>
-                                            <span class="d-block fw-bold">
+                                            <span class="d-block fw-bold text-main">
                                                 <?php echo htmlspecialchars($row['nombre_titular']); ?>
                                             </span>
-                                            <small class="badge bg-secondary">
+                                            <small class="badge bg-primary-light text-primary">
                                                 <?php echo htmlspecialchars($row['cedula_titular']); ?>
                                             </small>
                                             <div class="text-muted small">
@@ -135,23 +164,23 @@ $resultado = $conn->query($sql);
                                         </td>
                                         <td>
                                             <a href="../../<?php echo $row['capture_path']; ?>" target="_blank"
-                                                class="btn btn-sm btn-outline-info">
+                                                class="btn btn-sm btn-glass text-info">
                                                 <i class="fas fa-image me-1"></i> Ver Foto
                                             </a>
                                         </td>
-                                        <td class="text-center">
-                                            <div class="btn-group">
-                                                <button type="button" class="btn btn-sm btn-success"
+                                        <td class="text-center pe-4">
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <button type="button" class="btn btn-sm btn-glass text-success"
                                                     onclick="prepararAprobacion(<?php echo htmlspecialchars(json_encode($row)); ?>)"
                                                     title="Aprobar y Registrar">
                                                     <i class="fas fa-check"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-danger"
+                                                <button type="button" class="btn btn-sm btn-glass text-danger"
                                                     onclick="confirmarRechazo(<?php echo $row['id_reporte']; ?>)"
                                                     title="Rechazar">
                                                     <i class="fas fa-times"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                                <button type="button" class="btn btn-sm btn-glass text-muted"
                                                     onclick="confirmarEliminacion(<?php echo $row['id_reporte']; ?>)"
                                                     title="Eliminar Reporte Permanentemente">
                                                     <i class="fas fa-trash"></i>
@@ -177,10 +206,12 @@ $resultado = $conn->query($sql);
 
     <!-- Modal Aprobar Pago -->
     <div class="modal fade" id="modalConfirmarAprobacion" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title fw-bold">Confirmar Aprobación de Pago</h5>
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content glass-panel border-0">
+                <div class="modal-header modal-header-gradient border-0">
+                    <h5 class="modal-title fw-bold text-white">
+                        <i class="fas fa-check-circle me-2"></i> Confirmar Aprobación de Pago
+                    </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="procesar_aprobacion_admin.php" method="POST">
@@ -205,30 +236,44 @@ $resultado = $conn->query($sql);
 
                             <!-- Columna Derecha: Formulario -->
                             <div class="col-md-6">
-                                <div class="alert alert-info py-2 small mb-3">
-                                    <div class="row align-items-center">
-                                        <div class="col">
-                                            <div class="fw-bold">Reportado por: <span id="val_cliente_reporta"
-                                                    class="text-dark">---</span></div>
-                                            <div class="small">Tel: <span id="val_tel_reporta">---</span></div>
+                                <div class="alert alert-info py-2 small mb-3 border-start-0 border-end-0 rounded-0 bg-opacity-10 bg-info">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-5">
+                                            <div class="fw-bold text-dark">Reportado por: <span id="val_cliente_reporta" class="text-primary">---</span></div>
+                                            <div class="small text-muted">Tel: <span id="val_tel_reporta">---</span></div>
                                         </div>
-                                        <div class="col-auto text-end border-start ps-3">
-                                            <div class="fw-bold text-dark">Monto Cliente: <span id="val_monto_usuario"
-                                                    class="badge bg-primary">0,00 Bs.</span></div>
-                                            <div class="fw-bold text-dark">Monto OCR: <span id="val_monto_ocr"
-                                                    class="badge bg-secondary">Esperando...</span></div>
+                                        <div class="col-md-7 text-end border-start ps-3">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span class="text-muted">Monto (Usuario vs OCR):</span>
+                                                <span>
+                                                    <span id="val_monto_usuario" class="badge bg-primary">0,00 Bs.</span>
+                                                    <i class="fas fa-arrows-left-right mx-1 text-muted small"></i>
+                                                    <span id="val_monto_ocr" class="badge bg-secondary">Esperando...</span>
+                                                </span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Ref. (Usuario vs OCR):</span>
+                                                <span>
+                                                    <span id="val_ref_usuario" class="badge bg-primary">---</span>
+                                                    <i class="fas fa-arrows-left-right mx-1 text-muted small"></i>
+                                                    <span id="val_ref_ocr" class="badge bg-secondary">Esperando...</span>
+                                                </span>
+                                            </div>
                                         </div>
+                                    </div>
+                                    <div id="mismatch-warning" class="mt-2 text-danger fw-bold small d-none animate-pulse">
+                                        <i class="fas fa-triangle-exclamation me-1"></i> ATENCIÓN: Los datos del comprobante no coinciden con lo reportado.
                                     </div>
                                 </div>
 
                                 <div class="row g-3">
                                     <div class="col-12">
-                                        <label class="form-label fw-bold">Buscar Contratante (Manual)</label>
+                                        <label class="form-label fw-bold text-white">Buscar Contratante (Manual)</label>
                                         <div class="input-group">
-                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                                            <input type="text" id="busqueda_manual_contrato" class="form-control"
+                                            <span class="input-group-text glass-input border-end-0"><i class="fas fa-search text-primary"></i></span>
+                                            <input type="text" id="busqueda_manual_contrato" class="form-control glass-input border-start-0"
                                                 placeholder="Nombre, Cédula o ID...">
-                                            <button type="button" class="btn btn-primary"
+                                            <button type="button" class="btn btn-primary px-3"
                                                 onclick="buscarContratoManual()">Buscar</button>
                                         </div>
                                     </div>
@@ -297,9 +342,9 @@ $resultado = $conn->query($sql);
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
-                        <button type="submit" class="btn btn-success fw-bold px-4">APROBAR Y REGISTRAR PAGO</button>
+                    <div class="modal-footer border-top border-white border-opacity-10">
+                        <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">APROBAR Y REGISTRAR PAGO</button>
                     </div>
                 </form>
             </div>
@@ -308,10 +353,10 @@ $resultado = $conn->query($sql);
 
     <!-- Modal Rechazar -->
     <div class="modal fade" id="modalRechazar" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title fw-bold">Rechazar Reporte de Pago</h5>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content glass-panel border-0">
+                <div class="modal-header modal-header-gradient border-0">
+                    <h5 class="modal-title fw-bold text-white">Rechazar Reporte de Pago</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="procesar_aprobacion_admin.php" method="POST">
@@ -319,11 +364,17 @@ $resultado = $conn->query($sql);
                         <input type="hidden" name="id_reporte" id="rej_id_reporte">
                         <input type="hidden" name="accion" value="RECHAZAR">
                         <i class="fas fa-exclamation-circle fa-4x text-danger mb-3"></i>
-                        <h5 class="mb-3">Â¿Seguro que desea rechazar este reporte?</h5>
+                        <h5 class="mb-3">¿Seguro que desea rechazar este reporte?</h5>
                         <p class="text-muted">Esta acción no registrará el pago y marcará el reporte como rechazado.</p>
+                        
+                        <div class="mb-3 text-start">
+                            <label class="form-label text-white small">Motivo del rechazo (opcional)</label>
+                            <textarea name="motivo" class="form-control glass-input" rows="3" placeholder="Ej: Referencia inválida, capture ilegible..."></textarea>
+                        </div>
+
                         <div class="modal-footer border-top-0 pt-0">
-                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-danger px-4">RECHAZAR PAGO</button>
+                            <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger px-4 fw-bold">RECHAZAR PAGO</button>
                         </div>
                     </div>
                 </form>
@@ -333,10 +384,10 @@ $resultado = $conn->query($sql);
 
     <!-- Modal Eliminar Reporte -->
     <div class="modal fade" id="modalEliminarReporte" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title fw-bold">Eliminar Reporte</h5>
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content glass-panel border-0">
+                <div class="modal-header modal-header-gradient border-0">
+                    <h5 class="modal-title fw-bold text-white">Eliminar Reporte</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <form action="procesar_aprobacion_admin.php" method="POST">
@@ -348,8 +399,8 @@ $resultado = $conn->query($sql);
                         <p class="text-muted small">Esto borrará el registro y su imagen del servidor.</p>
                     </div>
                     <div class="modal-footer border-top-0 pt-0">
-                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">No</button>
-                        <button type="submit" class="btn btn-danger px-4">Sí, Eliminar</button>
+                        <button type="button" class="btn btn-glass" data-bs-dismiss="modal">No</button>
+                        <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Eliminar</button>
                     </div>
                 </form>
             </div>
@@ -358,12 +409,26 @@ $resultado = $conn->query($sql);
 
 </main>
 
+<!-- Scripts moved before inline logic to fix ReferenceError: $ is not defined -->
+<script src="<?php echo $path_to_root; ?>js/jquery.min.js"></script>
+<script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     // Global variables for modals and OCR
     let modalAprobar, modalRechazar;
     let currentCapturePath = '';
 
     $(document).ready(function () {
+        // Limpiar parámetros de URL para que el mensaje no se repita al recargar
+        if (window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('message');
+            url.searchParams.delete('class');
+            url.searchParams.delete('maintenance_done');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+
         // Initialize modals safely after Bootstrap is loaded from layout_foot.php
         const elAprobar = document.getElementById('modalConfirmarAprobacion');
         const elRechazar = document.getElementById('modalRechazar');
@@ -389,7 +454,7 @@ $resultado = $conn->query($sql);
                     })
                     .catch(err => console.error("Error en auto-refresh:", err));
             }
-        }, 5000);
+        }, 15000);
 
         // Permitir buscar al presionar Enter
         $('#busqueda_manual_contrato').on('keypress', function (e) {
@@ -416,11 +481,22 @@ $resultado = $conn->query($sql);
         document.getElementById('val_tel_reporta').innerText = data.telefono_titular;
         document.getElementById('busqueda_manual_contrato').value = ''; // Limpiar búsqueda previa
 
+        // Guardar valores reportados para comparación posterior en OCR
+        window.montoReportadoUsuario = parseFloat(data.monto_bs || 0);
+        window.referenciaReportadaUsuario = data.referencia || '';
+
         // Mostrar monto reportado por el usuario
-        const montoBs = parseFloat(data.monto_bs || 0);
-        document.getElementById('val_monto_usuario').innerText = montoBs.toLocaleString('es-VE', { minimumFractionDigits: 2 }) + ' Bs.';
+        document.getElementById('val_monto_usuario').innerText = window.montoReportadoUsuario.toLocaleString('es-VE', { minimumFractionDigits: 2 }) + ' Bs.';
         document.getElementById('val_monto_ocr').innerText = 'Procesando...';
         document.getElementById('val_monto_ocr').className = 'badge bg-secondary';
+
+        // Mostrar referencia reportada por el usuario
+        document.getElementById('val_ref_usuario').innerText = window.referenciaReportadaUsuario;
+        document.getElementById('val_ref_ocr').innerText = 'Procesando...';
+        document.getElementById('val_ref_ocr').className = 'badge bg-secondary';
+
+        // Reset mismatch warning
+        document.getElementById('mismatch-warning').classList.add('d-none');
 
         document.getElementById('ap_meses_notas').innerHTML = `<strong>Meses reportados:</strong> ${data.meses_pagados}<br><strong>Justificación:</strong> ${data.concepto || 'N/A'}`;
 
@@ -598,11 +674,19 @@ $resultado = $conn->query($sql);
                 // Actualizar comparativa en el modal
                 const valOcrEl = document.getElementById('val_monto_ocr');
                 valOcrEl.innerText = displayVal;
-                valOcrEl.className = 'badge bg-success';
+                
+                // Comparar con reporte de usuario
+                if (Math.abs(detectedVal - window.montoReportadoUsuario) < 0.01) {
+                    valOcrEl.className = 'badge bg-success';
+                } else {
+                    valOcrEl.className = 'badge bg-danger';
+                    document.getElementById('mismatch-warning').classList.remove('d-none');
+                }
             } else {
                 statusText.innerHTML = '<span class="text-warning"><i class="fas fa-exclamation-triangle"></i> Monto no detectado — ingrese manualmente</span>';
                 document.getElementById('val_monto_ocr').innerText = 'No detectado';
                 document.getElementById('val_monto_ocr').className = 'badge bg-warning text-dark';
+                document.getElementById('mismatch-warning').classList.remove('d-none');
             }
 
             // --- Extraer Referencia (Mejorada) ---
@@ -622,6 +706,25 @@ $resultado = $conn->query($sql);
             if (detectedRef) {
                 document.getElementById('ap_referencia').value = detectedRef;
                 statusText.innerHTML += `<br><span class="text-success small"><i class="fas fa-check"></i> Referencia sugerida: <strong>${detectedRef}</strong></span>`;
+                
+                // Actualizar comparativa de referencia
+                const refOcrEl = document.getElementById('val_ref_ocr');
+                refOcrEl.innerText = detectedRef;
+
+                // Comparar con reporte de usuario (limpiar posibles ceros a la izquierda o espacios)
+                const refUser = window.referenciaReportadaUsuario.trim().replace(/^0+/, '');
+                const refDetected = detectedRef.trim().replace(/^0+/, '');
+
+                if (refUser === refDetected || refUser.endsWith(refDetected) || refDetected.endsWith(refUser)) {
+                    refOcrEl.className = 'badge bg-success';
+                } else {
+                    refOcrEl.className = 'badge bg-danger';
+                    document.getElementById('mismatch-warning').classList.remove('d-none');
+                }
+            } else {
+                document.getElementById('val_ref_ocr').innerText = 'No detectada';
+                document.getElementById('val_ref_ocr').className = 'badge bg-warning text-dark';
+                document.getElementById('mismatch-warning').classList.remove('d-none');
             }
 
             // --- Extraer Fecha ---
@@ -683,5 +786,4 @@ $resultado = $conn->query($sql);
         }
     });
 </script>
-
 <?php require_once '../includes/layout_foot.php'; ?>

@@ -12,6 +12,45 @@ include $path_to_root . 'paginas/includes/sidebar.php';
 include $path_to_root . 'paginas/includes/header.php';
 ?>
 
+<style>
+    .section-title {
+        background: rgba(0, 0, 0, 0.05) !important;
+        border-left: 4px solid var(--primary);
+        color: var(--text-main) !important;
+        padding: 8px 12px !important;
+        margin-bottom: 15px !important;
+        font-weight: 700 !important;
+        border-radius: 4px;
+        margin-top: 10px;
+    }
+
+    [data-theme="dark"] .section-title {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .section-title.border-danger {
+        border-left-color: var(--danger) !important;
+    }
+
+    [data-theme="dark"] .modal-content {
+        background-color: var(--modal-bg) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-glass) !important;
+    }
+
+    .info-box-premium {
+        background: rgba(128, 128, 128, 0.05) !important;
+        border: 1px solid var(--border-glass) !important;
+        padding: 15px !important;
+        border-radius: 12px !important;
+        margin-bottom: 15px !important;
+    }
+
+    [data-theme="dark"] .info-box-premium {
+        background: rgba(255, 255, 255, 0.03) !important;
+    }
+</style>
+
 <main class="main-content">
     <div class="page-content">
         <div class="container-fluid">
@@ -19,10 +58,10 @@ include $path_to_root . 'paginas/includes/header.php';
             <div class="row mb-4">
                 <div class="col-12 d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="h4 fw-bold mb-1 text-primary">Historial de Soportes</h2>
+                        <h2 class="h3 fw-bold text-gradient mb-1">Historial de Soportes</h2>
                         <p class="text-muted mb-0">Registro de trabajos realizados.</p>
                     </div>
-                    <a href="registro_soporte.php" class="btn btn-primary">
+                    <a href="reporte_tecnico.php" target="_blank" class="btn btn-premium">
                         <i class="fas fa-plus me-2"></i> Nuevo Soporte
                     </a>
                 </div>
@@ -44,10 +83,10 @@ include $path_to_root . 'paginas/includes/header.php';
                 }
             </script>
 
-            <div class="card border-0 shadow-sm">
+            <div class="card glass-panel border-0 shadow-lg animate-fade">
                 <div class="card-body p-0">
                     <div class="table-responsive p-4">
-                        <table id="tablaSoportes" class="display table table-striped table-bordered w-100">
+                        <table id="tablaSoportes" class="table table-hover table-orange-header w-100">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -74,10 +113,10 @@ include $path_to_root . 'paginas/includes/header.php';
 <!-- Modal Abonar -->
 <div class="modal fade" id="modalAbonar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form action="procesar_abono.php" method="POST" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Registrar Abono</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <form action="procesar_abono.php" method="POST" class="modal-content border-0">
+            <div class="modal-header modal-header-gradient text-white">
+                <h5 class="modal-title fw-bold">Registrar Abono</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" name="id_soporte" id="id_soporte_abono">
@@ -102,17 +141,17 @@ include $path_to_root . 'paginas/includes/header.php';
 <!-- Modal Editar -->
 <div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
-        <form action="actualizar_soporte.php" method="POST" class="modal-content" id="formEditarSoporte">
-            <div class="modal-header">
-                <h5 class="modal-title">Editar Soporte #<span id="edit_modal_id_display"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <form action="actualizar_soporte.php" method="POST" class="modal-content border-0" id="formEditarSoporte">
+            <div class="modal-header modal-header-gradient text-white">
+                <h5 class="modal-title fw-bold">Editar Soporte #<span id="edit_modal_id_display"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" name="id_soporte_edit" id="id_soporte_edit">
                 <input type="hidden" name="origen" value="historial_soportes">
 
                 <!-- Tipo de Falla -->
-                <div class="p-2 mb-2 bg-light border-start border-danger border-4 fw-bold">Información de Falla</div>
+                <div class="section-title border-danger">Información de Falla</div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Tipo de Falla</label>
@@ -156,7 +195,7 @@ include $path_to_root . 'paginas/includes/header.php';
                 </div>
 
                 <!-- 3. Detalles de Servicio -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Detalles Técnicos</div>
+                <div class="section-title">Detalles Técnicos</div>
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Tipo Servicio</label>
@@ -221,22 +260,24 @@ include $path_to_root . 'paginas/includes/header.php';
                     </div>
                 </div>
 
-                <div class="row mb-3 bg-light p-2 rounded mx-1">
-                    <div class="col-12"><small class="text-muted fw-bold">Solo Radio / Antena:</small></div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Estado Antena</label>
-                        <input type="text" class="form-control" name="estado_antena" id="estado_antena_edit"
-                            placeholder="Ej. Alineada">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Valores dBm</label>
-                        <input type="text" class="form-control" name="valores_antena" id="valores_antena_edit"
-                            placeholder="Ej. -55">
+                <div class="info-box-premium mx-1">
+                    <div class="col-12 mb-2"><small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Solo Radio / Antena:</small></div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Estado Antena</label>
+                            <input type="text" class="form-control" name="estado_antena" id="estado_antena_edit"
+                                placeholder="Ej. Alineada">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Valores dBm</label>
+                            <input type="text" class="form-control" name="valores_antena" id="valores_antena_edit"
+                                placeholder="Ej. -55">
+                        </div>
                     </div>
                 </div>
 
                 <!-- 4. Observaciones -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Diagnóstico y Solución</div>
+                <div class="section-title">Diagnóstico y Solución</div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label for="descripcion_edit" class="form-label">Observaciones / Problema</label>
@@ -262,7 +303,7 @@ include $path_to_root . 'paginas/includes/header.php';
                 </div>
 
                 <!-- 5. Costos -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Costos y Facturación</div>
+                <div class="section-title">Costos y Facturación</div>
                 <div class="mb-3">
                     <label for="monto_total_edit" class="form-label fw-bold">Monto Total ($)</label>
                     <input type="number" step="0.01" min="0" class="form-control" name="monto_total_edit"
@@ -272,8 +313,7 @@ include $path_to_root . 'paginas/includes/header.php';
                 </div>
 
                 <!-- 6. Firmas -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Actualizar Firmas (Opcional)
-                </div>
+                <div class="section-title">Actualizar Firmas (Opcional)</div>
                 <div class="row mb-4">
                     <p class="text-muted small">Deje los lienzos en blanco para conservar las firmas originales.</p>
                     <div class="col-md-6">
@@ -305,9 +345,9 @@ include $path_to_root . 'paginas/includes/header.php';
                 </div>
 
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" class="btn btn-primary" id="btnGuardarEdicion">Guardar Cambios</button>
+            <div class="modal-footer bg-light bg-opacity-5 border-top border-white border-opacity-10">
+                <button type="button" class="btn btn-glass px-4" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-premium px-4" id="btnGuardarEdicion">Guardar Cambios</button>
             </div>
         </form>
     </div>
@@ -316,9 +356,9 @@ include $path_to_root . 'paginas/includes/header.php';
 <!-- Modal Eliminar -->
 <div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form action="eliminar_soporte.php" method="POST" class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title">Eliminar Soporte</h5>
+        <form action="eliminar_soporte.php" method="POST" class="modal-content border-0">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title fw-bold">Eliminar Soporte</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     aria-label="Close"></button>
             </div>

@@ -87,16 +87,86 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
     }
 
     .filter-section {
-        background: #f8f9fa;
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
         padding: 20px;
         margin-bottom: 20px;
+        backdrop-filter: blur(8px);
     }
 
     .chart-container {
         position: relative;
         height: 300px;
         margin-bottom: 20px;
+    }
+
+    /* Ajustes para cabeceras de tablas en modo oscuro */
+    [data-theme="dark"] .table thead th {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: var(--text-main) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .table-orange-header th {
+        background-color: #fff4ea !important;
+        color: #ca6510 !important;
+    }
+
+    [data-theme="dark"] .table-orange-header th {
+        background-color: rgba(253, 126, 20, 0.2) !important;
+        color: #fd7e14 !important;
+    }
+
+    [data-theme="dark"] .table-warning th {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+        color: #ffc107 !important;
+    }
+
+    [data-theme="dark"] .table-danger th {
+        background-color: rgba(220, 53, 69, 0.2) !important;
+        color: #dc3545 !important;
+    }
+
+    /* Forzar cabeceras de gráficas a ser transparentes en modo oscuro */
+    [data-theme="dark"] .glass-panel .card-header,
+    [data-theme="dark"] .card-header.bg-transparent {
+        background-color: transparent !important;
+        color: var(--text-main) !important;
+    }
+
+    [data-theme="dark"] .glass-panel .card-header .fw-bold {
+        color: var(--text-main) !important;
+    }
+
+    .section-title {
+        background: rgba(0, 0, 0, 0.05) !important;
+        border-left: 4px solid var(--primary);
+        color: var(--text-main) !important;
+        padding: 8px 12px !important;
+        margin-bottom: 12px !important;
+        font-weight: 700 !important;
+        border-radius: 4px;
+    }
+
+    [data-theme="dark"] .section-title {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .section-title.border-danger {
+        border-left-color: var(--danger) !important;
+    }
+
+    .info-box-premium {
+        background: rgba(128, 128, 128, 0.05) !important;
+        border: 1px solid var(--border-glass) !important;
+        padding: 15px !important;
+        border-radius: 12px !important;
+        margin-bottom: 15px !important;
+    }
+
+    [data-theme="dark"] .info-box-premium {
+        background: rgba(255, 255, 255, 0.03) !important;
     }
 </style>
 
@@ -109,7 +179,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h2 class="fw-bold mb-0 text-dark"><i class="fa-solid fa-list-check me-2 text-primary"></i>Gestión de Fallas</h2>
+                        <h2 class="fw-bold mb-0 text-gradient"><i class="fa-solid fa-list-check me-2 text-primary"></i>Gestión de Fallas</h2>
                         <p class="text-muted mb-0">Monitorea y gestiona las solicitudes de soporte técnico</p>
                     </div>
                      <div class="d-flex gap-2">
@@ -137,7 +207,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
         <div class="row g-3 mb-4" id="kpiCardsAvanzados">
 
             <div class="col-md-6 col-lg-3">
-                <div class="card stat-card border-0 shadow-sm h-100" style="border-left-color: #ffc107 !important;">
+                <div class="card stat-card glass-panel border-0 h-100" style="border-left-color: #ffc107 !important;">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
@@ -266,9 +336,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
         <!-- Gráficos -->
         <div class="row g-3 mb-4">
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h6 class="mb-0 fw-bold">Top 10 Tipos de Falla</h6>
+                <div class="glass-panel">
+                    <div class="card-header bg-transparent border-bottom border-white border-opacity-10">
+                        <h6 class="mb-0 fw-bold text-main">Top 10 Tipos de Falla</h6>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -279,9 +349,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
             </div>
 
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h6 class="mb-0 fw-bold">Reportes por Mes</h6>
+                <div class="glass-panel">
+                    <div class="card-header bg-transparent border-bottom border-white border-opacity-10">
+                        <h6 class="mb-0 fw-bold text-main">Reportes por Mes</h6>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -292,9 +362,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
             </div>
 
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h6 class="mb-0 fw-bold">Top 10 Técnicos</h6>
+                <div class="glass-panel">
+                    <div class="card-header bg-transparent border-bottom border-white border-opacity-10">
+                        <h6 class="mb-0 fw-bold text-main">Top 10 Técnicos</h6>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -305,9 +375,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
             </div>
 
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h6 class="mb-0 fw-bold">Fallas por Nivel de Prioridad</h6>
+                <div class="glass-panel">
+                    <div class="card-header bg-transparent border-bottom border-white border-opacity-10">
+                        <h6 class="mb-0 fw-bold text-main">Fallas por Nivel de Prioridad</h6>
                     </div>
                     <div class="card-body">
                         <div class="chart-container">
@@ -451,16 +521,16 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
         }
         ?>
 
-        <div class="card border-0 shadow-sm mt-4">
-            <div class="card-header bg-white border-bottom p-0">
+            <div class="glass-panel border-0 mt-4">
+            <div class="card-header bg-transparent border-bottom border-white border-opacity-10 p-0">
                 <ul class="nav nav-tabs border-0" id="tablesTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link <?php echo ($filtro_tipo == 'NIVEL 1' || empty($filtro_tipo)) ? 'active' : ''; ?> fw-bold text-dark px-4 py-3 border-0 rounded-0" id="nav-nivel1-tab" data-bs-toggle="tab" data-bs-target="#nav-nivel1" type="button" role="tab" style="background-color: transparent;">
+                        <button class="nav-link <?php echo ($filtro_tipo == 'NIVEL 1' || empty($filtro_tipo)) ? 'active' : ''; ?> fw-bold text-main px-4 py-3 border-0 rounded-0" id="nav-nivel1-tab" data-bs-toggle="tab" data-bs-target="#nav-nivel1" type="button" role="tab" style="background-color: transparent;">
                             <i class="fa-solid fa-screwdriver-wrench text-warning me-1"></i>Fallas Nivel 1 (<?php echo count($rowsNivel1); ?>)
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link <?php echo ($filtro_tipo == 'NIVEL 2') ? 'active' : ''; ?> fw-bold text-dark px-4 py-3 border-0 rounded-0" id="nav-nivel2-tab" data-bs-toggle="tab" data-bs-target="#nav-nivel2" type="button" role="tab" style="background-color: transparent;">
+                        <button class="nav-link <?php echo ($filtro_tipo == 'NIVEL 2') ? 'active' : ''; ?> fw-bold text-main px-4 py-3 border-0 rounded-0" id="nav-nivel2-tab" data-bs-toggle="tab" data-bs-target="#nav-nivel2" type="button" role="tab" style="background-color: transparent;">
                             <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Fallas Nivel 2 (<?php echo count($rowsNivel2); ?>)
                         </button>
                     </li>
@@ -509,7 +579,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                                 </tbody>
                             </table>
                         </div>
-                        <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
+                        <div class="card-footer bg-transparent border-top border-white border-opacity-10 d-flex justify-content-between align-items-center py-3 px-4">
                             <nav><ul class="pagination pagination-sm mb-0" id="paginacionNivel1"></ul></nav>
                             <span id="infoPaginacionNivel1" class="text-muted small">Mostrando registros</span>
                         </div>
@@ -534,7 +604,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                         </div>
                         <div class="table-responsive p-3">
                             <table class="display table table-striped table-bordered w-100 mb-0" id="tablaNivel2">
-                                <thead style="background-color: #fff4ea; color: #ca6510;">
+                                <thead class="table-orange-header">
                                     <tr>
                                         <th>ID</th><th>Fecha</th><th>Hora</th><th>Cliente</th><th>Tipo Falla</th><th>Técnico</th><th>Nivel</th><th>Pagado</th><th>Estado</th><th>Acciones</th>
                                     </tr>
@@ -550,7 +620,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                                 </tbody>
                             </table>
                         </div>
-                        <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
+                        <div class="card-footer bg-transparent border-top border-white border-opacity-10 d-flex justify-content-between align-items-center py-3 px-4">
                             <nav><ul class="pagination pagination-sm mb-0" id="paginacionNivel2"></ul></nav>
                             <span id="infoPaginacionNivel2" class="text-muted small">Mostrando registros</span>
                         </div>
@@ -602,7 +672,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                                 </tbody>
                             </table>
                         </div>
-                        <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-3">
+                        <div class="card-footer bg-transparent border-top border-white border-opacity-10 d-flex justify-content-between align-items-center py-3 px-4">
                             <nav><ul class="pagination pagination-sm mb-0" id="paginacionNivel3"></ul></nav>
                             <span id="infoPaginacionNivel3" class="text-muted small">Mostrando registros</span>
                         </div>
@@ -613,32 +683,39 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
         </div>
 
         <style>
-            #tablesTabs .nav-link { 
-                color: #555; 
-                border-bottom: 2px solid transparent; 
-                transition: all 0.2s ease-in-out;
-            }
-            
-            /* Tab Nivel 1 (Amarillo / WhatsApp) */
-            #tablesTabs #nav-nivel1-tab.active { 
-                border-bottom: 3px solid #ffc107; 
-                color: #b18400 !important; /* Slightly darker yellow for text readability */
-                background-color: #fffbdf !important; 
-            }
-            
-            /* Tab Nivel 2 (Naranja / Visita Técnico) */
-            #tablesTabs #nav-nivel2-tab.active { 
-                border-bottom: 3px solid #fd7e14; 
-                color: #ca6510 !important; 
-                background-color: #fff4ea !important; 
-            }
-            
-            /* Tab Nivel 3 (Rojo / Críticas) */
-            #tablesTabs #nav-criticas-tab.active { 
-                border-bottom: 3px solid #dc3545; 
-                color: #dc3545 !important; 
-                background-color: #fff0f1 !important;
-            }
+        #tablesTabs .nav-link { 
+            color: var(--text-main); 
+            opacity: 0.7;
+            border-bottom: 2px solid transparent; 
+            transition: all 0.2s ease-in-out;
+        }
+        #tablesTabs .nav-link:hover {
+            opacity: 1;
+        }
+        
+        /* Tab Nivel 1 (Amarillo / WhatsApp) */
+        #tablesTabs #nav-nivel1-tab.active { 
+            border-bottom: 3px solid #ffc107; 
+            color: #b18400 !important;
+            opacity: 1;
+            background-color: rgba(255, 193, 7, 0.1) !important; 
+        }
+        
+        /* Tab Nivel 2 (Naranja / Visita Técnico) */
+        #tablesTabs #nav-nivel2-tab.active { 
+            border-bottom: 3px solid #fd7e14; 
+            color: #ca6510 !important; 
+            opacity: 1;
+            background-color: rgba(253, 126, 20, 0.1) !important; 
+        }
+        
+        /* Tab Nivel 3 (Rojo / Críticas) */
+        #tablesTabs #nav-criticas-tab.active { 
+            border-bottom: 3px solid #dc3545; 
+            color: #dc3545 !important; 
+            opacity: 1;
+            background-color: rgba(220, 53, 69, 0.1) !important;
+        }
         </style>
 
 <!-- =============== MODAL: VER DETALLES NIVEL 3 =============== -->
@@ -811,7 +888,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                 </div>
 
                 <!-- Falla -->
-                <div class="p-2 mb-2 bg-light border-start border-danger border-4 fw-bold">Información de Falla</div>
+                <div class="section-title border-danger">Información de Falla</div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Tipo de Falla</label>
@@ -843,7 +920,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                     </div>
                 </div>
 
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">OLTs / PONs Afectados</div>
+                <div class="section-title">OLTs / PONs Afectados</div>
                 <div id="olts-edit-container" class="mb-2">
                     <!-- Filas dinámicas se insertan aquí -->
                 </div>
@@ -854,7 +931,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                 </div>
 
                 <!-- Detalles Técnicos -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Detalles Técnicos</div>
+                <div class="section-title">Detalles Técnicos</div>
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label text-muted small">IP</label>
@@ -900,18 +977,24 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                         <label class="form-label small">Ping</label>
                         <input type="text" class="form-control" name="bw_ping" id="bw_ping_edit" placeholder="ms">
                     </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Antena Estado</label>
-                        <input type="text" class="form-control" name="estado_antena" id="estado_antena_edit">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Valores dBm</label>
-                        <input type="text" class="form-control" name="valores_antena" id="valores_antena_edit">
+                </div>
+
+                <div class="info-box-premium">
+                    <div class="col-12 mb-2"><small class="text-muted fw-bold text-uppercase" style="letter-spacing: 1px;">Solo Radio / Antena:</small></div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Antena Estado</label>
+                            <input type="text" class="form-control" name="estado_antena" id="estado_antena_edit">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">Valores dBm</label>
+                            <input type="text" class="form-control" name="valores_antena" id="valores_antena_edit">
+                        </div>
                     </div>
                 </div>
 
                 <!-- Diagnóstico y Solución -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Diagnóstico y Solución</div>
+                <div class="section-title">Diagnóstico y Solución</div>
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">Observaciones / Problema</label>
@@ -935,7 +1018,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                 </div>
 
                 <!-- Costos -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Costos y Facturación</div>
+                <div class="section-title">Costos y Facturación</div>
                 <div class="mb-3">
                     <label class="form-label fw-bold">Monto Total ($)</label>
                     <input type="number" step="0.01" min="0" class="form-control" name="monto_total_edit"
@@ -943,8 +1026,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                 </div>
 
                 <!-- Firmas -->
-                <div class="p-2 mb-2 bg-light border-start border-primary border-4 fw-bold">Actualizar Firmas (Opcional)
-                </div>
+                <div class="section-title">Actualizar Firmas (Opcional)</div>
                 <p class="text-muted small">Deje los lienzos en blanco para conservar las firmas originales.</p>
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -1036,6 +1118,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
 
 <script>
     let charts = {};
+    let lastChartData = null; // Guardar últimos datos para re-renderizar en cambio de tema
     let padTechEdit = null, padCliEdit = null;
     let _currentEditId = null;
 
@@ -1305,6 +1388,16 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
     });
 
     $(document).ready(function () {
+        // Observador para detectar cambios de tema y actualizar gráficas en tiempo real
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'data-theme' && lastChartData) {
+                    crearGraficos(lastChartData);
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true });
+
         cargarEstadisticas();
         // DataTables initialization removed as per instruction
     });
@@ -1410,10 +1503,24 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
 
 
     function crearGraficos(data) {
+        if (!data) return;
+        lastChartData = data; // Persistir datos para cambios de tema
+
         // Destruir gráficos anteriores
         Object.values(charts).forEach(chart => chart.destroy());
 
-        // 1. Gráfico de fallas por tipo
+        // Obtener colores del tema desde variables CSS para máxima precisión
+        const style = getComputedStyle(document.documentElement);
+        const textColor = style.getPropertyValue('--text-main').trim() || '#334155';
+        const gridColor = style.getPropertyValue('--table-border').trim() || 'rgba(0, 0, 0, 0.1)';
+
+        // Configuración global de escalas reutilizable
+        const scaleDefaults = {
+            ticks: { color: textColor, font: { size: 12 } },
+            grid: { color: gridColor }
+        };
+
+        // 1. Gráfico de fallas por tipo (barras horizontales)
         const ctxTipo = document.getElementById('chartFallasTipo').getContext('2d');
         const tipoLabels = Object.keys(data.fallas_por_tipo).slice(0, 10);
         const tipoData = Object.values(data.fallas_por_tipo).slice(0, 10);
@@ -1435,12 +1542,17 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                 maintainAspectRatio: false,
                 indexAxis: 'y',
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: { backgroundColor: 'rgba(20,20,30,0.9)', titleColor: '#fff', bodyColor: '#ccc' }
+                },
+                scales: {
+                    x: scaleDefaults,
+                    y: scaleDefaults
                 }
             }
         });
 
-        // 2. Gráfico de reportes por mes
+        // 2. Gráfico de reportes por mes (línea)
         const ctxMes = document.getElementById('chartReportesMes').getContext('2d');
         const mesLabels = data.meses_labels || [];
         const mesData = Object.values(data.reportes_por_mes);
@@ -1453,18 +1565,30 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                     label: 'Reportes',
                     data: mesData,
                     borderColor: 'rgba(25, 135, 84, 1)',
-                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    backgroundColor: 'rgba(25, 135, 84, 0.15)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointBackgroundColor: 'rgba(25, 135, 84, 1)',
+                    pointRadius: 4
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: textColor }
+                    },
+                    tooltip: { backgroundColor: 'rgba(20,20,30,0.9)', titleColor: '#fff', bodyColor: '#ccc' }
+                },
+                scales: {
+                    x: scaleDefaults,
+                    y: scaleDefaults
+                }
             }
         });
 
-        // 3. Gráfico de técnicos
+        // 3. Gráfico de técnicos (dona)
         const ctxTecnico = document.getElementById('chartTecnicos').getContext('2d');
         const tecnicoLabels = Object.keys(data.reportes_por_tecnico);
         const tecnicoData = tecnicoLabels.map(t => data.reportes_por_tecnico[t].cantidad);
@@ -1486,7 +1610,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                         'rgba(253, 126, 20, 0.8)',
                         'rgba(32, 201, 151, 0.8)',
                         'rgba(214, 51, 132, 0.8)'
-                    ]
+                    ],
+                    borderWidth: 0,
+                    borderColor: 'transparent'
                 }]
             },
             options: {
@@ -1496,6 +1622,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                     legend: {
                         position: 'right',
                         labels: {
+                            color: textColor,
                             generateLabels: function(chart) {
                                 const ds = chart.data.datasets[0];
                                 const total = ds.data.reduce((a, b) => a + b, 0);
@@ -1506,16 +1633,21 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                                         text: label + '  —  ' + val + ' (' + pct + '%)',
                                         fillStyle: ds.backgroundColor[i],
                                         strokeStyle: ds.backgroundColor[i],
+                                        fontColor: textColor,
+                                        color: textColor,
                                         hidden: false,
                                         index: i
                                     };
                                 });
                             },
-                            font: { size: 11 },
+                            font: { size: 12 },
                             padding: 10
                         }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(20,20,30,0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#ccc',
                         callbacks: {
                             label: function(context) {
                                 const val = context.parsed;
@@ -1529,7 +1661,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
             }
         });
 
-        // 4. Gráfico de Niveles de Prioridad
+        // 4. Gráfico de Niveles de Prioridad (dona)
         const ctxNiveles = document.getElementById('chartNiveles').getContext('2d');
         const nivelesLabels = Object.keys(data.fallas_por_nivel || {});
         const nivelesData = Object.values(data.fallas_por_nivel || {});
@@ -1547,7 +1679,8 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                         if (l === 'NIVEL 1') return 'rgba(255, 193, 7, 0.9)';
                         return 'rgba(108, 117, 125, 0.8)';
                     }),
-                    borderWidth: 2
+                    borderWidth: 0,
+                    borderColor: 'transparent'
                 }]
             },
             options: {
@@ -1557,6 +1690,7 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                     legend: {
                         position: 'right',
                         labels: {
+                            color: textColor,
                             generateLabels: function(chart) {
                                 const ds = chart.data.datasets[0];
                                 return chart.data.labels.map((label, i) => {
@@ -1566,6 +1700,8 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                                         text: label + '  —  ' + val + ' (' + pct + '%)',
                                         fillStyle: ds.backgroundColor[i],
                                         strokeStyle: ds.backgroundColor[i],
+                                        fontColor: textColor,
+                                        color: textColor,
                                         hidden: false,
                                         index: i
                                     };
@@ -1576,6 +1712,9 @@ $cnt_n3 = (int)($conn->query("SELECT COUNT(*) c FROM soportes WHERE prioridad = 
                         }
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(20,20,30,0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#ccc',
                         callbacks: {
                             label: function(context) {
                                 const value = context.parsed || 0;

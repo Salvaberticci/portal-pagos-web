@@ -29,25 +29,25 @@ require_once 'includes/sidebar.php';
         <div class="row g-4">
             <!-- TABLA DE MUNICIPIOS -->
             <div class="col-xl-5 col-lg-6">
-                <div class="card h-100 shadow-sm border-0">
+                <div class="card glass-panel h-100 border-0 shadow-sm overflow-hidden">
                     <div
-                        class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        class="card-header bg-transparent py-3 border-bottom border-white border-opacity-10 px-4 d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="fw-bold text-primary mb-1">Municipios</h5>
                             <p class="text-muted small mb-0">Gestión de áreas geográficas</p>
                         </div>
-                        <button onclick="addMunicipioPrompt()" class="btn btn-primary btn-sm rounded-circle"
+                        <button onclick="addMunicipioPrompt()" class="btn btn-premium btn-sm rounded-circle shadow-sm"
                             title="Agregar Municipio">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
-                    <div class="card-body px-4">
+                    <div class="card-body px-4 py-4">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle" id="tablaMunicipios">
-                                <thead class="table-light">
+                                <thead class="bg-white bg-opacity-10">
                                     <tr>
-                                        <th>Municipio</th>
-                                        <th class="text-end">Acciones</th>
+                                        <th class="ps-4">Municipio</th>
+                                        <th class="text-end pe-4">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -67,32 +67,35 @@ require_once 'includes/sidebar.php';
 
             <!-- TABLA DE PARROQUIAS -->
             <div class="col-xl-7 col-lg-6">
-                <div class="card h-100 shadow-sm border-0">
+                <div class="card glass-panel h-100 border-0 shadow-sm overflow-hidden">
                     <div
-                        class="card-header bg-white border-bottom-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                        class="card-header bg-transparent py-3 border-bottom border-white border-opacity-10 px-4 d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="fw-bold text-primary mb-1">Parroquias</h5>
                             <p class="text-muted small mb-0">Subdivisiones municipales</p>
                         </div>
-                        <button onclick="addParroquiaPrompt()" class="btn btn-primary btn-sm rounded-circle"
+                        <button onclick="addParroquiaPrompt()" class="btn btn-premium btn-sm rounded-circle shadow-sm"
                             title="Agregar Parroquia">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                     </div>
-                    <div class="card-body px-4">
+                    <div class="card-body px-4 py-4">
                         <div class="mb-3">
-                            <select id="filterMunicipio" class="form-select form-select-sm"
-                                onchange="renderParroquias()">
-                                <option value="">Todos los Municipios</option>
-                            </select>
+                            <div class="input-group glass-input-group input-group-sm">
+                                <span class="input-group-text bg-transparent border-end-0 text-muted"><i class="fa-solid fa-filter"></i></span>
+                                <select id="filterMunicipio" class="form-select border-start-0 ps-0 text-muted"
+                                    onchange="renderParroquias()">
+                                    <option value="">Todos los Municipios</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle" id="tablaParroquias">
-                                <thead class="table-light">
+                                <thead class="bg-white bg-opacity-10">
                                     <tr>
-                                        <th>Parroquia</th>
+                                        <th class="ps-4">Parroquia</th>
                                         <th>Municipio</th>
-                                        <th class="text-end">Acciones</th>
+                                        <th class="text-end pe-4">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -109,6 +112,13 @@ require_once 'includes/sidebar.php';
                     </div>
                 </div>
             </div>
+        </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <a href="menu.php" class="btn btn-outline-secondary px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+            </a>
         </div>
     </div>
 </main>
@@ -137,14 +147,16 @@ require_once 'includes/sidebar.php';
         ubicacionesData.forEach((m, index) => {
             html += `
             <tr>
-                <td class="fw-bold">${m.municipio}</td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary me-1" onclick="editMunicipioPrompt('${m.municipio}')">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteMunicipio('${m.municipio}')">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                <td class="fw-bold text-main ps-4">${m.municipio}</td>
+                <td class="text-end pe-4">
+                    <div class="btn-group gap-2">
+                        <button class="btn btn-sm btn-glass text-primary rounded-2" title="Modificar" onclick="editMunicipioPrompt('${m.municipio}')">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button class="btn btn-sm btn-glass text-danger rounded-2" title="Eliminar" onclick="deleteMunicipio('${m.municipio}')">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>`;
         });
@@ -161,15 +173,17 @@ require_once 'includes/sidebar.php';
                         const pNombre = typeof p === 'object' ? p.nombre : p;
                         html += `
                         <tr>
-                            <td class="fw-bold">${pNombre}</td>
-                            <td><span class="badge bg-light text-dark border">${m.municipio}</span></td>
-                            <td class="text-end">
-                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editParroquiaPrompt('${m.municipio}', '${pNombre}')">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteParroquia('${m.municipio}', '${pNombre}')">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                            <td class="fw-bold text-main ps-4">${pNombre}</td>
+                            <td><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3">${m.municipio}</span></td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group gap-2">
+                                    <button class="btn btn-sm btn-glass text-primary rounded-2" title="Modificar" onclick="editParroquiaPrompt('${m.municipio}', '${pNombre}')">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-glass text-danger rounded-2" title="Eliminar" onclick="deleteParroquia('${m.municipio}', '${pNombre}')">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>`;
                     });
@@ -422,28 +436,6 @@ require_once 'includes/sidebar.php';
     }
 </script>
 
-<style>
-    .btn-outline-primary {
-        border-color: rgba(13, 110, 253, 0.2);
-        color: #0d6efd;
-    }
 
-    .btn-outline-primary:hover {
-        background-color: #0d6efd;
-        color: white;
-        border-color: #0d6efd;
-    }
-
-    .btn-outline-danger {
-        border-color: rgba(220, 53, 69, 0.2);
-        color: #dc3545;
-    }
-
-    .btn-outline-danger:hover {
-        background-color: #dc3545;
-        color: white;
-        border-color: #dc3545;
-    }
-</style>
 
 <?php require_once 'includes/layout_foot.php'; ?>

@@ -247,46 +247,67 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 <!-- Estilos DataTables y Refinamiento Premium -->
 <link href="<?php echo $path_to_root; ?>css/datatables.min.css" rel="stylesheet">
 <style>
-    /* Ajustes para que la tabla no pegue a los bordes y luzca Premium */
-    .dataTables_wrapper {
-        padding: 1.5rem !important;
+    .section-title {
+        background: rgba(0, 0, 0, 0.05) !important;
+        border-left: 4px solid var(--primary);
+        color: var(--text-main) !important;
+        padding: 8px 12px !important;
+        margin-bottom: 15px !important;
+        font-weight: 700 !important;
+        border-radius: 4px;
     }
-    .dataTables_length, .dataTables_filter {
-        margin-bottom: 1.5rem;
+    .info-box-premium {
+        background: rgba(0, 0, 0, 0.03) !important;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+        border-radius: 12px !important;
+        padding: 1.2rem !important;
+        height: 100%;
     }
-    .dataTables_filter input {
-        border: 1px solid #e0e0e0 !important;
-        border-radius: 8px !important;
-        padding: 0.4rem 0.8rem !important;
-        background-color: #f9f9f9 !important;
+    [data-theme="dark"] .section-title {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+    [data-theme="dark"] .info-box-premium {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border-color: rgba(255,255,255,0.1) !important;
+    }
+    .table-premium th,
+    .table-premium td {
+        text-align: center !important;
+        vertical-align: middle !important;
+        padding: 12px 8px !important;
+    }
+    .table-premium thead th {
+        background: var(--table-header-bg) !important;
+        color: var(--text-main) !important;
+        border: none !important;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .dataTables_wrapper .dataTables_filter input,
+    .dataTables_wrapper .dataTables_length select {
+        background: var(--bg-card) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-glass) !important;
+        border-radius: 10px !important;
+        padding: 5px 12px !important;
+        font-size: 0.85rem !important;
+        outline: none !important;
         transition: all 0.3s ease;
     }
-    .dataTables_filter input:focus {
-        background-color: #fff !important;
-        box-shadow: 0 0 0 3px rgba(13,110,253,.1) !important;
-        outline: none;
+    .dataTables_wrapper .dataTables_filter input:focus,
+    .dataTables_wrapper .dataTables_length select:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1) !important;
     }
-    .table thead th {
-        background-color: #f8f9fa;
-        text-transform: uppercase;
-        font-size: 0.75rem;
-        letter-spacing: 0.5px;
-        font-weight: 700;
-        color: #6c757d;
-        border-top: none;
-        padding: 1rem 0.5rem !important;
+    [data-theme="dark"] .dataTables_wrapper .dataTables_filter input,
+    [data-theme="dark"] .dataTables_wrapper .dataTables_length select {
+        background: rgba(255, 255, 255, 0.05) !important;
     }
-    .table tbody td {
-        padding: 1rem 0.5rem !important;
-    }
-    /* Estilo de la barra de búsqueda (separación del borde) */
-    .dataTables_filter {
-        float: right;
-        margin-right: 0.5rem;
-    }
-    .dataTables_length {
-        float: left;
-        margin-left: 0.5rem;
+    .dataTables_wrapper .dataTables_info {
+        color: var(--text-muted) !important;
+        font-size: 0.85rem !important;
+        font-weight: 500;
     }
 </style>
 
@@ -295,19 +316,14 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 
     <div class="page-content">
         <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2 class="h3 fw-bold mb-1 text-dark">Reporte de Cobranzas</h2>
-                <p class="text-muted mb-0"><i class="fa-solid fa-chart-line me-2"></i>Análisis financiero y control de recaudación</p>
-            </div>
-            <a href="../menu.php" class="btn btn-light border shadow-sm px-4">
-                <i class="fa-solid fa-arrow-left me-2"></i>Menú Principal
-            </a>
+        <div class="mb-4">
+            <h2 class="h3 fw-bold mb-1 text-gradient">Reporte de Cobranzas</h2>
+            <p class="text-muted mb-0"><i class="fa-solid fa-chart-line me-2"></i>Análisis financiero y control de recaudación</p>
         </div>
 
         <!-- 1. BARRA DE FILTROS (COMPACTA Y MODERNA) -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-body p-3">
+        <div class="card glass-panel border-0 shadow-lg mb-4">
+            <div class="card-body p-4">
                 <form action="reporte_cobranza.php" method="GET" class="row g-2 align-items-end">
                     <div class="col-md-2">
                         <label class="form-label small fw-bold text-muted text-uppercase mb-1">Desde</label>
@@ -384,9 +400,9 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                 <i class="fa-solid fa-circle-exclamation me-2"></i><?php echo $error; ?>
             </div>
         <?php elseif (empty($cobros)): ?>
-            <div class="alert alert-info shadow-sm border-0 text-center py-4">
-                <i class="fa-solid fa-circle-info fa-2x mb-3 text-info d-block"></i>
-                <h5 class="fw-bold text-dark">No se encontraron resultados</h5>
+            <div class="glass-panel text-center py-5 border-0 shadow-lg rounded-4 animate-fade">
+                <i class="fa-solid fa-circle-info fa-3x mb-3 text-primary opacity-50 d-block"></i>
+                <h5 class="fw-bold">No se encontraron resultados</h5>
                 <p class="text-muted mb-0">Intenta ajustar los filtros de búsqueda.</p>
             </div>
         <?php else: ?>
@@ -395,7 +411,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
         <div class="row g-3 mb-4">
             <!-- Facturación Total (Período) -->
             <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-white border-start border-primary border-4">
+                <div class="card glass-panel border-0 shadow-lg h-100 border-start border-primary border-4 animate-fade" style="animation-delay: 0.1s;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center mb-2">
                             <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
@@ -403,7 +419,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                             </div>
                             <h6 class="mb-0 text-muted small fw-bold text-uppercase">Facturación Total</h6>
                         </div>
-                        <h3 class="fw-bold mb-0 text-dark">$<?php echo number_format($total_facturado_periodo, 2); ?></h3>
+                        <h3 class="fw-bold mb-0">$<?php echo number_format($total_facturado_periodo, 2); ?></h3>
                         <small class="text-muted">Total facturado en el rango</small>
                     </div>
                 </div>
@@ -411,7 +427,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 
             <!-- Total Cobrado (SAE Plus) -->
             <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-white border-start border-success border-4">
+                <div class="card glass-panel border-0 shadow-lg h-100 border-start border-success border-4 animate-fade" style="animation-delay: 0.2s;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center mb-2">
                             <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3">
@@ -419,19 +435,19 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                             </div>
                             <h6 class="mb-0 text-muted small fw-bold text-uppercase">Cobrado SAE Plus</h6>
                         </div>
-                        <h3 class="fw-bold mb-0 text-dark">$<?php echo number_format($total_cobrado, 2); ?></h3>
+                        <h3 class="fw-bold mb-0">$<?php echo number_format($total_cobrado, 2); ?></h3>
                         <?php $eficiencia = ($total_facturado_periodo > 0) ? ($total_cobrado / $total_facturado_periodo) * 100 : 0; ?>
-                        <div class="progress mt-2" style="height: 4px;">
-                            <div class="progress-bar bg-success" style="width: <?php echo min(100, $eficiencia); ?>%"></div>
+                        <div class="progress mt-2" style="height: 6px; background: rgba(0,0,0,0.1);">
+                            <div class="progress-bar bg-success shadow-sm" style="width: <?php echo min(100, $eficiencia); ?>%"></div>
                         </div>
-                        <small class="text-muted">Cobrado vs Facturado: <?php echo number_format($eficiencia, 1); ?>%</small>
+                        <small class="text-muted">Eficiencia: <?php echo number_format($eficiencia, 1); ?>%</small>
                     </div>
                 </div>
             </div>
 
             <!-- Deuda Pendiente (Período) -->
             <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-white border-start border-danger border-4">
+                <div class="card glass-panel border-0 shadow-lg h-100 border-start border-danger border-4 animate-fade" style="animation-delay: 0.3s;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center mb-2">
                             <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-3">
@@ -439,7 +455,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                             </div>
                             <h6 class="mb-0 text-muted small fw-bold text-uppercase">Deuda Pendiente</h6>
                         </div>
-                        <h3 class="fw-bold mb-0 text-dark">$<?php echo number_format($deuda_clientes, 2); ?></h3>
+                        <h3 class="fw-bold mb-0">$<?php echo number_format($deuda_clientes, 2); ?></h3>
                         <small class="text-muted">Monto total por cobrar</small>
                     </div>
                 </div>
@@ -447,7 +463,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 
             <!-- Impacto Contractual -->
             <div class="col-md-3">
-                <div class="card border-0 shadow-sm h-100 bg-white border-start border-info border-4">
+                <div class="card glass-panel border-0 shadow-lg h-100 border-start border-info border-4 animate-fade" style="animation-delay: 0.4s;">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center mb-2">
                             <div class="rounded-circle bg-info bg-opacity-10 p-2 me-3">
@@ -455,21 +471,21 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                             </div>
                             <h6 class="mb-0 text-muted small fw-bold text-uppercase">Contratos Activos</h6>
                         </div>
-                        <h3 class="fw-bold mb-0 text-dark"><?php echo number_format($total_contratos_activos); ?></h3>
+                        <h3 class="fw-bold mb-0"><?php echo number_format($total_contratos_activos); ?></h3>
                         <small class="text-muted">Total clientes vigentes</small>
                     </div>
                 </div>
             </div>
 
-            <!-- REFERENCIA GLOBAL (PARA CONFIANZA DEL USUARIO) -->
+            <!-- REFERENCIA GLOBAL -->
             <div class="col-md-6 mt-2">
-                <div class="alert alert-light border shadow-sm py-2 px-3 mb-0 d-flex align-items-center">
+                <div class="glass-panel border-0 shadow-lg py-2 px-3 mb-0 d-flex align-items-center animate-fade" style="animation-delay: 0.5s;">
                     <i class="fa-solid fa-database text-muted me-3"></i>
                     <div>
                         <span class="small text-muted text-uppercase fw-bold">Balance General del Sistema:</span>
                         <span class="ms-3 fw-bold text-primary"><?php echo number_format($global_clientes); ?> Clientes</span>
                         <span class="mx-2 text-muted">/</span>
-                        <span class="fw-bold text-success"><?php echo number_format($global_contratos); ?> Contratos Registrados</span>
+                        <span class="fw-bold text-success"><?php echo number_format($global_contratos); ?> Contratos</span>
                     </div>
                 </div>
             </div>
@@ -478,28 +494,28 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 
 
             <!-- Desglose por Planes -->
-            <div class="card border-0 shadow-sm mb-4 overflow-hidden">
-                <div class="card-header bg-white py-3">
-                    <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-layer-group me-2 text-primary"></i>Desglose Comercial por Planes</h6>
+            <div class="card glass-panel border-0 shadow-lg mb-4 overflow-hidden animate-fade" style="animation-delay: 0.6s;">
+                <div class="card-header bg-transparent py-3 border-bottom border-white border-opacity-10">
+                    <h6 class="mb-0 fw-bold text-gradient"><i class="fa-solid fa-layer-group me-2"></i>Desglose Comercial por Planes</h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle mb-0">
-                            <thead class="bg-light-subtle">
+                        <table class="table table-sm table-hover align-middle mb-0 table-premium">
+                            <thead>
                                 <tr>
-                                    <th class="ps-4 py-2 text-muted fw-bold small">Nombre del Plan</th>
-                                    <th class="text-center py-2 text-muted fw-bold small">Cantidad Clientes</th>
-                                    <th class="text-end pe-4 py-2 text-muted fw-bold small">Subtotal Mensual</th>
+                                    <th class="text-center">Nombre del Plan</th>
+                                    <th class="text-center">Cantidad Clientes</th>
+                                    <th class="text-center">Subtotal Mensual</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($desglose_planes as $dp): ?>
                                 <tr>
-                                    <td class="ps-4 py-3 fw-bold text-dark"><?php echo htmlspecialchars($dp['nombre_plan']); ?></td>
+                                    <td class="text-center py-3 fw-bold"><?php echo htmlspecialchars($dp['nombre_plan']); ?></td>
                                     <td class="text-center">
-                                        <span class="badge bg-light text-dark border px-3"><?php echo $dp['cantidad']; ?></span>
+                                        <span class="badge bg-light bg-opacity-10 text-main border border-white border-opacity-10 px-3"><?php echo $dp['cantidad']; ?></span>
                                     </td>
-                                    <td class="text-end pe-4 fw-bold text-primary">$<?php echo number_format($dp['subtotal'], 2); ?></td>
+                                    <td class="text-center fw-bold text-primary">$<?php echo number_format($dp['subtotal'], 2); ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -509,21 +525,21 @@ include $path_to_root . 'paginas/includes/layout_head.php';
             </div>
 
             <!-- Tabla de Resultados -->
-            <div class="card border-0 shadow-lg">
+            <div class="card glass-panel border-0 shadow-lg animate-fade" style="animation-delay: 0.7s;">
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="tabla_reporte_cobranza">
-                            <thead class="bg-light">
+                        <table class="table table-hover align-middle mb-0 table-premium" id="tabla_reporte_cobranza">
+                            <thead>
                                 <tr>
-                                    <th class="ps-4 text-secondary text-uppercase small fw-bold">ID</th>
-                                    <th class="text-secondary text-uppercase small fw-bold">Cliente</th>
-                                    <th class="text-secondary text-uppercase small fw-bold">Plan</th>
-                                    <th class="text-secondary text-uppercase small fw-bold">Emisión</th>
-                                    <th class="text-secondary text-uppercase small fw-bold">Vencimiento</th>
-                                    <th class="text-center text-secondary text-uppercase small fw-bold">Días Vencido</th>
-                                    <th class="text-end text-secondary text-uppercase small fw-bold">Monto</th>
-                                    <th class="text-center text-secondary text-uppercase small fw-bold">Estado</th>
-                                    <th class="text-end pe-4 text-secondary text-uppercase small fw-bold">Acciones</th>
+                                    <th>ID</th>
+                                    <th>Cliente</th>
+                                    <th>Plan</th>
+                                    <th>Emisión</th>
+                                    <th>Vencimiento</th>
+                                    <th>Días Vencido</th>
+                                    <th>Monto</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -532,15 +548,15 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                                     $row_bg = $is_vencido ? 'bg-danger bg-opacity-10' : '';
                                     ?>
                                     <tr class="<?php echo $row_bg; ?>">
-                                        <td class="ps-4 fw-medium text-muted">
+                                        <td class="fw-medium text-muted">
                                             #<?php echo htmlspecialchars($fila['id_cobro']); ?></td>
-                                        <td class="fw-bold text-dark">
-                                            <div class="d-flex flex-column">
+                                        <td class="fw-bold">
+                                            <div class="d-flex flex-column align-items-center">
                                                 <span><?php echo htmlspecialchars($fila['cliente']); ?></span>
                                                 <small class="text-muted fw-normal" style="font-size: 0.75rem;">IP: <?php echo htmlspecialchars($fila['ip_onu'] ?? 'S/I'); ?></small>
                                             </div>
                                         </td>
-                                        <td><span class="badge bg-light text-dark border fw-normal"><?php echo htmlspecialchars($fila['nombre_plan'] ?? 'N/A'); ?></span></td>
+                                        <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-normal"><?php echo htmlspecialchars($fila['nombre_plan'] ?? 'N/A'); ?></span></td>
                                         <td class="small"><?php echo htmlspecialchars($fila['fecha_emision']); ?></td>
                                         <td class="<?php echo $is_vencido ? 'text-danger fw-bold small' : 'small'; ?>">
                                             <?php echo htmlspecialchars($fila['fecha_vencimiento']); ?>
@@ -556,7 +572,7 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                                             }
                                             ?>
                                         </td>
-                                        <td class="text-end fw-bold text-dark">$<?php echo number_format($fila['monto_total'], 2); ?></td>
+                                        <td class="fw-bold">$<?php echo number_format($fila['monto_total'], 2); ?></td>
                                         <td class="text-center">
                                             <?php
                                             $badge_class = 'secondary';
@@ -569,16 +585,16 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                                             ?>
                                             <span class="badge bg-<?php echo $badge_class; ?> rounded-pill px-3" style="font-size: 0.7rem;"><?php echo htmlspecialchars($estado_text); ?></span>
                                         </td>
-                                        <td class="text-end pe-4">
+                                        <td>
                                             <button type="button" onclick="verDetallesCobro(<?php echo $fila['id_cobro']; ?>)"
-                                                    class="btn btn-sm btn-light border rounded-pill shadow-sm py-1 px-3" style="font-size: 0.75rem;">
+                                                    class="btn btn-sm btn-glass rounded-pill py-1 px-3 shadow-none" style="font-size: 0.75rem;">
                                                 <i class="fa-solid fa-eye me-1 text-primary"></i> Detalles
                                             </button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
-                            <tfoot class="bg-light-subtle">
+                            <tfoot class="border-top border-white border-opacity-10">
                                 <tr>
                                     <th colspan="6" class="ps-4 text-end text-muted small fw-bold">TOTAL VISIBLE EN PÁGINA:</th>
                                     <th class="text-end fw-bold text-primary" id="total_visible">$0.00</th>
@@ -589,6 +605,12 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                     </div>
                 </div>
             </div>
+
+            <div class="text-center mt-4 mb-2 animate-fade" style="animation-delay: 0.8s;">
+                <a href="../menu.php" class="btn btn-glass px-5 py-2">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+                </a>
+            </div>
         <?php endif; ?>
     </div>
 </main>
@@ -597,9 +619,9 @@ include $path_to_root . 'paginas/includes/layout_head.php';
 <div class="modal fade" id="modalJustificacion" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white border-bottom-0 p-3">
+            <div class="modal-header modal-header-gradient text-white border-0 p-3">
                 <div class="d-flex align-items-center">
-                    <div class="bg-primary rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                    <div class="bg-white bg-opacity-20 rounded-circle p-2 me-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
                         <i class="fas fa-file-invoice-dollar text-white"></i>
                     </div>
                     <div>
@@ -618,11 +640,11 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                 
                 <!-- Content -->
                 <div id="justif_content" class="d-none">
-                    <div class="p-4 border-bottom bg-light">
+                    <div class="p-4 border-bottom border-white border-opacity-10" style="background: var(--bg-card);">
                         <div class="row g-3">
                             <div class="col-md-7">
                                 <label class="text-uppercase small fw-bold text-muted d-block mb-1">Cliente / Titular</label>
-                                <h5 id="justif_cliente_nombre" class="fw-bold text-dark mb-1">-</h5>
+                                <h5 id="justif_cliente_nombre" class="fw-bold mb-1">-</h5>
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2">ID Contrato: #<span id="justif_id_contrato">-</span></span>
                             </div>
                             <div class="col-md-5 text-md-end">
@@ -634,41 +656,47 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                     </div>
 
                     <div class="p-4">
-                        <div class="row g-4 mb-4">
+                        <div class="row g-3 mb-4">
                             <div class="col-md-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-calendar-alt text-muted me-2"></i>
+                                <div class="info-box-premium d-flex align-items-center">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-calendar-alt text-primary"></i>
+                                    </div>
                                     <div>
-                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.7rem;">Fecha Operación</small>
-                                        <span id="justif_fecha_creacion" class="fw-medium text-dark">-</span>
+                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.65rem;">Fecha Operación</small>
+                                        <span id="justif_fecha_creacion" class="fw-bold">-</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-hashtag text-muted me-2"></i>
+                                <div class="info-box-premium d-flex align-items-center">
+                                    <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-hashtag text-success"></i>
+                                    </div>
                                     <div>
-                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.7rem;">Referencia</small>
-                                        <span id="justif_referencia" class="fw-medium text-dark">-</span>
+                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.65rem;">Referencia</small>
+                                        <span id="justif_referencia" class="fw-bold">-</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="fas fa-university text-muted me-2"></i>
+                                <div class="info-box-premium d-flex align-items-center">
+                                    <div class="rounded-circle bg-info bg-opacity-10 p-2 me-3">
+                                        <i class="fas fa-university text-info"></i>
+                                    </div>
                                     <div>
-                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.7rem;">Banco Destino</small>
-                                        <span id="justif_banco" class="fw-medium text-dark">-</span>
+                                        <small class="text-uppercase text-muted fw-bold d-block" style="font-size: 0.65rem;">Banco Destino</small>
+                                        <span id="justif_banco" class="fw-bold">-</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card border bg-light-subtle mb-4">
-                            <div class="card-header bg-white py-2 small fw-bold text-muted text-uppercase">Desglose de Conceptos</div>
+                        <div class="card glass-panel border-0 shadow-sm mb-4 mx-0 overflow-hidden rounded-4">
+                            <div class="card-header bg-transparent py-2 small fw-bold text-muted text-uppercase border-bottom border-white border-opacity-10">Desglose de Conceptos</div>
                             <div class="card-body p-0">
                                 <table class="table table-sm table-borderless align-middle mb-0">
-                                    <thead class="bg-light">
+                                    <thead class="bg-transparent border-bottom border-white border-opacity-10">
                                         <tr>
                                             <th class="ps-3 small text-muted">ID Cargo</th>
                                             <th class="small text-muted">Concepto/Descripción</th>
@@ -678,9 +706,9 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                                     <tbody id="justif_conceptos_body" class="small">
                                         <!-- Dinámico -->
                                     </tbody>
-                                    <tfoot class="border-top">
+                                    <tfoot class="border-top border-white border-opacity-10">
                                         <tr>
-                                            <th colspan="2" class="ps-3 py-2 text-dark">TOTAL PAGADO</th>
+                                            <th colspan="2" class="ps-3 py-2">TOTAL PAGADO</th>
                                             <th id="justif_total_pagado" class="text-end pe-3 py-2 text-primary fw-bold">$0.00</th>
                                         </tr>
                                     </tfoot>
@@ -688,31 +716,31 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                             </div>
                         </div>
 
-                        <div class="row g-4">
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <div class="p-3 rounded border bg-white h-100">
-                                    <label class="text-uppercase small fw-bold text-muted d-block mb-2"><i class="fas fa-user-shield me-1"></i> Auditoría</label>
+                                <div class="info-box-premium">
+                                    <label class="text-uppercase small fw-bold text-primary d-block mb-2"><i class="fas fa-user-shield me-1"></i> Auditoría</label>
                                     <div class="mb-3">
                                         <small class="text-muted d-block">Registrado por:</small>
-                                        <span id="justif_autorizado" class="fw-bold text-dark">-</span>
+                                        <span id="justif_autorizado" class="fw-bold">-</span>
                                     </div>
-                                    <div class="bg-light p-2 rounded small text-muted" id="justif_texto">
+                                    <div class="p-3 rounded-3 small text-main fw-medium" id="justif_texto" style="background: var(--bg-card); border: 1px solid var(--border-glass);">
                                         -
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="p-3 rounded border bg-white h-100">
-                                    <label class="text-uppercase small fw-bold text-muted d-block mb-2"><i class="fas fa-image me-1"></i> Comprobante</label>
+                                <div class="info-box-premium">
+                                    <label class="text-uppercase small fw-bold text-primary d-block mb-2"><i class="fas fa-image me-1"></i> Comprobante</label>
                                     <div id="justif_capture_container" class="text-center d-none">
                                         <a href="#" id="justif_capture_link" target="_blank">
-                                            <img src="" id="justif_capture_img" class="img-fluid rounded shadow-sm border" style="max-height: 150px;" title="Clic para ampliar">
+                                            <img src="" id="justif_capture_img" class="img-fluid rounded shadow-sm border border-white border-opacity-20" style="max-height: 180px;" title="Clic para ampliar">
                                         </a>
-                                        <p class="small text-muted mt-1 mb-0">Clic para ver en tamaño completo</p>
+                                        <p class="small text-muted mt-2 mb-0">Clic para ampliar imagen</p>
                                     </div>
-                                    <div id="justif_no_capture" class="text-center p-4 bg-light rounded text-muted small border-dashed">
-                                        <i class="fas fa-times-circle d-block mb-1"></i>
-                                        Sin imagen de comprobante
+                                    <div id="justif_no_capture" class="text-center py-4 text-muted small">
+                                        <i class="fas fa-camera fa-2x d-block mb-2 opacity-25"></i>
+                                        Sin imagen adjunta
                                     </div>
                                 </div>
                             </div>
@@ -720,8 +748,8 @@ include $path_to_root . 'paginas/includes/layout_head.php';
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light border-top-0">
-                <button type="button" class="btn btn-secondary px-4 shadow-sm" data-bs-dismiss="modal">Cerrar</button>
+            <div class="modal-footer bg-transparent border-0 p-4">
+                <button type="button" class="btn btn-glass px-4" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -741,7 +769,7 @@ $(document).ready(function() {
     $('#tabla_reporte_cobranza').DataTable({
         "order": [[3, "desc"]], 
         "pageLength": 10,
-        "dom": '<"d-flex justify-content-between align-items-center flex-wrap px-1"lf>rt<"d-flex justify-content-between align-items-center flex-wrap mt-3 px-1"ip>',
+        "dom": '<"d-flex justify-content-between align-items-center flex-wrap p-3 px-4"lf>rt<"d-flex justify-content-between align-items-center flex-wrap p-3 px-4"ip>',
         "language": {
             "sProcessing": "Procesando...",
             "sLengthMenu": "_MENU_ por página",

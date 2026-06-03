@@ -34,22 +34,22 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
             <?php endif; ?>
 
             <!-- Contenedor Principal -->
-            <div class="card border-0 shadow-sm overflow-hidden">
-                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <div class="card glass-panel border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">Listado de Planes</h5>
                     <button type="button" data-bs-toggle="modal" data-bs-target="#modalNuevoPlan"
-                        class="btn btn-primary btn-sm d-flex align-items-center gap-2 shadow-sm px-3">
+                        class="btn btn-premium btn-sm d-flex align-items-center gap-2">
                         <i class="fa-solid fa-plus"></i>
                         <span>Nuevo Plan</span>
                     </button>
                 </div>
                 <div class="card-body p-0">
                     <!-- Buscador -->
-                    <div class="p-4 bg-light border-bottom">
+                    <div class="p-4 bg-white bg-opacity-5 border-bottom border-white border-opacity-10">
                         <div class="row g-3 align-items-center">
                             <div class="col-md-6">
-                                <div class="input-group">
-                                    <span class="input-group-text bg-white border-end-0 text-muted">
+                                <div class="input-group glass-input-group">
+                                    <span class="input-group-text bg-transparent border-end-0 text-muted">
                                         <i class="fa-solid fa-magnifying-glass"></i>
                                     </span>
                                     <input type="text" id="searchInput" class="form-control border-start-0 ps-0"
@@ -62,7 +62,7 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                     <!-- Tabla -->
                     <div class="table-responsive">
                         <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light">
+                            <thead class="bg-white bg-opacity-10">
                                 <tr>
                                     <th class="ps-4">ID</th>
                                     <th>Nombre</th>
@@ -82,7 +82,7 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                         </table>
                     </div>
                 </div>
-                <div class="card-footer bg-white border-top-0 py-3">
+                <div class="card-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <div id="pagination-container" class="d-flex justify-content-between align-items-center px-3">
                         <small class="text-muted" id="pagination-info">Mostrando 0 de 0 planes</small>
                         <nav aria-label="Navegación de planes">
@@ -121,14 +121,14 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
 
                     <div class="mb-3">
                         <label for="nombre_plan_modal"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Nombre del Plan</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Nombre del Plan</label>
                         <input type="text" id="nombre_plan_modal" name="nombre_plan" class="form-control" required
                             placeholder="Ej: Fibra 100MB">
                     </div>
 
                     <div class="mb-3">
                         <label for="monto_modal"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Monto (USD)</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Monto (USD)</label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
                             <input type="number" id="monto_modal" name="monto" step="0.01" min="0" class="form-control"
@@ -138,12 +138,12 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
 
                     <div class="mb-3">
                         <label for="descripcion_modal"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Descripción</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Descripción</label>
                         <textarea id="descripcion_modal" name="descripcion" class="form-control" rows="3"
                             placeholder="Detalles del servicio..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top-0 py-3">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-outline-secondary px-4"
                         data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary px-4">Actualizar</button>
@@ -157,7 +157,7 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
 <div class="modal fade" id="modalMigrarClientes" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-warning text-dark">
+            <div class="modal-header bg-warning text-dark border-0">
                 <h5 class="modal-title fw-bold">
                     <i class="fa-solid fa-shuffle me-2"></i>Migrar Clientes
                 </h5>
@@ -183,7 +183,7 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                         respectivo monto mensual.
                     </p>
                 </div>
-                <div class="modal-footer bg-light border-top-0 py-3">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-outline-secondary px-4"
                         data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-warning px-4 fw-bold">Migrar y Continuar</button>
@@ -202,7 +202,7 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                 <div class="mb-3 text-danger">
                     <i class="fa-solid fa-circle-exclamation fa-3x"></i>
                 </div>
-                <h5 class="mb-2 fw-bold text-dark">¿Eliminar registro?</h5>
+                <h5 class="mb-2 fw-bold text-main">¿Eliminar registro?</h5>
                 <p class="text-muted small mb-4">Esta acción no se puede deshacer.</p>
                 <input type="hidden" id="id_to_delete">
                 <div class="d-grid gap-2">
@@ -231,14 +231,14 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label for="nombre_plan_nuevo"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Nombre del Plan</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Nombre del Plan</label>
                         <input type="text" id="nombre_plan_nuevo" name="nombre_plan" class="form-control" required
                             placeholder="Ej: Fibra 100MB">
                     </div>
 
                     <div class="mb-3">
                         <label for="monto_nuevo"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Monto (USD)</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Monto (USD)</label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
                             <input type="number" id="monto_nuevo" name="monto" step="0.01" min="0" class="form-control"
@@ -248,12 +248,12 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
 
                     <div class="mb-3">
                         <label for="descripcion_nuevo"
-                            class="form-label fw-semibold text-secondary small text-uppercase">Descripción</label>
+                            class="form-label fw-semibold text-muted small text-uppercase">Descripción</label>
                         <textarea id="descripcion_nuevo" name="descripcion" class="form-control" rows="3"
                             placeholder="Detalles del servicio..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top-0 py-3">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-outline-secondary px-4"
                         data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success px-4">Registrar Plan</button>
@@ -385,10 +385,10 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
             data.forEach(p => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="ps-4 fw-medium text-secondary">#${p.id_plan}</td>
-                    <td class="fw-bold text-dark">${p.nombre_plan}</td>
+                    <td class="ps-4 fw-medium text-muted">#${p.id_plan}</td>
+                    <td class="fw-bold text-main">${p.nombre_plan}</td>
                     <td>
-                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-3">
                             $${parseFloat(p.monto).toFixed(2)}
                         </span>
                     </td>
@@ -396,16 +396,16 @@ $message_class = isset($_GET['class']) ? $_GET['class'] : '';
                         ${p.descripcion || ''}
                     </td>
                     <td class="text-center">
-                        <span class="badge ${p.clientes_activos > 0 ? 'bg-primary' : 'bg-light text-muted'} rounded-pill">
+                        <span class="badge ${p.clientes_activos > 0 ? 'bg-primary shadow-sm' : 'bg-secondary bg-opacity-25 text-muted'} rounded-pill">
                             ${p.clientes_activos}
                         </span>
                     </td>
                     <td class="text-end pe-4">
                         <div class="btn-group gap-2">
-                            <button class="btn btn-sm btn-outline-primary rounded-2" onclick='prepareEdit(${JSON.stringify(p)})' title="Modificar">
+                            <button class="btn btn-sm btn-glass text-primary rounded-2" onclick='prepareEdit(${JSON.stringify(p)})' title="Modificar">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger rounded-2" onclick="openDeleteModal(${p.id_plan}, ${p.clientes_activos})" title="Eliminar">
+                            <button class="btn btn-sm btn-glass text-danger rounded-2" onclick="openDeleteModal(${p.id_plan}, ${p.clientes_activos})" title="Eliminar">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </div>

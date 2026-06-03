@@ -63,15 +63,14 @@ require_once 'includes/sidebar.php';
     <?php include 'includes/header.php'; ?>
 
     <div class="page-content">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center bg-white border-bottom-0 pt-4 px-4">
-                <div>
-                    <h5 class="fw-bold text-primary mb-1">Registro de PON</h5>
+        <div class="container-fluid">
+            <div class="card glass-panel border-0 shadow-sm overflow-hidden mb-4">
+                <div class="card-header bg-transparent py-4 border-bottom border-white border-opacity-10 px-4">
+                    <h5 class="mb-1 fw-bold">Registro de PON</h5>
                     <p class="text-muted small mb-0">Crear nuevo PON asociado a una OLT</p>
                 </div>
-            </div>
 
-            <div class="card-body px-4">
+                <div class="card-body p-4">
                 <?php if ($message): ?>
                     <div class="alert alert-<?php echo $message_class === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
                         <?php echo htmlspecialchars($message); ?>
@@ -79,15 +78,15 @@ require_once 'includes/sidebar.php';
                     </div>
                 <?php endif; ?>
 
-                <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" class="row g-3">
+                <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="POST" class="row g-4">
                     <div class="col-md-6">
-                        <label for="nombre_pon" class="form-label">Nombre PON</label>
+                        <label for="nombre_pon" class="form-label text-secondary small fw-bold text-uppercase">Nombre PON</label>
                         <input type="text" class="form-control" id="nombre_pon" name="nombre_pon" 
                                value="<?php echo htmlspecialchars($nombre_pon_post); ?>" required autofocus>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="id_olt" class="form-label">OLT a la que pertenece</label>
+                        <label for="id_olt" class="form-label text-secondary small fw-bold text-uppercase">OLT a la que pertenece</label>
                         <select class="form-select" id="id_olt" name="id_olt" required>
                             <option value="">-- Seleccione una OLT --</option>
                             <?php foreach ($olts as $olt): ?>
@@ -99,17 +98,25 @@ require_once 'includes/sidebar.php';
                         </select>
                     </div>
 
-                    <div class="col-12">
-                        <label for="descripcion" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="descripcion" name="descripcion" rows="4"><?php echo htmlspecialchars($descripcion_post); ?></textarea>
+                    <div class="col-12 mt-4">
+                        <label for="descripcion" class="form-label text-secondary small fw-bold text-uppercase">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"><?php echo htmlspecialchars($descripcion_post); ?></textarea>
                     </div>
                     
-                    <div class="col-12">
-                        <a href="gestion_pon.php" class="btn btn-secondary">Volver</a>
-                        <button type="submit" class="btn btn-success">Registrar PON</button>
+                    <div class="col-12 pt-3 border-top border-white border-opacity-10 mt-4 d-flex justify-content-end gap-3">
+                        <a href="gestion_pon.php" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-premium px-4">
+                            <i class="fa-solid fa-save me-2"></i>Registrar PON
+                        </button>
                     </div>
                 </form>
             </div>
+        </div>
+        
+        <div class="text-center mb-4">
+            <a href="gestion_pon.php" class="btn btn-outline-secondary px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver
+            </a>
         </div>
     </div>
 </main>

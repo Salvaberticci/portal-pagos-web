@@ -81,34 +81,20 @@ require_once 'includes/layout_head.php';
 require_once 'includes/sidebar.php';
 ?>
 
-<style>
-.checkbox-group {
-    border: 1px solid #dee2e6;
-    padding: 15px;
-    max-height: 250px;
-    overflow-y: auto; 
-    background-color: #f8f9fa;
-    border-radius: 0.375rem;
-}
-.checkbox-item {
-    display: block; 
-    margin-bottom: 8px;
-}
-</style>
+
 
 <main class="main-content">
     <?php include 'includes/header.php'; ?>
 
     <div class="page-content">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center bg-white border-bottom-0 pt-4 px-4">
-                <div>
-                    <h5 class="fw-bold text-primary mb-1">Registro de OLT</h5>
+        <div class="container-fluid">
+            <div class="card glass-panel border-0 shadow-sm overflow-hidden mb-4">
+                <div class="card-header bg-transparent py-4 border-bottom border-white border-opacity-10 px-4">
+                    <h5 class="mb-1 fw-bold">Registro de OLT</h5>
                     <p class="text-muted small mb-0">Crear nueva OLT y asignar parroquias</p>
                 </div>
-            </div>
 
-            <div class="card-body px-4">
+                <div class="card-body p-4">
                 <?php if ($message): ?>
                     <div class="alert alert-<?php echo $message_class === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
                         <?php echo htmlspecialchars($message); ?>
@@ -116,40 +102,40 @@ require_once 'includes/sidebar.php';
                     </div>
                 <?php endif; ?>
 
-                <form action="registro_olt.php" method="POST" class="row g-3">
+                <form action="registro_olt.php" method="POST" class="row g-4">
                     <div class="col-md-6">
-                        <label for="id_olt" class="form-label">ID de la OLT</label>
+                        <label for="id_olt" class="form-label text-secondary small fw-bold text-uppercase">ID de la OLT</label>
                         <input type="number" class="form-control" id="id_olt" name="id_olt" min="1" required autofocus
                                value="<?php echo isset($_POST['id_olt']) ? htmlspecialchars($_POST['id_olt']) : ''; ?>">
                     </div>
                     
                     <div class="col-md-6">
-                        <label for="nombre_olt" class="form-label">Nombre de la OLT</label>
+                        <label for="nombre_olt" class="form-label text-secondary small fw-bold text-uppercase">Nombre de la OLT</label>
                         <input type="text" class="form-control" id="nombre_olt" name="nombre_olt" required
                                value="<?php echo isset($_POST['nombre_olt']) ? htmlspecialchars($_POST['nombre_olt']) : ''; ?>">
                     </div>
                     
                     <div class="col-md-6">
-                        <label for="marca" class="form-label">Marca</label>
+                        <label for="marca" class="form-label text-secondary small fw-bold text-uppercase">Marca</label>
                         <input type="text" class="form-control" id="marca" name="marca" 
                                value="<?php echo isset($_POST['marca']) ? htmlspecialchars($_POST['marca']) : ''; ?>">
                     </div>
                     
                     <div class="col-md-6">
-                        <label for="modelo" class="form-label">Modelo</label>
+                        <label for="modelo" class="form-label text-secondary small fw-bold text-uppercase">Modelo</label>
                         <input type="text" class="form-control" id="modelo" name="modelo" 
                                value="<?php echo isset($_POST['modelo']) ? htmlspecialchars($_POST['modelo']) : ''; ?>">
                     </div>
                     
                     <div class="col-12">
-                        <label class="form-label">Parroquias que Atiende (Seleccione una o más)</label>
-                        <div class="checkbox-group">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Parroquias que Atiende <span class="fw-normal text-muted text-capitalize">(Seleccione una o más)</span></label>
+                        <div class="border border-white border-opacity-10 rounded bg-white bg-opacity-10 p-3" style="max-height: 250px; overflow-y: auto;">
                             <?php if (!empty($parroquias)): ?>
                                 <?php 
                                 $parroquias_post = isset($_POST['parroquias_id']) ? (array)$_POST['parroquias_id'] : [];
                                 foreach ($parroquias as $parroquia): 
                                 ?>
-                                    <div class="checkbox-item form-check">
+                                    <div class="form-check mb-2">
                                         <input class="form-check-input" type="checkbox" 
                                                id="parroquia_<?php echo htmlspecialchars($parroquia['id_parroquia']); ?>" 
                                                name="parroquias_id[]" 
@@ -166,17 +152,25 @@ require_once 'includes/sidebar.php';
                         </div>
                     </div>
                     
-                    <div class="col-12">
-                        <label for="descripcion" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="descripcion" name="descripcion" rows="4"><?php echo isset($_POST['descripcion']) ? htmlspecialchars($_POST['descripcion']) : ''; ?></textarea>
+                    <div class="col-12 mt-4">
+                        <label for="descripcion" class="form-label text-secondary small fw-bold text-uppercase">Descripción</label>
+                        <textarea class="form-control" id="descripcion" name="descripcion" rows="3"><?php echo isset($_POST['descripcion']) ? htmlspecialchars($_POST['descripcion']) : ''; ?></textarea>
                     </div>
                     
-                    <div class="col-12">
-                        <a href="gestion_olt.php" class="btn btn-secondary">Volver</a>
-                        <button type="submit" class="btn btn-success">Registrar OLT</button>
+                    <div class="col-12 pt-3 border-top border-white border-opacity-10 mt-4 d-flex justify-content-end gap-3">
+                        <a href="gestion_olt.php" class="btn btn-outline-secondary px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-premium px-4">
+                            <i class="fa-solid fa-save me-2"></i>Registrar OLT
+                        </button>
                     </div>
                 </form>
             </div>
+        </div>
+        
+        <div class="text-center mb-4">
+            <a href="gestion_olt.php" class="btn btn-outline-secondary px-4">
+                <i class="fa-solid fa-arrow-left me-2"></i>Volver
+            </a>
         </div>
     </div>
 </main>

@@ -394,13 +394,19 @@ foreach ($allRows as $aRow) {
         $mes_servicio = ucfirst(strtolower($matches[1])) . ' ' . $año_servicio;
     }
 
-    $row[] = '<div class="text-center col-fecha-vibrante" title="Periodo: ' . $mes_servicio . '">
-                <div class="periodo-badge">' . $mes_servicio . '</div>
-                <div class="fecha-detalle">' . date('d/m/Y', strtotime($fecha_base)) . '</div>
+    $tipo_fecha_str = $aRow['fecha_pago'] 
+        ? 'Esta es la FECHA DE PAGO EXACTA en la que se registró y aprobó la transacción o transferencia bancaria por parte del cliente.' 
+        : 'Esta es la FECHA DE EMISIÓN DE LA DEUDA, indicando el día en que el sistema generó automáticamente este cargo pendiente.';
+    
+    $tooltip_periodo = 'Este recuadro indica exclusivamente el MES DE SERVICIO de Internet que se está facturando (ej. Mensualidad de Mayo). NO corresponde al día en que se procesó el pago.';
+
+    $row[] = '<div class="text-center col-fecha-vibrante">
+                <div class="periodo-badge" style="cursor:help;" title="' . $tooltip_periodo . '">' . $mes_servicio . '</div>
+                <div class="fecha-detalle text-main opacity-75 mt-1 small" style="cursor:help;" title="' . $tipo_fecha_str . '">' . date('d/m/Y', strtotime($fecha_base)) . '</div>
              </div>';
 
     // 1. Cédula (NEW)
-    $row[] = '<div class="text-dark fw-bold" style="font-size: 0.85rem;">' . htmlspecialchars($aRow['cedula'] ?: 'N/A') . '</div>';
+    $row[] = '<div class="text-main fw-bold" style="font-size: 0.85rem;">' . htmlspecialchars($aRow['cedula'] ?: 'N/A') . '</div>';
 
     // 1. Ref
     $row[] = htmlspecialchars($aRow['referencia_pago'] ?: '-');
@@ -513,18 +519,18 @@ foreach ($allRows as $aRow) {
     // 10. Acciones
     $acciones = '<div class="d-flex justify-content-end gap-1">';
     // Modificar
-    $acciones .= '<button type="button" onclick="confirmarEdicionCobro(' . $id_cobro . ')" class="btn btn-sm btn-warning" title="Modificar"><i class="fas fa-edit"></i></button>';
+    $acciones .= '<button type="button" onclick="confirmarEdicionCobro(' . $id_cobro . ')" class="btn btn-glass btn-sm text-warning" title="Modificar"><i class="fas fa-edit"></i></button>';
     
     // Eliminar: Solo permitida si NO está Pagado, o si es un pago MANUAL (Capture Desglosado)
     if ($estado != 'PAGADO' || $aRow['es_manual'] > 0) {
-        $acciones .= '<button type="button" onclick="confirmarEliminarCobro(' . $id_cobro . ', \'' . addslashes($aRow['nombre_completo']) . '\')" class="btn btn-sm btn-danger" title="Eliminar"><i class="fas fa-trash"></i></button>';
+        $acciones .= '<button type="button" onclick="confirmarEliminarCobro(' . $id_cobro . ', \'' . addslashes($aRow['nombre_completo']) . '\')" class="btn btn-glass btn-sm text-danger" title="Eliminar"><i class="fas fa-trash"></i></button>';
     }
     
     // Historial
-    $acciones .= '<button type="button" onclick="verHistorialPago(' . $id_contrato . ', \'' . addslashes($aRow['nombre_completo']) . '\')" class="btn btn-sm btn-info" title="Historial"><i class="fas fa-history"></i></button>';
+    $acciones .= '<button type="button" onclick="verHistorialPago(' . $id_contrato . ', \'' . addslashes($aRow['nombre_completo']) . '\')" class="btn btn-glass btn-sm text-info" title="Historial"><i class="fas fa-history"></i></button>';
     // Justificación (if manual)
     if ($aRow['es_manual'] > 0) {
-        $acciones .= '<button type="button" onclick="verJustificacion(' . $id_cobro . ')" class="btn btn-sm btn-dark" title="Detalles del pago"><i class="fas fa-info-circle"></i></button>';
+        $acciones .= '<button type="button" onclick="verJustificacion(' . $id_cobro . ')" class="btn btn-glass btn-sm text-secondary" title="Detalles del pago"><i class="fas fa-info-circle"></i></button>';
     }
     $acciones .= '</div>';
 

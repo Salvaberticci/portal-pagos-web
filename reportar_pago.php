@@ -1,5 +1,10 @@
 <?php
-// reportar_pago.php - Formulario público para que clientes reporten sus pagos
+// Redirigir al nuevo Portal de Clientes
+header("Location: portal/index.php");
+exit;
+?>
+<?php
+// reportar_pago.php - Formulario público para que clientes reporten sus pagos (DEPRECATED)
 include 'paginas/conexion.php';
 
 // Cargar bancos para el combo

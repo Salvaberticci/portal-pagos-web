@@ -39,7 +39,6 @@ if (!empty($fecha_inicio) && !empty($fecha_fin)) {
     $where_clause .= " AND COALESCE(cxc.fecha_pago, cxc.fecha_emision) >= ? AND COALESCE(cxc.fecha_pago, cxc.fecha_emision) <= ? ";
     $params[] = $fecha_inicio; $params[] = $fecha_fin; $types .= 'ss';
 }
-
 if (!empty($mes_cobrado)) {
     // Mapeo de meses en español a números para el fallback de fecha_emision
     $mesesMapNum = [
@@ -60,7 +59,6 @@ if (!empty($mes_cobrado)) {
     $params[] = $numMes;
     $types .= 'si';
 }
-
 if (!empty($banco_filtro)) {
     $where_clause .= " AND cxc.id_banco = ? ";
     $params[] = $banco_filtro; $types .= 'i';
@@ -141,7 +139,6 @@ function createSheet(Spreadsheet $spreadsheet, $title) {
     
     global $mes_cobrado;
     $mes_display = !empty($mes_cobrado) ? strtoupper($mes_cobrado) : strtoupper(date('F'));
-    
     // Título Superior
     $sheet->mergeCells('A1:J1');
     $sheet->setCellValue('A1', $title . " - Reporte de Cobranzas " . date('Y'));

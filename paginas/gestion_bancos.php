@@ -18,55 +18,62 @@ require_once 'includes/sidebar.php';
     <?php include 'includes/header.php'; ?>
 
     <div class="page-content">
-        <?php if ($message): ?>
-            <div class="alert alert-<?php echo $message_class == 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show"
-                role="alert">
-                <?php echo htmlspecialchars($message); ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php endif; ?>
+        <div class="container-fluid">
+            <?php if ($message): ?>
+                <div class="alert alert-<?php echo $message_class == 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show"
+                    role="alert">
+                    <?php echo htmlspecialchars($message); ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
 
-        <div class="card">
-            <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-center">
-                <h5 class="mb-3 mb-md-0 fw-bold">Listado de Bancos (API JSON)</h5>
-                <div class="d-flex gap-2 w-100 w-md-auto">
-                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+            <div class="card glass-panel border-0 shadow-sm overflow-hidden">
+                <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">Listado de Bancos (API JSON)</h5>
+                    <button type="button" class="btn btn-premium btn-sm d-flex align-items-center gap-2" data-bs-toggle="modal"
                         data-bs-target="#modalRegistroBanco">
-                        <i class="fa-solid fa-plus me-1"></i> Nuevo Banco
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nuevo Banco</span>
                     </button>
                 </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="tabla_bancos_json">
+                            <thead class="bg-white bg-opacity-10">
+                                <tr>
+                                    <th class="ps-4">ID</th>
+                                    <th>Nombre del Banco</th>
+                                    <th>Número de Cuenta</th>
+                                    <th>Propietario</th>
+                                    <th class="text-end pe-4">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lista_bancos_api">
+                                <tr>
+                                    <td colspan="5" class="text-center p-4"><i
+                                            class="fas fa-spinner fa-spin me-2"></i>Cargando datos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top border-white border-opacity-10 py-3">
+                    <div id="pagination-container" class="d-flex justify-content-between align-items-center px-3">
+                        <small class="text-muted" id="pagination-info">Mostrando 0 de 0 bancos</small>
+                        <nav aria-label="Navegación de bancos">
+                            <ul class="pagination pagination-sm mb-0" id="pagination-list">
+                                <!-- Pagination items will be injected here -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
             </div>
 
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0" id="tabla_bancos_json">
-                        <thead class="bg-light">
-                            <tr>
-                                <th class="ps-4">ID</th>
-                                <th>Nombre del Banco</th>
-                                <th>Número de Cuenta</th>
-                                <th>Propietario</th>
-                                <th class="text-end pe-4">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lista_bancos_api">
-                            <tr>
-                                <td colspan="5" class="text-center p-4"><i
-                                        class="fas fa-spinner fa-spin me-2"></i>Cargando datos...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="card-footer bg-white border-top-0 py-3">
-                <div id="pagination-container" class="d-flex justify-content-between align-items-center px-3">
-                    <small class="text-muted" id="pagination-info">Mostrando 0 de 0 bancos</small>
-                    <nav aria-label="Navegación de bancos">
-                        <ul class="pagination pagination-sm mb-0" id="pagination-list">
-                            <!-- Pagination items will be injected here -->
-                        </ul>
-                    </nav>
-                </div>
+            <div class="mt-4 text-center">
+                <a href="menu.php" class="btn btn-outline-secondary px-4">
+                    <i class="fa-solid fa-arrow-left me-2"></i>Volver al Menú
+                </a>
             </div>
         </div>
     </div>
@@ -77,9 +84,9 @@ require_once 'includes/sidebar.php';
 <div class="modal fade" id="modalRegistroBanco" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title fw-bold text-primary">Registrar Nuevo Banco</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header modal-header-gradient border-0 text-white">
+                <h5 class="modal-title fw-bold">Registrar Nuevo Banco</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="form-registro-banco">
                 <div class="modal-body">
@@ -106,7 +113,7 @@ require_once 'includes/sidebar.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label small text-muted fw-bold text-uppercase">Métodos de Pago Soportados</label>
-                        <div class="d-flex flex-wrap gap-3 p-2 border rounded bg-light">
+                        <div class="d-flex flex-wrap gap-3 p-2 border border-white border-opacity-10 rounded bg-white bg-opacity-10">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="metodos_pago[]" value="Pago Móvil" id="reg_pago_movil">
                                 <label class="form-check-label small" for="reg_pago_movil">Pago Móvil</label>
@@ -130,7 +137,7 @@ require_once 'includes/sidebar.php';
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top-0">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary px-4">Guardar Banco</button>
                 </div>
@@ -143,9 +150,9 @@ require_once 'includes/sidebar.php';
 <div class="modal fade" id="modalEditBanco" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header border-bottom-0">
-                <h5 class="modal-title fw-bold text-primary">Editar Banco</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header modal-header-gradient border-0 text-white">
+                <h5 class="modal-title fw-bold">Editar Banco</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="form-edit-banco">
                 <input type="hidden" name="id_banco" id="edit_id_banco">
@@ -173,7 +180,7 @@ require_once 'includes/sidebar.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label small text-muted fw-bold text-uppercase">Métodos de Pago Soportados</label>
-                        <div class="d-flex flex-wrap gap-3 p-2 border rounded bg-light">
+                        <div class="d-flex flex-wrap gap-3 p-2 border border-white border-opacity-10 rounded bg-white bg-opacity-10">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="metodos_pago[]" value="Pago Móvil" id="edit_pago_movil">
                                 <label class="form-check-label small" for="edit_pago_movil">Pago Móvil</label>
@@ -197,7 +204,7 @@ require_once 'includes/sidebar.php';
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top-0">
+                <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary px-4">Actualizar Banco</button>
                 </div>
@@ -262,25 +269,25 @@ require_once 'includes/sidebar.php';
             data.forEach(b => {
                 const tr = document.createElement('tr');
                 const metodos = b.metodos_pago || [];
-                const metodosHtml = metodos.map(m => `<span class="badge bg-info-subtle text-info border border-info-subtle me-1" style="font-size: 0.65rem;">${m}</span>`).join('');
+                const metodosHtml = metodos.map(m => `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1" style="font-size: 0.65rem;">${m}</span>`).join('');
 
                 tr.innerHTML = `
                     <td class="ps-4 text-muted">#${b.id_banco}</td>
                     <td>
-                        <div class="fw-bold">${b.nombre_banco}</div>
+                        <div class="fw-bold text-main">${b.nombre_banco}</div>
                         <div class="mt-1">${metodosHtml || '<small class="text-muted italic">Sin métodos</small>'}</div>
                     </td>
                     <td class="font-monospace text-muted">${b.numero_cuenta || 'N/A'}</td>
                     <td>
-                        <div class="fw-semibold">${b.nombre_propietario || 'Sin titular'}</div>
+                        <div class="fw-semibold text-main">${b.nombre_propietario || 'Sin titular'}</div>
                         <small class="text-muted">${b.cedula_propietario || ''}</small>
                     </td>
                     <td class="text-end pe-4">
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-light text-primary" onclick='prepareEdit(${JSON.stringify(b)})' title="Editar">
+                        <div class="btn-group gap-2">
+                            <button class="btn btn-sm btn-glass text-primary" onclick='prepareEdit(${JSON.stringify(b)})' title="Editar">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
-                            <button class="btn btn-light text-danger" onclick="eliminarBanco('${b.id_banco}')" title="Eliminar">
+                            <button class="btn btn-sm btn-glass text-danger" onclick="eliminarBanco('${b.id_banco}')" title="Eliminar">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>

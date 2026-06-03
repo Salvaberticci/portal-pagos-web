@@ -36,74 +36,99 @@ while ($row = $res_olt->fetch_assoc()) {
     }
 
     .priority-badge.active {
-        border-color: #000;
-        box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
-        transform: scale(1.1);
+        border-color: var(--primary);
+        box-shadow: 0 0 15px rgba(37, 99, 235, 0.3);
+        transform: scale(1.05);
         opacity: 1;
     }
 
-    .priority-nivel1 {
-        background-color: #ffff00;
-        color: #000;
-    }
-
-    .priority-nivel2 {
-        background-color: #fd7e14;
-        color: white;
-    }
-
-    .priority-nivel3 {
-        background-color: #dc3545;
-        color: white;
-    }
+    .priority-nivel1 { background-color: #ffff00; color: #000; }
+    .priority-nivel2 { background-color: #fd7e14; color: white; }
+    .priority-nivel3 { background-color: #dc3545; color: white; }
 
     .form-section {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        border-left: 4px solid #0d6efd;
+        background: var(--bg-card);
+        backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--border-glass);
+        padding: 25px;
+        border-radius: 20px;
+        margin-bottom: 25px;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.3s ease;
     }
 
-    .critical-alert {
-        background: #fff3cd;
-        border: 2px solid #ffc107;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .signature-pad {
-        border: 2px dashed #ccc;
-        border-radius: 5px;
-        width: 100%;
-        height: 150px;
-        background-color: #f8f9fa;
-        touch-action: none;
+    .form-section:hover {
+        transform: translateY(-2px);
     }
 
     .section-title {
-        background-color: #f1f3f5;
-        padding: 10px;
-        font-weight: bold;
-        border-left: 4px solid #0d6efd;
-        margin-top: 20px;
-        margin-bottom: 15px;
-        border-radius: 0 4px 4px 0;
+        background: rgba(0, 0, 0, 0.05) !important;
+        border-left: 4px solid var(--primary);
+        color: var(--text-main) !important;
+        padding: 10px 15px !important;
+        margin-bottom: 20px !important;
+        font-weight: 700 !important;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+    }
+
+    [data-theme="dark"] .section-title {
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .critical-alert {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        padding: 20px;
+        border-radius: 12px;
+        color: var(--text-main);
+    }
+
+    .signature-pad {
+        border: 1px solid var(--border-glass);
+        border-radius: 12px;
+        width: 100%;
+        height: 150px;
+        background-color: var(--input-bg);
+        touch-action: none;
     }
 
     .btn-cancel-custom {
-        background-color: #adb5bd !important;
-        color: #212529 !important;
-        border: 1px solid #999 !important;
+        background-color: rgba(128, 128, 128, 0.1) !important;
+        color: var(--text-main) !important;
+        border: 1px solid var(--border-glass) !important;
         transition: all 0.3s ease !important;
     }
 
     .btn-cancel-custom:hover {
-        background-color: #6c757d !important;
-        color: white !important;
-        border-color: #5a6268 !important;
+        background-color: rgba(128, 128, 128, 0.2) !important;
+        color: var(--primary) !important;
     }
+
+    /* Custom Switch for Dark Mode */
+    .form-check-input:checked {
+        background-color: var(--danger);
+        border-color: var(--danger);
+    }
+
+    .input-group-text {
+        background-color: var(--table-header-bg);
+        border: 1px solid var(--input-border);
+        color: var(--text-muted);
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    }
+
+    .bg-premium-footer {
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        backdrop-filter: blur(10px);
+    }
+
 </style>
 
 <main class="main-content">
@@ -115,7 +140,7 @@ while ($row = $res_olt->fetch_assoc()) {
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="h3 fw-bold text-danger mb-1">
+                        <h2 class="h3 fw-bold text-gradient mb-1">
                             <i class="fa-solid fa-network-wired me-2"></i>Registro de Falla Masiva (NIVEL 3)
                         </h2>
                         <p class="text-muted">Reporte de caídas de red, OLTs o zonas completas</p>
@@ -130,7 +155,7 @@ while ($row = $res_olt->fetch_assoc()) {
         <form id="formRegistroFalla" class="needs-validation" novalidate>
             <!-- Sección 1: Información de Referencia -->
             <div class="form-section">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-user me-2"></i>Cliente Reportante (Referencia)</h5>
+                <div class="section-title"><i class="fa-solid fa-user me-2"></i>Cliente Reportante (Referencia)</div>
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Buscar un cliente afectado como referencia <span class="text-danger">*</span></label>
@@ -158,16 +183,14 @@ while ($row = $res_olt->fetch_assoc()) {
 
             <!-- Sección 2: Clasificación de la Falla -->
             <div class="form-section">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-tag me-2"></i>Clasificación de la Falla</h5>
-                </div>
+                <div class="section-title border-danger"><i class="fa-solid fa-tag me-2"></i>Clasificación de la Falla</div>
 
                 <div id="olts-container">
                     <!-- Fila 1 (siempre visible) -->
-                    <div class="olt-row row g-3 mb-2 align-items-start" data-index="0">
+                    <div class="olt-row row g-3 mb-3 align-items-start" data-index="0">
                         <div class="col-md-5">
                             <label class="form-label fw-bold">OLT Afectada <span class="text-danger">*</span></label>
-                            <select class="form-select border-primary olt-select" name="olts[]" required>
+                            <select class="form-select olt-select" name="olts[]" required>
                                 <option value="">Seleccione OLT...</option>
                                 <?php foreach ($olts as $olt): ?>
                                     <option value="<?php echo $olt['id_olt']; ?>"><?php echo htmlspecialchars($olt['nombre_olt']); ?></option>
@@ -176,7 +199,7 @@ while ($row = $res_olt->fetch_assoc()) {
                         </div>
                         <div class="col-md-5">
                             <label class="form-label fw-bold">PON Afectado <span class="text-muted fw-normal">(Opcional)</span></label>
-                            <select class="form-select border-primary pon-select" name="pons[]">
+                            <select class="form-select pon-select" name="pons[]">
                                 <option value="">Primero seleccione OLT...</option>
                             </select>
                             <small class="text-muted">Deja en blanco si es caída total de la OLT</small>
@@ -195,8 +218,8 @@ while ($row = $res_olt->fetch_assoc()) {
                 </div>
                 <div class="row g-3">
                     <div class="col-12">
-                        <label class="form-label">Tipo de Falla <span class="text-danger">*</span></label>
-                        <select class="form-select border-primary" id="tipo_falla" name="tipo_falla" required>
+                        <label class="form-label fw-bold">Tipo de Falla <span class="text-danger">*</span></label>
+                        <select class="form-select" id="tipo_falla" name="tipo_falla" required>
                             <option value="">Cargando opciones...</option>
                         </select>
                         <div class="invalid-feedback">Debe seleccionar un tipo de falla</div>
@@ -204,9 +227,9 @@ while ($row = $res_olt->fetch_assoc()) {
                 </div>
                 <div class="row g-3 mt-3">
                     <div class="col-md-6">
-                        <div class="p-3 border rounded bg-white shadow-sm h-100">
+                        <div class="p-3 border border-danger border-opacity-20 rounded bg-danger bg-opacity-5 h-100">
                             <label class="form-label fw-bold text-danger"><i class="fa-solid fa-users me-2"></i>Estimación de Clientes Afectados</label>
-                            <input type="number" class="form-control form-control-lg border-danger" id="clientes_afectados" name="clientes_afectados"
+                            <input type="number" class="form-control form-control-lg border-danger border-opacity-50" id="clientes_afectados" name="clientes_afectados"
                                 min="1" value="50">
                             <small class="text-muted">Introduce una cifra estimada (Ej. 100, 200...)</small>
                         </div>
@@ -228,7 +251,7 @@ while ($row = $res_olt->fetch_assoc()) {
 
             <!-- Sección 3: Ubicación -->
             <div class="form-section">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-map-marker-alt me-2"></i>Ubicación y Zona</h5>
+                <div class="section-title"><i class="fa-solid fa-map-marker-alt me-2"></i>Ubicación y Zona</div>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Sector</label>
@@ -249,7 +272,7 @@ while ($row = $res_olt->fetch_assoc()) {
 
             <!-- Sección 4: Descripción -->
             <div class="form-section">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-file-lines me-2"></i>Descripción de la Falla</h5>
+                <div class="section-title"><i class="fa-solid fa-file-lines me-2"></i>Descripción de la Falla</div>
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Síntomas Reportados <span class="text-danger">*</span></label>
@@ -288,7 +311,7 @@ while ($row = $res_olt->fetch_assoc()) {
 
             <!-- Sección 5: Asignación -->
             <div class="form-section">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-user-gear me-2"></i>Asignación</h5>
+                <div class="section-title"><i class="fa-solid fa-user-gear me-2"></i>Asignación</div>
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label">Técnico Asignado <span class="text-danger">*</span></label>
@@ -306,7 +329,7 @@ while ($row = $res_olt->fetch_assoc()) {
 
             <!-- Sección 6: Notas Internas -->
             <div class="form-section">
-                <h5 class="fw-bold mb-3"><i class="fa-solid fa-note-sticky me-2"></i>Notas Internas</h5>
+                <div class="section-title"><i class="fa-solid fa-note-sticky me-2"></i>Notas Internas</div>
                 <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Notas del Operador</label>
@@ -320,11 +343,11 @@ while ($row = $res_olt->fetch_assoc()) {
             <!-- Botones -->
             <div class="row mt-4">
                 <div class="col-12">
-                    <div class="d-flex gap-2 justify-content-end p-3 bg-light rounded shadow-sm">
+                    <div class="d-flex gap-2 justify-content-end p-4 bg-premium-footer rounded-pill shadow-lg mb-5">
                         <a href="gestion_fallas.php" class="btn btn-cancel-custom px-4">
                             <i class="fa-solid fa-times me-1"></i>Cancelar
                         </a>
-                        <button type="submit" class="btn btn-danger btn-lg px-5 fw-bold shadow">
+                        <button type="submit" class="btn btn-premium px-5">
                             <i class="fa-solid fa-save me-1"></i>REGISTRAR FALLA MASIVA
                         </button>
                     </div>
@@ -384,17 +407,17 @@ while ($row = $res_olt->fetch_assoc()) {
         let rowIndex = 1;
         $('#btn-add-olt').click(function() {
             const newRow = $(`
-                <div class="olt-row row g-3 mb-2 align-items-start" data-index="${rowIndex}">
+                <div class="olt-row row g-3 mb-3 align-items-start" data-index="${rowIndex}">
                     <div class="col-md-5">
                         <label class="form-label fw-bold">OLT Afectada <span class="text-danger">*</span></label>
-                        <select class="form-select border-primary olt-select" name="olts[]" required>
+                        <select class="form-select olt-select" name="olts[]" required>
                             <option value="">Seleccione OLT...</option>
                             <?php foreach ($olts as $olt): echo '<option value="' . $olt['id_olt'] . '">' . htmlspecialchars($olt['nombre_olt']) . '</option>'; endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label fw-bold">PON Afectado <span class="text-muted fw-normal">(Opcional)</span></label>
-                        <select class="form-select border-primary pon-select" name="pons[]">
+                        <select class="form-select pon-select" name="pons[]">
                             <option value="">Primero seleccione OLT...</option>
                         </select>
                     </div>

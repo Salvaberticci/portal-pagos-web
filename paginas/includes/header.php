@@ -25,13 +25,12 @@ $user_role = isset($_SESSION['rol']) ? $_SESSION['rol'] : 'Sin Rol';
 $user_initial = strtoupper(substr($user_name, 0, 1));
 ?>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark top-header py-0 shadow-sm"
-    style="background-color: var(--bg-sidebar) !important;">
+<nav class="navbar navbar-expand-lg glass-header py-1 shadow-sm">
     <div class="container-fluid px-4">
         <!-- Brand / Logo -->
-        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="<?php echo $path_fix; ?>paginas/menu.php">
+        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-main" href="<?php echo $path_fix; ?>paginas/menu.php">
             <img src="<?php echo $path_fix; ?>images/logo.jpg" alt="Logo" style="height: 35px; border-radius: 50%;">
-            <span class="d-none d-sm-inline font-heading tracking-wide">Wireless Supply</span>
+            <span class="d-none d-sm-inline font-heading tracking-wide" style="color: var(--text-main);">Wireless Supply</span>
         </a>
 
         <!-- Mobile Toggle -->
@@ -116,6 +115,7 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                                 href="<?php echo $path_fix; ?>paginas/principal/aprobar_pagos.php"><i
                                     class="fa-solid fa-check-double w-20 me-2 text-warning"></i> Aprobar Pagos
                                 Web</a></li>
+
                         <li><a class="dropdown-item"
                                 href="<?php echo $path_fix; ?>paginas/principal/historial_pagos_reportados.php"><i
                                     class="fa-solid fa-clock-rotate-left w-20 me-2 text-primary"></i> Historial
@@ -138,9 +138,8 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                         <i class="fa-solid fa-link me-1 text-info"></i> Enlaces
                     </a>
                     <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="dropEnlaces">
-                        <li><a class="dropdown-item" href="<?php echo $path_fix; ?>reportar_pago.php" target="_blank"><i
-                                    class="fa-solid fa-external-link-alt w-20 me-2 text-success"></i> Reportar
-                                Pago</a></li>
+                        <li><a class="dropdown-item" href="<?php echo $path_fix; ?>portal/index.php" target="_blank"><i
+                                    class="fa-solid fa-user-tag w-20 me-2 text-success"></i> Reporte de Pago (Portal)</a></li>
                         <li><a class="dropdown-item"
                                 href="<?php echo $path_fix; ?>paginas/soporte/registro_contrato_instalador.php"
                                 target="_blank"><i class="fa-solid fa-file-signature w-20 me-2 text-primary"></i>
@@ -195,20 +194,25 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
 
             <!-- Right Side: User Profile & Actions -->
             <div class="d-flex align-items-center gap-3">
+                <!-- Theme Toggle -->
+                <button class="btn btn-sm btn-glass rounded-circle d-flex align-items-center justify-content-center border-0 shadow-sm" id="themeToggleBtn" style="width: 38px; height: 38px;" title="Cambiar Tema">
+                    <i class="fa-solid fa-moon text-warning"></i>
+                </button>
+                
                 <!-- User Dropdown -->
                 <div class="dropdown">
-                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-white"
+                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle"
                         id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
                         <div class="text-end me-2 d-none d-md-block">
-                            <span class="d-block small text-muted text-uppercase fw-bold"
-                                style="font-size: 0.65rem;">Bienvenido</span>
-                            <span class="d-block fw-semibold"
+                            <span class="d-block small text-uppercase fw-bold"
+                                style="font-size: 0.65rem; color: rgba(255, 255, 255, 0.7);">Bienvenido</span>
+                            <span class="d-block fw-semibold text-white"
                                 style="font-size: 0.9rem;"><?php echo htmlspecialchars($user_name); ?></span>
-                            <span class="badge bg-primary-light text-primary small"
-                                style="font-size: 0.6rem;"><?php echo htmlspecialchars($user_role); ?></span>
+                            <span class="badge shadow-sm"
+                                style="font-size: 0.65rem; background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.1);"><?php echo htmlspecialchars($user_role); ?></span>
                         </div>
                         <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white fw-bold shadow-sm"
-                            style="width: 38px; height: 38px;"><?php echo $user_initial; ?></div>
+                            style="width: 38px; height: 38px; background: linear-gradient(135deg, var(--primary), var(--accent)) !important; border: 1px solid var(--border-glass);"><?php echo $user_initial; ?></div>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 text-small"
                         aria-labelledby="dropdownUser1">
@@ -227,7 +231,7 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
 </nav>
 
 <!-- Sub-header for Page Title (Optional, keeps the context) -->
-<div class="bg-white border-bottom py-2 shadow-sm d-none d-lg-block">
+<div class="border-bottom py-2 shadow-sm d-none d-lg-block" style="background: var(--bg-card); border-color: var(--border-glass) !important;">
     <div class="container-fluid px-4">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="m-0 text-secondary fw-bold d-flex align-items-center gap-2 flex-wrap">
@@ -252,3 +256,35 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    if (!themeBtn) return;
+    
+    const html = document.documentElement;
+    const icon = themeBtn.querySelector('i');
+
+    function updateIcon(theme) {
+        if (theme === 'dark') {
+            icon.className = 'fa-solid fa-sun text-warning';
+        } else {
+            icon.className = 'fa-solid fa-moon text-primary';
+        }
+    }
+
+    // Inicializar icono
+    const currentTheme = html.getAttribute('data-theme') || 'light';
+    updateIcon(currentTheme);
+
+    themeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        let theme = html.getAttribute('data-theme');
+        let newTheme = theme === 'dark' ? 'light' : 'dark';
+        
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        updateIcon(newTheme);
+    });
+});
+</script>

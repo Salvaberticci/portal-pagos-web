@@ -12,11 +12,11 @@ require_once '../includes/sidebar.php';
 
 <style>
     .drop-zone {
-        border: 2px dashed #0d6efd;
+        border: 2px dashed rgba(13, 110, 253, 0.5);
         border-radius: 10px;
         padding: 30px;
         text-align: center;
-        background: #f8fbff;
+        background: rgba(255, 255, 255, 0.03);
         cursor: pointer;
         transition: all 0.3s;
         height: 100%;
@@ -25,23 +25,28 @@ require_once '../includes/sidebar.php';
         justify-content: center;
         align-items: center;
         min-height: 200px;
+        color: var(--text-main);
     }
 
     .drop-zone:hover {
-        background: #eef5ff;
+        background: rgba(13, 110, 253, 0.08);
         border-color: #0a58ca;
     }
 
     .drop-zone.active {
-        background-color: #d1e7dd;
+        background: rgba(25, 135, 84, 0.1);
         border-color: #198754;
+    }
+
+    .drop-zone h6 {
+        color: var(--text-main);
     }
 
     #preview-image {
         max-width: 100%;
         max-height: 300px;
         border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
         display: none;
         margin: 0 auto;
     }
@@ -53,7 +58,6 @@ require_once '../includes/sidebar.php';
     .step-number {
         width: 30px;
         height: 30px;
-        background-color: #0d6efd;
         color: white;
         border-radius: 50%;
         display: inline-flex;
@@ -61,6 +65,32 @@ require_once '../includes/sidebar.php';
         justify-content: center;
         font-weight: bold;
         margin-right: 10px;
+        flex-shrink: 0;
+    }
+
+    /* DataTables spacing */
+    .dataTables_wrapper {
+        padding-top: 1rem;
+    }
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 1.5rem;
+        padding: 0 1rem;
+    }
+
+    /* Result cards dark mode */
+    .result-inner-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+    }
+    .result-inner-card .ref-value {
+        color: var(--text-main);
     }
 </style>
 
@@ -72,7 +102,7 @@ require_once '../includes/sidebar.php';
             <!-- Header -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <h3 class="fw-bold text-primary"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Conciliación:
+                    <h3 class="fw-bold text-gradient"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Conciliación:
                         Capture vs Banco</h3>
                     <p class="text-muted">Sube el Excel del Banco y el Capture del Pago Móvil para verificar si la
                         operación fue exitosa.</p>
@@ -83,13 +113,13 @@ require_once '../includes/sidebar.php';
                 <!-- Columna Izquierda: Entradas -->
                 <div class="col-lg-5">
                     <!-- Paso 1: Cargar Excel -->
-                    <div class="card shadow-sm mb-4">
-                        <div class="card-header bg-white">
+                    <div class="glass-panel mb-4">
+                        <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3 px-4">
                             <h6 class="mb-0 fw-bold text-success d-flex align-items-center">
                                 <span class="step-number bg-success">1</span> Archivo del Banco (Excel)
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body p-4">
                             <div id="drop-zone-excel" class="drop-zone">
                                 <i class="fa-solid fa-file-excel fa-3x text-success mb-3"></i>
                                 <h6 id="excel-label">Arrastra el Excel (.xls, .xlsx)</h6>
@@ -102,13 +132,13 @@ require_once '../includes/sidebar.php';
                     </div>
 
                     <!-- Paso 2: Cargar Capture -->
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-white">
+                    <div class="glass-panel">
+                        <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3 px-4">
                             <h6 class="mb-0 fw-bold text-primary d-flex align-items-center">
                                 <span class="step-number bg-primary">2</span> Capture de Pago (Imagen)
                             </h6>
                         </div>
-                        <div class="card-body">
+                        <div class="card-body p-4">
                             <div id="drop-zone-img" class="drop-zone">
                                 <i class="fa-solid fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
                                 <h6 id="img-label">Sube el Capture del Pago</h6>
@@ -151,10 +181,11 @@ require_once '../includes/sidebar.php';
 
                 <!-- Columna Derecha: Resultados -->
                 <div class="col-lg-7">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-header bg-white fw-bold"><i
-                                class="fa-solid fa-magnifying-glass-chart me-2"></i>Resultados del Análisis</div>
-                        <div class="card-body d-flex flex-column justify-content-center">
+                    <div class="glass-panel h-100">
+                        <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3 px-4 fw-bold text-main">
+                            <i class="fa-solid fa-magnifying-glass-chart me-2"></i>Resultados del Análisis
+                        </div>
+                        <div class="card-body d-flex flex-column justify-content-center p-4">
 
                             <!-- Estado del Proceso -->
                             <div id="processing-status" class="text-center py-5" style="display: none;">
@@ -188,13 +219,13 @@ require_once '../includes/sidebar.php';
                                 <h3 class="fw-bold text-success mb-2">¡PAGO ENCONTRADO!</h3>
                                 <p class="lead mb-4">La referencia coincide con un registro del banco.</p>
 
-                                <div class="card border-success bg-light mx-4 text-start shadow-sm">
+                                <div class="card result-inner-card border-success mx-4 text-start">
                                     <div class="card-body">
                                         <div class="row">
-                                            <div class="col-md-6 border-end">
+                                            <div class="col-md-6 border-end border-white border-opacity-10">
                                                 <h6 class="fw-bold text-muted small text-uppercase">Detectado en Capture
                                                 </h6>
-                                                <p class="fs-4 fw-bold text-dark mb-0" id="ref-ocr">---</p>
+                                                <p class="fs-4 fw-bold ref-value mb-0" id="ref-ocr">---</p>
                                             </div>
                                             <div class="col-md-6">
                                                 <h6 class="fw-bold text-success small text-uppercase"><i
@@ -231,11 +262,11 @@ require_once '../includes/sidebar.php';
                                 <h3 class="fw-bold text-danger mb-2">NO ENCONTRADO</h3>
                                 <p class="lead mb-4">El número no aparece en el Excel cargado.</p>
 
-                                <div class="card border-danger bg-light mx-4 text-start shadow-sm">
+                                <div class="card result-inner-card border-danger mx-4 text-start">
                                     <div class="card-body">
                                         <p class="mb-1"><strong>🔍 Número Buscado (OCR):</strong> <span
                                                 id="ref-ocr-error" class="fw-bold fs-5 text-danger"></span></p>
-                                        <hr>
+                                        <hr class="border-white border-opacity-10">
                                         <p class="text-muted small mt-2 mb-0">
                                             <i class="fa-solid fa-triangle-exclamation me-1"></i> <strong>Posibles
                                                 causas:</strong><br>
@@ -271,7 +302,7 @@ require_once '../includes/sidebar.php';
                                                     id="count-missing">0</span>)</button>
                                         </li>
                                     </ul>
-                                    <div class="tab-content border rounded bg-light" id="pills-tabContent"
+                                    <div class="tab-content glass-panel" id="pills-tabContent"
                                         style="max-height: 400px; overflow-y: auto;">
                                         <!-- Encontradas -->
                                         <div class="tab-pane fade show active p-3" id="pills-found" role="tabpanel">

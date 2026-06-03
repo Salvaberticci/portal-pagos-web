@@ -32,12 +32,14 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
 <style>
     .form-section-title {
         font-size: 0.85rem;
-        background: #f8f9fa;
-        padding: 5px 15px;
-        border-radius: 5px;
+        background: rgba(255,255,255,0.05);
+        padding: 8px 15px;
+        border-radius: 8px;
         margin-bottom: 20px;
-        color: #6c757d;
-        border-left: 4px solid #0d6efd;
+        color: #4facfe;
+        border-left: 4px solid #4facfe;
+        font-weight: 800;
+        letter-spacing: 0.5px;
     }
 
     .modal-header-internal {
@@ -57,48 +59,66 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
         border-color: #0d6efd;
         background: #f0f7ff;
     }
+
+    /* Mejora de espaciado para DataTables */
+    .dataTables_wrapper {
+        padding-top: 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 1.5rem;
+        padding: 0 1rem;
+    }
 </style>
 
 <main class="main-content">
     <?php include '../includes/header.php'; ?>
-
     <div class="page-content">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h4 class="fw-bold text-primary mb-1">Centro de Prórrogas</h4>
-                <p class="text-muted small mb-0">Gestione solicitudes internas de prórroga.</p>
+        <div class="glass-panel animate-fade mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 py-4 px-4">
+                <div>
+                    <h4 class="fw-bold text-gradient mb-1">Centro de Prórrogas</h4>
+                    <p class="text-muted small mb-0">Gestione solicitudes internas de prórroga.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-premium px-4 fw-bold" data-bs-toggle="modal"
+                        data-bs-target="#modalInternal">
+                        <i class="fa-solid fa-user-clock me-1"></i> Nueva Prórroga
+                    </button>
+                    <div class="vr mx-1 opacity-25"></div>
+                    <button type="button" class="btn btn-glass btn-sm px-3" onclick="exportExcel()">
+                        <i class="fa-solid fa-file-excel me-1 text-success"></i> Exportar
+                    </button>
+                    <button type="button" class="btn btn-glass btn-sm px-3" data-bs-toggle="modal"
+                        data-bs-target="#modalImportExcel">
+                        <i class="fa-solid fa-file-import me-1 text-primary"></i> Importar
+                    </button>
+                </div>
             </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-dark shadow-sm" data-bs-toggle="modal"
-                    data-bs-target="#modalInternal">
-                    <i class="fa-solid fa-user-clock me-1"></i> Nueva Prórroga
-                </button>
-                <div class="vr mx-1"></div>
-                <!-- Botones manuales opcionales (se mantienen por si el usuario quiere forzar la acción) -->
-                <button type="button" class="btn btn-outline-danger btn-sm shadow-sm" onclick="limpiarTemporales()">
-                    <i class="fa-solid fa-broom me-1"></i> Forzar Limpieza
-                </button>
-                <button type="button" class="btn btn-info btn-sm text-white shadow-sm" onclick="avanzarMesPermanentes()">
-                    <i class="fa-solid fa-rotate me-1"></i> Forzar Avance
-                </button>
-                <div class="vr mx-1"></div>
-                <button type="button" class="btn btn-success shadow-sm" onclick="exportExcel()">
-                    <i class="fa-solid fa-file-excel me-1"></i> Exportar
-                </button>
-                <button type="button" class="btn btn-outline-success shadow-sm" data-bs-toggle="modal"
-                    data-bs-target="#modalImportExcel">
-                    <i class="fa-solid fa-file-import me-1"></i> Importar
-                </button>
+            
+            <div class="p-4 pt-2 border-bottom border-white border-opacity-5">
+                <div class="d-flex gap-2 align-items-center">
+                    <button type="button" class="btn btn-glass btn-xs py-1" onclick="limpiarTemporales()">
+                        <i class="fa-solid fa-broom me-1"></i> Limpiar Temporales
+                    </button>
+                    <button type="button" class="btn btn-glass btn-xs py-1" onclick="avanzarMesPermanentes()">
+                        <i class="fa-solid fa-rotate me-1"></i> Forzar Avance
+                    </button>
+                </div>
             </div>
-        </div>
-
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table id="tabla_prorrogas" class="table table-hover align-middle w-100">
-                        <thead class="bg-light">
+                    <table id="tabla_prorrogas" class="table table-hover align-middle w-100 mb-0">
+                        <thead>
                             <tr>
-                                <th>Fecha Reg.</th>
+                                <th class="ps-4">Fecha Reg.</th>
                                 <th>Cliente / Titular</th>
                                 <th>Regular?</th>
                                 <th>Corte</th>
@@ -117,11 +137,11 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
 <!-- Modal Interno: Galanet-Prórroga -->
 <div class="modal fade" id="modalInternal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header modal-header-internal text-white">
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
                 <div>
-                    <h5 class="modal-title fw-bold">Galanet-Prórroga</h5>
-                    <small class="opacity-75">Solicitud Interna de Extensión</small>
+                    <h5 class="modal-title fw-bold text-white">Galanet-Prórroga</h5>
+                    <small class="text-white opacity-75">Solicitud Interna de Extensión</small>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -189,9 +209,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                         <div class="form-text text-muted small">Código del cliente en el sistema SAE Plus (opcional).</div>
                     </div>
 
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-dark px-4 shadow">Registrar Prórroga</button>
+                <div class="modal-footer border-top border-white border-opacity-10">
+                    <button type="button" class="btn btn-glass px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 shadow fw-bold">Registrar Prórroga</button>
                 </div>
             </form>
         </div>
@@ -200,9 +220,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
 <!-- Modal Editar Prórroga -->
 <div class="modal" id="modalEditarProrroga" tabindex="-1" aria-hidden="true" style="z-index: 9999 !important;">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title fw-bold">Editar Prórroga</h5>
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white">Editar Prórroga</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="formEditar" action="editar_prorroga.php" method="POST">
@@ -232,9 +252,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                         <input type="text" name="codigo_sae_plus" id="edit_codigo_sae_plus" class="form-control" placeholder="Ej: 12345" maxlength="50">
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="submit" class="btn btn-primary px-4">Guardar Cambios</button>
+                <div class="modal-footer border-top border-white border-opacity-10">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -245,9 +265,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
 <!-- Modal Procesar Pago -->
 <div class="modal fade" id="modalProcesarPago" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">Convertir en Pago</h5>
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white">Convertir en Pago</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="procesar_prorroga_pago.php" method="POST">
@@ -289,9 +309,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                             placeholder="Ej: Pago de prórroga aprobada"></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="submit" class="btn btn-success px-4">Confirmar y Registrar Pago</button>
+                <div class="modal-footer border-top border-white border-opacity-10">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Confirmar y Registrar Pago</button>
                 </div>
             </form>
         </div>
@@ -301,9 +321,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
 <!-- Modal Importar Excel -->
 <div class="modal fade" id="modalImportExcel" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-import me-2"></i>Importar desde Excel</h5>
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white"><i class="fa-solid fa-file-import me-2"></i>Importar desde Excel</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4 text-center">
@@ -321,10 +341,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light border-0">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" id="btn-confirm-import" class="btn btn-success px-4" disabled>Procesar
-                    Importación</button>
+            <div class="modal-footer border-top border-white border-opacity-10">
+                <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="btn-confirm-import" class="btn btn-primary px-4 fw-bold" disabled>Procesar Importación</button>
             </div>
         </div>
     </div>
@@ -352,7 +371,7 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                 },
                 {
                     "data": "prorroga_regular", "render": function (data) {
-                        return data == 'SI' ? '<span class="badge bg-info">Permanente</span>' : '<span class="badge bg-secondary">Temporal</span>';
+                        return data == 'SI' ? '<span class="badge bg-primary-light text-primary">Permanente</span>' : '<span class="badge bg-secondary-light text-muted">Temporal</span>';
                     }
                 },
                 { "data": "fecha_corte" },
@@ -365,9 +384,9 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                 {
                     "data": "estado", "render": function (data, type, row) {
                         let html = '';
-                        let badge = 'bg-warning';
-                        if (data == 'PROCESADO') badge = 'bg-success';
-                        if (data == 'RECHAZADO') badge = 'bg-danger';
+                        let badge = 'bg-warning-light text-warning';
+                        if (data == 'PROCESADO') badge = 'bg-success-light text-success';
+                        if (data == 'RECHAZADO') badge = 'bg-danger-light text-danger';
                         html += `<span class="badge ${badge}">${data}</span>`;
                         
                         // Nuevo: Indicator de pago detectado
@@ -378,10 +397,10 @@ $planes = $conn->query("SELECT id_plan, nombre_plan FROM planes ORDER BY nombre_
                     }
                 },
                 {
-                    "data": "id_prorroga", "className": "text-end", "render": function (id, type, row) {
-                        return `<div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary btn-editar-prorroga" title="Editar" data-id="${id}"><i class="fa-solid fa-edit"></i></button>
-                            <button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="eliminarProrroga(${id})"><i class="fa-solid fa-trash"></i></button>
+                    "data": "id_prorroga", "className": "text-end pe-4", "render": function (id, type, row) {
+                        return `<div class="d-flex justify-content-end gap-2">
+                            <button class="btn btn-sm btn-glass text-primary btn-editar-prorroga" title="Editar" data-id="${id}"><i class="fa-solid fa-edit"></i></button>
+                            <button class="btn btn-sm btn-glass text-danger" title="Eliminar" onclick="eliminarProrroga(${id})"><i class="fa-solid fa-trash"></i></button>
                         </div>`;
                     }
                 }

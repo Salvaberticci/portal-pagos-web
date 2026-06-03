@@ -9,121 +9,148 @@ require_once 'includes/sidebar.php';
 
     <div class="page-content">
         <!-- Welcome Hero Section -->
-        <div class="card bg-white border-0 shadow-lg overflow-hidden position-relative mb-4">
+        <div class="glass-panel overflow-hidden position-relative mb-5 animate-fade">
             <div class="card-body p-5 position-relative text-center text-md-start">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h1 class="display-5 fw-bold text-primary mb-3">Bienvenido a Wireless Supply</h1>
-                        <p class="lead text-muted mb-4">Sistema de Gestión Administrativa y Técnica</p>
-
-
+                        <h1 class="display-4 fw-bold mb-3 text-gradient">Bienvenido a Wireless Supply</h1>
+                        <p class="lead text-muted mb-4">Sistema de Gestión Administrativa y Técnica de Nueva Generación</p>
                     </div>
                     <div class="col-md-4 text-center">
-                        <img src="../images/logo.jpg" alt="Wireless Supply" class="img-fluid shadow-sm"
-                            style="max-height: 180px;">
+                        <div class="p-3 bg-white bg-opacity-5 rounded-4 d-inline-block shadow-lg border border-white border-opacity-10">
+                            <img src="../images/logo.jpg" alt="Wireless Supply" class="img-fluid rounded-3 shadow-sm"
+                                style="max-height: 160px; filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.2));">
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Quick Actions Grid -->
-        <h4 class="mb-4 text-muted fw-bold">Accesos Directos</h4>
+        <h4 class="mb-4 text-muted fw-bold px-2" style="letter-spacing: 0.1em; font-size: 0.9rem; text-transform: uppercase;">Accesos Directos</h4>
         <div class="row g-4">
+            <!-- Contratos -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/gestion_contratos.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-file-contract fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title text-dark">Contratos</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-file-contract fa-2x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Contratos</h5>
                             <p class="card-text text-muted small">Administrar contratos de clientes</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Cobranzas -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/gestion_mensualidades.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-money-bill-wave fa-3x text-success mb-3"></i>
-                            <h5 class="card-title text-dark">Cobranzas</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-money-bill-wave fa-2x text-success"></i>
+                            </div>
+                            <h5 class="card-title">Cobranzas</h5>
                             <p class="card-text text-muted small">Gestión de cuentas por cobrar</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Usuarios -->
             <div class="col-md-6 col-lg-3">
                 <a href="gestion_usuarios.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-users fa-3x text-info mb-3"></i>
-                            <h5 class="card-title text-dark">Usuarios</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-users fa-2x text-info"></i>
+                            </div>
+                            <h5 class="card-title">Usuarios</h5>
                             <p class="card-text text-muted small">Gestión de usuarios del sistema</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Gestión de Fallas -->
             <div class="col-md-6 col-lg-3">
                 <a href="soporte/gestion_fallas.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-chart-line fa-3x text-danger mb-3"></i>
-                            <h5 class="card-title text-dark">Gestión de Fallas</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-chart-line fa-2x text-danger"></i>
+                            </div>
+                            <h5 class="card-title">Gestión de Fallas</h5>
                             <p class="card-text text-muted small">Estadísticas y reportes técnicos</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Reportes -->
             <div class="col-md-6 col-lg-3">
                 <a href="reportes_pdf/reporte_cobranza.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-chart-pie fa-3x text-warning mb-3"></i>
-                            <h5 class="card-title text-dark">Reportes</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-chart-pie fa-2x text-warning"></i>
+                            </div>
+                            <h5 class="card-title">Reportes</h5>
                             <p class="card-text text-muted small">Ver métricas y reportes</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Aprobar Pagos -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/aprobar_pagos.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-check-double fa-3x text-warning mb-3"></i>
-                            <h5 class="card-title text-dark">Aprobar Pagos</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-check-double fa-2x text-warning"></i>
+                            </div>
+                            <h5 class="card-title">Aprobar Pagos</h5>
                             <p class="card-text text-muted small">Revisar reportes de clientes</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Historial Pagos -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/historial_pagos_reportados.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-clock-rotate-left fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title text-dark">Historial Pagos</h5>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-clock-rotate-left fa-2x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Historial Pagos</h5>
                             <p class="card-text text-muted small">Ver reportes procesados</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Prórrogas -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/gestion_prorrogas.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift shadow-sm">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-calendar-plus fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title text-dark">Prórrogas y Ventas</h5>
-                            <p class="card-text text-muted small">Gestión de solicitudes y nuevas firmas</p>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-calendar-plus fa-2x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Prórrogas</h5>
+                            <p class="card-text text-muted small">Gestión de solicitudes de pago</p>
                         </div>
                     </div>
                 </a>
             </div>
+            <!-- Conciliación -->
             <div class="col-md-6 col-lg-3">
                 <a href="principal/conciliacion.php" class="text-decoration-none">
-                    <div class="card h-100 hover-lift shadow-sm border-primary border-opacity-10">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
                         <div class="card-body text-center p-4">
-                            <i class="fa-solid fa-scale-balanced fa-3x text-primary mb-3"></i>
-                            <h5 class="card-title text-dark">Conciliación</h5>
-                            <p class="card-text text-muted small">Validar pagos con extracto bancario (OCR)</p>
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-scale-balanced fa-2x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Conciliación</h5>
+                            <p class="card-text text-muted small">Validar pagos con extracto (OCR)</p>
                         </div>
                     </div>
                 </a>

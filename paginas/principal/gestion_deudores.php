@@ -31,31 +31,53 @@ require_once '../includes/sidebar.php';
     #deudorTabs .nav-link {
         transition: all 0.3s ease;
         border: 1px solid transparent;
+        color: var(--text-main);
+        opacity: 0.7;
+    }
+
+    #deudorTabs .nav-link:hover {
+        background: rgba(128, 128, 128, 0.1);
+        color: var(--text-main);
+        opacity: 1;
     }
 
     /* Pestaña Deudas (Roja al estar activa) */
     #tab-deudas.active {
-        background-color: #dc3545 !important;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
         color: white !important;
-        border-color: #dc3545;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
     }
 
     /* Pestaña Créditos (Verde al estar activa) */
     #tab-creditos.active {
-        background-color: #198754 !important;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
         color: white !important;
-        border-color: #198754;
+        border-color: transparent;
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+    
+    #tabla_deudores thead th, #tabla_creditos thead th {
+        background-color: transparent !important;
+        color: var(--text-main, #333) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
     }
 
-    /* Hover effects */
-    #tab-deudas:not(.active):hover {
-        background-color: rgba(220, 53, 69, 0.1);
-        color: #dc3545;
+    /* Mejora de espaciado para DataTables */
+    .dataTables_wrapper {
+        padding-top: 1rem;
     }
 
-    #tab-creditos:not(.active):hover {
-        background-color: rgba(25, 135, 84, 0.1);
-        color: #198754;
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+
+    .dataTables_wrapper .dataTables_info,
+    .dataTables_wrapper .dataTables_paginate {
+        margin-top: 1.5rem;
+        padding: 0 1rem;
     }
 </style>
 
@@ -63,63 +85,62 @@ require_once '../includes/sidebar.php';
     <?php include '../includes/header.php'; ?>
 
     <div class="page-content">
-        <div class="card">
-            <div
-                class="card-header d-flex justify-content-between align-items-center bg-white border-bottom-0 pt-4 px-4">
+        <div class="glass-panel animate-fade mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center bg-transparent border-bottom border-white border-opacity-10 py-4 px-4">
                 <div>
-                    <h5 class="fw-bold text-danger mb-1">Clientes Deudores</h5>
+                    <h4 class="fw-bold text-gradient mb-1">Clientes Deudores</h4>
                     <p class="text-muted small mb-0">Listado de clientes con saldos pendientes</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-danger shadow-sm px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearDeuda">
+                    <button type="button" class="btn btn-premium px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#modalCrearDeuda">
                         <i class="fas fa-plus-circle me-1"></i> Crear Nueva Deuda
                     </button>
                 </div>
             </div>
 
-            <div class="card-body px-4">
+            <div class="card-body px-4 pt-4">
                 <!-- TABS DE NAVEGACIÓN -->
-                <ul class="nav nav-pills mb-4 bg-light p-2 rounded-3 shadow-sm border" id="deudorTabs" role="tablist">
+                <ul class="nav nav-pills mb-4 bg-transparent p-2 rounded-4 border border-white border-opacity-10" id="deudorTabs" role="tablist">
                     <li class="nav-item flex-fill" role="presentation">
-                        <button class="nav-link active w-100 fw-bold py-2" id="tab-deudas" data-bs-toggle="pill" data-bs-target="#pane-deudas" type="button" role="tab" aria-selected="true">
+                        <button class="nav-link active w-100 fw-bold py-2 rounded-3" id="tab-deudas" data-bs-toggle="pill" data-bs-target="#pane-deudas" type="button" role="tab" aria-selected="true">
                             <i class="fas fa-hand-holding-dollar me-2"></i>Deudas Pendientes
                         </button>
                     </li>
                     <li class="nav-item flex-fill" role="presentation">
-                        <button class="nav-link w-100 fw-bold py-2" id="tab-creditos" data-bs-toggle="pill" data-bs-target="#pane-creditos" type="button" role="tab" aria-selected="false">
+                        <button class="nav-link w-100 fw-bold py-2 rounded-3" id="tab-creditos" data-bs-toggle="pill" data-bs-target="#pane-creditos" type="button" role="tab" aria-selected="false">
                             <i class="fas fa-coins me-2"></i>Saldos a Favor (Créditos)
                         </button>
                     </li>
                 </ul>
                 <!-- Filtros y Ordenamiento -->
-                <div class="row g-3 mb-4 bg-light p-3 rounded-3 border mx-0 shadow-sm">
+                <div class="row g-3 mb-4 bg-transparent p-4 rounded-4 border border-white border-opacity-10 mx-0 shadow-lg">
                     <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-calendar-alt me-1 text-danger"></i> Desde (Registro)</label>
-                        <input type="date" id="filter_date_start" class="form-control form-control-sm border-0 shadow-sm">
+                        <label class="form-label small fw-bold text-main opacity-75 mb-1"><i class="fas fa-calendar-alt me-1 text-danger"></i> Desde (Registro)</label>
+                        <input type="date" id="filter_date_start" class="form-control glass-input text-main">
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-calendar-alt me-1 text-danger"></i> Hasta (Registro)</label>
-                        <input type="date" id="filter_date_end" class="form-control form-control-sm border-0 shadow-sm">
+                        <label class="form-label small fw-bold text-main opacity-75 mb-1"><i class="fas fa-calendar-alt me-1 text-danger"></i> Hasta (Registro)</label>
+                        <input type="date" id="filter_date_end" class="form-control glass-input text-main">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-dollar-sign me-1 text-success"></i> Mín. Saldo</label>
-                        <input type="number" id="filter_balance_min" class="form-control form-control-sm border-0 shadow-sm" placeholder="0.00">
+                        <label class="form-label small fw-bold text-main opacity-75 mb-1"><i class="fas fa-dollar-sign me-1 text-success"></i> Mín. Saldo</label>
+                        <input type="number" id="filter_balance_min" class="form-control glass-input text-main" placeholder="0.00">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-dollar-sign me-1 text-success"></i> Máx. Saldo</label>
-                        <input type="number" id="filter_balance_max" class="form-control form-control-sm border-0 shadow-sm" placeholder="9999.99">
+                        <label class="form-label small fw-bold text-main opacity-75 mb-1"><i class="fas fa-dollar-sign me-1 text-success"></i> Máx. Saldo</label>
+                        <input type="number" id="filter_balance_max" class="form-control glass-input text-main" placeholder="9999.99">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted mb-1"><i class="fas fa-sort me-1 text-primary"></i> Orden Rápido</label>
-                        <select id="filter_order" class="form-select form-select-sm border-0 shadow-sm fw-bold">
+                        <label class="form-label small fw-bold text-main opacity-75 mb-1"><i class="fas fa-sort me-1 text-primary"></i> Orden Rápido</label>
+                        <select id="filter_order" class="form-select glass-input fw-bold text-main">
                             <option value="7-desc">Más Recientes</option>
                             <option value="7-asc">Más Antiguos</option>
                             <option value="6-desc">Mayor Saldo</option>
                             <option value="6-asc">Menor Saldo</option>
                         </select>
                     </div>
-                    <div class="col-12 text-end mt-2">
-                        <button type="button" id="btn_reset_filters" class="btn btn-sm btn-outline-secondary px-3">
+                    <div class="col-12 text-end mt-3">
+                        <button type="button" id="btn_reset_filters" class="btn btn-glass btn-sm px-3">
                             <i class="fas fa-undo me-1"></i> Limpiar Filtros
                         </button>
                     </div>
@@ -129,8 +150,8 @@ require_once '../includes/sidebar.php';
                     <!-- PANEL 1: DEUDAS -->
                     <div class="tab-pane fade show active" id="pane-deudas" role="tabpanel">
                         <div class="table-responsive">
-                            <table class="display table table-hover w-100" id="tabla_deudores">
-                                <thead class="bg-light">
+                            <table class="display table table-hover w-100 text-main" id="tabla_deudores">
+                                <thead class="bg-transparent border-bottom border-white border-opacity-10 text-main">
                                     <tr>
                                         <th class="text-center">ID</th>
                                         <th class="text-center">Cliente</th>
@@ -155,25 +176,25 @@ require_once '../includes/sidebar.php';
         
                                     while ($row = $result->fetch_assoc()) {
                                         echo "<tr>
-                                            <td class='text-center'>{$row['id']}</td>
-                                            <td class='fw-bold text-center'>{$row['nombre_completo']}</td>
-                                            <td class='text-center'>{$row['cedula']}</td>
+                                            <td class='text-center text-main opacity-75'>{$row['id']}</td>
+                                            <td class='fw-bold text-main text-center'>{$row['nombre_completo']}</td>
+                                            <td class='text-center'><span class='badge bg-primary-light text-primary'>{$row['cedula']}</span></td>
                                             <td class='text-center'><code>{$row['ip_onu']}</code></td>
-                                            <td class='text-center'>\${$row['monto_total']}</td>
-                                            <td class='text-center'>\${$row['monto_pagado']}</td>
+                                            <td class='text-center text-main'>\${$row['monto_total']}</td>
+                                            <td class='text-center text-main opacity-75'>\${$row['monto_pagado']}</td>
                                             <td class='text-center text-danger fw-bold'>\${$row['saldo_pendiente']}</td>
-                                            <td class='text-center' data-order='{$row['fecha_registro']}'>" . date('d/m/Y', strtotime($row['fecha_registro'])) . "</td>
-                                            <td class='text-center'><span class='badge bg-danger'>PENDIENTE</span></td>
+                                            <td class='text-center text-main opacity-75' data-order='{$row['fecha_registro']}'>" . date('d/m/Y', strtotime($row['fecha_registro'])) . "</td>
+                                            <td class='text-center'><span class='badge bg-danger-light text-danger'>PENDIENTE</span></td>
                                             <td>
                                                 <div class='d-flex justify-content-center gap-1 flex-nowrap'>
-                                                    <button class='btn btn-sm btn-success' onclick='marcarPagado({$row['id']})' title='Marcar como Pagado'>
+                                                    <button class='btn btn-sm btn-glass text-success' onclick='marcarPagado({$row['id']})' title='Marcar como Pagado'>
                                                         <i class='fa-solid fa-check'></i> Pagado
                                                     </button>
-                                                    <button class='btn btn-sm btn-info text-white' onclick='abrirModalAbonos({$row['id']}, {$row['saldo_pendiente']})' title='Gestionar Abonos'>
+                                                    <button class='btn btn-sm btn-glass text-info' onclick='abrirModalAbonos({$row['id']}, {$row['saldo_pendiente']})' title='Gestionar Abonos'>
                                                         <i class='fa-solid fa-coins'></i> Abonos
                                                     </button>
-                                                    <button class='btn btn-sm btn-danger' onclick='eliminarDeuda({$row['id']})' title='Eliminar/Anular Deuda'>
-                                                        <i class='fa-solid fa-trash'></i> Eliminar
+                                                    <button class='btn btn-sm btn-glass text-muted' onclick='eliminarDeuda({$row['id']})' title='Eliminar/Anular Deuda'>
+                                                        <i class='fa-solid fa-trash'></i>
                                                     </button>
                                                 </div>
                                             </td>
@@ -188,8 +209,8 @@ require_once '../includes/sidebar.php';
                     <!-- PANEL 2: CRÉDITOS -->
                     <div class="tab-pane fade" id="pane-creditos" role="tabpanel">
                         <div class="table-responsive">
-                            <table class="display table table-hover w-100" id="tabla_creditos">
-                                <thead class="bg-light">
+                            <table class="display table table-hover w-100 text-main" id="tabla_creditos">
+                                <thead class="bg-transparent border-bottom border-white border-opacity-10 text-main">
                                     <tr>
                                         <th class="text-center">ID</th>
                                         <th class="text-center">Cliente</th>
@@ -213,20 +234,20 @@ require_once '../includes/sidebar.php';
         
                                     while ($row_c = $result_c->fetch_assoc()) {
                                         echo "<tr>
-                                            <td class='text-center'>{$row_c['id']}</td>
-                                            <td class='fw-bold text-center'>{$row_c['nombre_completo']}</td>
-                                            <td class='text-center'>{$row_c['cedula']}</td>
+                                            <td class='text-center text-main opacity-75'>{$row_c['id']}</td>
+                                            <td class='fw-bold text-center text-main'>{$row_c['nombre_completo']}</td>
+                                            <td class='text-center text-main opacity-75'>{$row_c['cedula']}</td>
                                             <td class='text-center'><code>{$row_c['ip_onu']}</code></td>
-                                            <td class='text-center'>\${$row_c['monto_pagado']}</td>
+                                            <td class='text-center text-main'>\${$row_c['monto_pagado']}</td>
                                             <td class='text-center text-success fw-bold'>\${$row_c['saldo_pendiente']}</td>
-                                            <td class='text-center' data-order='{$row_c['fecha_registro']}'>" . date('d/m/Y', strtotime($row_c['fecha_registro'])) . "</td>
-                                            <td class='text-center'><span class='badge bg-success'>A FAVOR</span></td>
+                                            <td class='text-center text-main opacity-75' data-order='{$row_c['fecha_registro']}'>" . date('d/m/Y', strtotime($row_c['fecha_registro'])) . "</td>
+                                            <td class='text-center'><span class='badge bg-success text-white'>A FAVOR</span></td>
                                             <td>
                                                 <div class='d-flex justify-content-center gap-1 flex-nowrap'>
-                                                    <button class='btn btn-sm btn-success' onclick='abrirModalUsarSaldo({$row_c['id']}, {$row_c['id_contrato']}, {$row_c['saldo_pendiente']}, \"{$row_c['nombre_completo']}\")' title='Usar este saldo para pagar deudas'>
+                                                    <button class='btn btn-sm btn-glass text-success' onclick='abrirModalUsarSaldo({$row_c['id']}, {$row_c['id_contrato']}, {$row_c['saldo_pendiente']}, \"{$row_c['nombre_completo']}\")' title='Usar este saldo para pagar deudas'>
                                                         <i class='fa-solid fa-hand-holding-dollar'></i> Usar Saldo
                                                     </button>
-                                                    <button class='btn btn-sm btn-danger' onclick='eliminarSaldoFavor({$row_c['id']})' title='Eliminar/Anular Saldo a Favor'>
+                                                    <button class='btn btn-sm btn-glass text-danger' onclick='eliminarSaldoFavor({$row_c['id']})' title='Eliminar/Anular Saldo a Favor'>
                                                         <i class='fa-solid fa-trash'></i> Eliminar
                                                     </button>
                                                 </div>
@@ -253,22 +274,22 @@ require_once '../includes/sidebar.php';
 <!-- Modal Ver Contrato Detalle -->
 <div class="modal fade" id="modalVerContrato" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-primary text-white">
+        <div class="modal-content glass-panel border-0 shadow-lg">
+            <div class="modal-header modal-header-gradient border-0 text-white">
                 <h5 class="modal-title fw-bold"><i class="fas fa-file-contract me-2"></i>Detalle del Contrato #<span id="vc_id_contrato">---</span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0">
                 <!-- Banner Superior -->
-                <div class="bg-light p-4 border-bottom">
+                <div class="bg-transparent p-4 border-bottom border-white border-opacity-10">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <h3 class="fw-bold text-dark mb-1" id="vc_nombre_completo">---</h3>
+                            <h3 class="fw-bold text-main mb-1" id="vc_nombre_completo">---</h3>
                             <span class="badge bg-primary px-3 py-2" id="vc_estado">ACTIVO</span>
-                            <span class="ms-2 text-muted small"><i class="fas fa-id-card me-1"></i><span id="vc_cedula">---</span></span>
+                            <span class="ms-2 text-main opacity-75 small"><i class="fas fa-id-card me-1"></i><span id="vc_cedula">---</span></span>
                         </div>
                         <div class="text-end">
-                            <label class="small text-muted d-block fw-bold">Plan de Internet</label>
+                            <label class="small text-main opacity-75 d-block fw-bold">Plan de Internet</label>
                             <h4 class="text-primary fw-bold mb-0" id="vc_plan">---</h4>
                         </div>
                     </div>
@@ -278,15 +299,15 @@ require_once '../includes/sidebar.php';
                     <div class="row g-4">
                         <!-- Columna Contacto -->
                         <div class="col-md-6">
-                            <div class="card bg-white border h-100">
+                            <div class="card bg-transparent border border-white border-opacity-10 h-100">
                                 <div class="card-body">
-                                    <h6 class="fw-bold mb-3 text-secondary border-bottom pb-2"><i class="fas fa-user-circle me-2"></i>Contacto y Ubicación</h6>
-                                    <div class="mb-2"><small class="text-muted d-block small fw-bold uppercase">Teléfono</small><span id="vc_telefono">---</span></div>
-                                    <div class="mb-2"><small class="text-muted d-block small fw-bold uppercase">Correo</small><span id="vc_correo">---</span></div>
-                                    <div class="mb-2"><small class="text-muted d-block small fw-bold uppercase">Dirección</small>
+                                    <h6 class="fw-bold mb-3 text-main border-bottom border-white border-opacity-10 pb-2"><i class="fas fa-user-circle me-2"></i>Contacto y Ubicación</h6>
+                                    <div class="mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">Teléfono</small><span id="vc_telefono">---</span></div>
+                                    <div class="mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">Correo</small><span id="vc_correo">---</span></div>
+                                    <div class="mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">Dirección</small>
                                         <p class="small mb-0" id="vc_direccion_completa">---</p>
                                     </div>
-                                    <div class="mt-2 small text-muted">
+                                    <div class="mt-2 small text-main opacity-75">
                                         <i class="fas fa-map-marker-alt me-1 text-danger"></i> <span id="vc_municipio">---</span>, <span id="vc_parroquia">---</span>
                                     </div>
                                 </div>
@@ -295,14 +316,14 @@ require_once '../includes/sidebar.php';
 
                         <!-- Columna Conexión -->
                         <div class="col-md-6">
-                            <div class="card bg-white border h-100">
+                            <div class="card bg-transparent border border-white border-opacity-10 h-100">
                                 <div class="card-body">
-                                    <h6 class="fw-bold mb-3 text-secondary border-bottom pb-2"><i class="fas fa-network-wired me-2"></i>Información de Red</h6>
+                                    <h6 class="fw-bold mb-3 text-main border-bottom border-white border-opacity-10 pb-2"><i class="fas fa-network-wired me-2"></i>Información de Red</h6>
                                     <div class="row">
-                                        <div class="col-6 mb-2"><small class="text-muted d-block small fw-bold uppercase">IP ONU</small><code id="vc_ip_onu">---</code></div>
-                                        <div class="col-6 mb-2"><small class="text-muted d-block small fw-bold uppercase">IP Antena/Router</small><code id="vc_ip">---</code></div>
-                                        <div class="col-12 mb-2"><small class="text-muted d-block small fw-bold uppercase">Fecha Instalación</small><span id="vc_fecha_instalacion">---</span></div>
-                                        <div class="col-12 mb-2"><small class="text-muted d-block small fw-bold uppercase">Vendedor</small><span id="vc_vendedor">---</span></div>
+                                        <div class="col-6 mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">IP ONU</small><code id="vc_ip_onu">---</code></div>
+                                        <div class="col-6 mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">IP Antena/Router</small><code id="vc_ip">---</code></div>
+                                        <div class="col-12 mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">Fecha Instalación</small><span id="vc_fecha_instalacion">---</span></div>
+                                        <div class="col-12 mb-2 text-main"><small class="text-main opacity-75 d-block small fw-bold uppercase">Vendedor</small><span id="vc_vendedor">---</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -310,25 +331,25 @@ require_once '../includes/sidebar.php';
 
                         <!-- Sección Técnica (FTTH / RADIO) -->
                         <div class="col-12">
-                            <div class="card bg-light border-0 shadow-sm" id="vc_tech_section">
+                            <div class="card bg-transparent border border-white border-opacity-10 shadow-sm" id="vc_tech_section">
                                 <div class="card-body">
-                                    <h6 class="fw-bold mb-3 text-dark"><i class="fas fa-tools me-2"></i>Detalles Técnicos de <span id="vc_tipo_conexion">---</span></h6>
+                                    <h6 class="fw-bold mb-3 text-main"><i class="fas fa-tools me-2"></i>Detalles Técnicos de <span id="vc_tipo_conexion">---</span></h6>
                                     
                                     <!-- Campos FTTH -->
                                     <div id="vc_tech_ftth" class="row g-3" style="display:none;">
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">OLT</small><span id="vc_olt">---</span></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">PON</small><span id="vc_pon">---</span></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">Caja NAP</small><span id="vc_caja">---</span></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">Puerto</small><span id="vc_puerto">---</span></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">MAC/Serial</small><code id="vc_mac">---</code></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">RX Power</small><span id="vc_rx" class="badge bg-dark">---</span></div>
-                                        <div class="col-md-3"><small class="text-muted d-block fw-bold small">Distancia</small><span id="vc_distancia">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">OLT</small><span id="vc_olt">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">PON</small><span id="vc_pon">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">Caja NAP</small><span id="vc_caja">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">Puerto</small><span id="vc_puerto">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">MAC/Serial</small><code id="vc_mac">---</code></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">RX Power</small><span id="vc_rx" class="badge bg-dark">---</span></div>
+                                        <div class="col-md-3 text-main"><small class="text-main opacity-75 d-block fw-bold small">Distancia</small><span id="vc_distancia">---</span></div>
                                     </div>
 
                                     <!-- Campos RADIO -->
                                     <div id="vc_tech_radio" class="row g-3" style="display:none;">
-                                        <div class="col-md-6"><small class="text-muted d-block fw-bold small">Punto de Acceso</small><span id="vc_ap">---</span></div>
-                                        <div class="col-md-6"><small class="text-muted d-block fw-bold small">Señal (dBm)</small><span id="vc_signal" class="badge bg-dark">---</span></div>
+                                        <div class="col-md-6 text-main"><small class="text-main opacity-75 d-block fw-bold small">Punto de Acceso</small><span id="vc_ap">---</span></div>
+                                        <div class="col-md-6 text-main"><small class="text-main opacity-75 d-block fw-bold small">Señal (dBm)</small><span id="vc_signal" class="badge bg-dark">---</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -336,8 +357,8 @@ require_once '../includes/sidebar.php';
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light border-top-0">
-                <button type="button" class="btn btn-dark shadow-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+            <div class="modal-footer bg-transparent border-top border-white border-opacity-10">
+                <button type="button" class="btn btn-glass shadow-sm px-4" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -346,9 +367,9 @@ require_once '../includes/sidebar.php';
 <!-- Modal Gestionar Abonos -->
 <div class="modal fade" id="modalGestionarAbonos" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title fw-bold">
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white">
                     <i class="fas fa-coins me-2"></i>Gestionar Abonos - Deuda #<span id="abono_id_deuda"></span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -356,22 +377,22 @@ require_once '../includes/sidebar.php';
             
             <div class="modal-body p-0">
                 <!-- Info Banner -->
-                <div class="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="bg-transparent p-3 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="small text-muted fw-bold d-block text-uppercase">Saldo Pendiente Actual</span>
+                        <span class="small text-main opacity-75 fw-bold d-block text-uppercase">Saldo Pendiente Actual</span>
                         <h4 class="mb-0 text-danger fw-bold">$<span id="abono_saldo_pendiente_display">0.00</span></h4>
                     </div>
                 </div>
 
                 <!-- Tabs Navbar -->
-                <ul class="nav nav-tabs px-3 pt-3 bg-white" id="abonoTabs" role="tablist">
+                <ul class="nav nav-tabs px-3 pt-3 bg-transparent border-bottom border-white border-opacity-10" id="abonoTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active fw-bold" id="tab-registrar" data-bs-toggle="tab" data-bs-target="#pane-registrar" type="button" role="tab" aria-selected="true">
+                        <button class="nav-link active fw-bold text-main" id="tab-registrar" data-bs-toggle="tab" data-bs-target="#pane-registrar" type="button" role="tab" aria-selected="true">
                             <i class="fas fa-plus-circle me-1"></i>Ingresar Abono
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link fw-bold" id="tab-historial" data-bs-toggle="tab" data-bs-target="#pane-historial" type="button" role="tab" aria-selected="false">
+                        <button class="nav-link fw-bold text-main opacity-75" id="tab-historial" data-bs-toggle="tab" data-bs-target="#pane-historial" type="button" role="tab" aria-selected="false">
                             <i class="fas fa-history me-1"></i>Historial de Pagos
                         </button>
                     </li>
@@ -387,52 +408,52 @@ require_once '../includes/sidebar.php';
                             
                             <div class="row g-3">
                                 <!-- Columna Izquierda: Datos del Pago -->
-                                <div class="col-md-7 border-end pe-4">
+                                <div class="col-md-7 border-end border-white border-opacity-10 pe-4">
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted small mb-1">Monto a Abonar ($)</label>
+                                        <label class="form-label fw-bold text-main opacity-75 small mb-1">Monto a Abonar ($)</label>
                                         <div class="input-group">
-                                            <span class="input-group-text bg-light fw-bold text-success">$</span>
-                                            <input type="text" class="form-control form-control-lg fw-bold text-success decimal-input" id="abono_monto" name="monto_abono" required placeholder="0.00" inputmode="decimal" autocomplete="off">
+                                            <span class="input-group-text bg-transparent border-white border-opacity-10 fw-bold text-success">$</span>
+                                            <input type="text" class="form-control form-control-lg fw-bold text-success decimal-input glass-input" id="abono_monto" name="monto_abono" required placeholder="0.00" inputmode="decimal" autocomplete="off">
                                         </div>
                                         <div class="form-text small text-danger d-none" id="abono_error_monto">El monto excede el saldo pendiente.</div>
                                     </div>
                                     
                                     <div class="row g-3 mb-3">
                                         <div class="col-6">
-                                            <label class="form-label fw-bold text-muted small mb-1">Referencia</label>
-                                            <input type="text" class="form-control form-control-sm" name="referencia" required autocomplete="off">
+                                            <label class="form-label fw-bold text-main opacity-75 small mb-1">Referencia</label>
+                                            <input type="text" class="form-control form-control-sm glass-input" name="referencia" required autocomplete="off">
                                         </div>
                                         <div class="col-6">
-                                            <label class="form-label fw-bold text-muted small mb-1">Banco Receptor</label>
-                                            <select class="form-select form-select-sm" name="id_banco" id="abono_select_banco" required>
-                                                <option value="">Seleccione...</option>
+                                            <label class="form-label fw-bold text-main opacity-75 small mb-1">Banco Receptor</label>
+                                            <select class="form-select form-select-sm glass-input text-main" name="id_banco" id="abono_select_banco" required>
+                                                <option value="" class="text-dark">Seleccione...</option>
                                                 <!-- Llenado vía JS/PHP -->
                                             </select>
                                         </div>
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold text-muted small mb-1">Justificación (Opcional)</label>
-                                        <input type="text" class="form-control form-control-sm" name="justificacion" placeholder="Ej: Transferencia parcial acordada...">
+                                        <label class="form-label fw-bold text-main opacity-75 small mb-1">Justificación (Opcional)</label>
+                                        <input type="text" class="form-control form-control-sm glass-input" name="justificacion" placeholder="Ej: Transferencia parcial acordada...">
                                     </div>
                                 </div>
                                 
                                 <!-- Columna Derecha: Capture -->
                                 <div class="col-md-5 ps-3">
-                                    <label class="form-label fw-bold text-muted small mb-2 d-block">Comprobante (Opcional)</label>
-                                    <div class="border rounded p-2 text-center bg-light mb-2">
-                                        <input type="file" class="form-control form-control-sm mb-2" id="abono_capture" name="capture_abono" accept="image/*">
-                                        <div class="rounded bg-white border" style="height: 150px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                    <label class="form-label fw-bold text-main opacity-75 small mb-2 d-block">Comprobante (Opcional)</label>
+                                    <div class="border border-white border-opacity-10 rounded p-2 text-center bg-transparent mb-2">
+                                        <input type="file" class="form-control form-control-sm mb-2 glass-input" id="abono_capture" name="capture_abono" accept="image/*">
+                                        <div class="rounded bg-transparent border border-white border-opacity-10" style="height: 150px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                                             <img id="abono_preview_img" src="" class="img-fluid d-none" style="object-fit: contain; max-height: 100%;">
-                                            <i class="fas fa-image fa-3x text-muted opacity-25" id="abono_preview_icon"></i>
+                                            <i class="fas fa-image fa-3x text-main opacity-25" id="abono_preview_icon"></i>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="text-end mt-4">
-                                <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancelar</button>
-                                <button type="submit" class="btn btn-info text-white fw-bold px-4" id="btn_submit_abono">
+                                <button type="button" class="btn btn-glass me-2" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary fw-bold px-4" id="btn_submit_abono">
                                     <i class="fas fa-save me-1"></i>Registrar Abono
                                 </button>
                             </div>
@@ -442,8 +463,8 @@ require_once '../includes/sidebar.php';
                     <!-- Tab 2: Historial -->
                     <div class="tab-pane fade p-3" id="pane-historial" role="tabpanel">
                         <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
-                            <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
-                                <thead class="table-light sticky-top">
+                            <table class="table table-sm table-hover text-main mb-0" style="font-size: 0.85rem;">
+                                <thead class="bg-transparent border-bottom border-white border-opacity-10 text-main sticky-top">
                                     <tr>
                                         <th>Fecha</th>
                                         <th>Ref / Banco</th>
@@ -453,7 +474,7 @@ require_once '../includes/sidebar.php';
                                     </tr>
                                 </thead>
                                 <tbody id="abono_historial_body">
-                                    <tr><td colspan="5" class="text-center text-muted py-4">Cargando historial...</td></tr>
+                                    <tr><td colspan="5" class="text-center text-main opacity-75 py-4">Cargando historial...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -467,9 +488,9 @@ require_once '../includes/sidebar.php';
 <!-- Modal Usar Saldo a Favor -->
 <div class="modal fade" id="modalUsarSaldoCredito" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white">
                     <i class="fas fa-hand-holding-dollar me-2"></i>Aplicar Saldo a Favor
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -489,25 +510,25 @@ require_once '../includes/sidebar.php';
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold text-dark small"><i class="fas fa-list-ul me-1 text-primary"></i> 1. Seleccione la Deuda a amortizar</label>
+                        <label class="form-label fw-bold text-main opacity-75 small"><i class="fas fa-list-ul me-1 text-primary"></i> 1. Seleccione la Deuda a amortizar</label>
                         <div id="usc_deudas_list" class="list-group shadow-sm" style="max-height: 200px; overflow-y: auto;">
                             <!-- Cargando vía JS -->
-                            <div class="p-3 text-center text-muted">Cargando deudas...</div>
+                            <div class="p-3 text-center text-main opacity-75">Cargando deudas...</div>
                         </div>
                     </div>
 
                     <div class="mb-0">
-                        <label class="form-label fw-bold text-dark small"><i class="fas fa-money-bill-wave me-1 text-success"></i> 2. Monto a aplicar ($)</label>
+                        <label class="form-label fw-bold text-main opacity-75 small"><i class="fas fa-money-bill-wave me-1 text-success"></i> 2. Monto a aplicar ($)</label>
                         <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-light fw-bold text-success">$</span>
-                            <input type="number" step="0.01" min="0.01" name="monto" id="usc_monto_aplicar" class="form-control fw-bold" placeholder="0.00" required>
+                            <span class="input-group-text bg-transparent border-white border-opacity-10 fw-bold text-success">$</span>
+                            <input type="number" step="0.01" min="0.01" name="monto" id="usc_monto_aplicar" class="form-control fw-bold glass-input text-main" placeholder="0.00" required>
                         </div>
                         <div id="usc_error_monto" class="text-danger small mt-1 d-none">El monto supera el crédito o la deuda.</div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success px-4 fw-bold" id="btn_submit_usc">
+                <div class="modal-footer border-top border-white border-opacity-10">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn_submit_usc">
                         <i class="fas fa-check-circle me-1"></i> Confirmar Aplicación
                     </button>
                 </div>
@@ -517,42 +538,42 @@ require_once '../includes/sidebar.php';
 </div>
 <div class="modal fade" id="modalCrearDeuda" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold"><i class="fas fa-hand-holding-dollar me-2"></i>Registrar Nueva Deuda</h5>
+        <div class="modal-content glass-panel border-0">
+            <div class="modal-header modal-header-gradient border-0">
+                <h5 class="modal-title fw-bold text-white"><i class="fas fa-hand-holding-dollar me-2"></i>Registrar Nueva Deuda</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form id="formCrearDeuda">
                 <div class="modal-body p-4">
                     <!-- 1. Buscador de Contrato -->
                     <div class="mb-4 position-relative">
-                        <label class="form-label fw-bold text-dark small"><i class="fas fa-search me-1 text-danger"></i> 1. Buscar Cliente / Contrato</label>
+                        <label class="form-label fw-bold text-main opacity-75 small"><i class="fas fa-search me-1 text-danger"></i> 1. Buscar Cliente / Contrato</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-white border-end-0"><i class="fas fa-user text-muted"></i></span>
-                            <input type="text" id="contrato_search_deuda" class="form-control border-start-0" placeholder="Nombre, Cédula o ID..." autocomplete="off">
+                            <span class="input-group-text bg-transparent border-white border-opacity-10 border-end-0"><i class="fas fa-user text-main opacity-75"></i></span>
+                            <input type="text" id="contrato_search_deuda" class="form-control border-start-0 glass-input text-main" placeholder="Nombre, Cédula o ID..." autocomplete="off">
                         </div>
                         <input type="hidden" name="id_contrato" id="id_contrato_hidden_deuda" required>
-                        <div id="contrato_search_results_deuda" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1050; max-height: 200px; overflow-y: auto;"></div>
+                        <div id="contrato_search_results_deuda" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1050; max-height: 200px; overflow-y: auto; background: var(--bg-card);"></div>
                     </div>
 
                     <!-- 2. Monto de la Deuda -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small"><i class="fas fa-money-bill-wave me-1 text-success"></i> 2. Monto de la Deuda ($)</label>
+                        <label class="form-label fw-bold text-main opacity-75 small"><i class="fas fa-money-bill-wave me-1 text-success"></i> 2. Monto de la Deuda ($)</label>
                         <div class="input-group input-group-lg">
-                            <span class="input-group-text bg-light fw-bold text-success">$</span>
-                            <input type="number" step="0.01" min="0.01" name="monto" class="form-control fw-bold" placeholder="0.00" required>
+                            <span class="input-group-text bg-transparent border-white border-opacity-10 fw-bold text-success">$</span>
+                            <input type="number" step="0.01" min="0.01" name="monto" class="form-control fw-bold glass-input text-main" placeholder="0.00" required>
                         </div>
                     </div>
 
                     <!-- 3. Notas / Justificación -->
                     <div class="mb-2">
-                        <label class="form-label fw-bold text-dark small"><i class="fas fa-comment-alt me-1 text-primary"></i> 3. Notas / Justificación</label>
-                        <textarea name="notas" class="form-control" rows="3" placeholder="Ej: Saldo pendiente por reposición de equipo ONU..."></textarea>
+                        <label class="form-label fw-bold text-main opacity-75 small"><i class="fas fa-comment-alt me-1 text-primary"></i> 3. Notas / Justificación</label>
+                        <textarea name="notas" class="form-control glass-input text-main" rows="3" placeholder="Ej: Saldo pendiente por reposición de equipo ONU..."></textarea>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger px-4 fw-bold" id="btn_submit_deuda">
+                <div class="modal-footer border-top border-white border-opacity-10">
+                    <button type="button" class="btn btn-glass" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn_submit_deuda">
                         <i class="fas fa-save me-1"></i> Guardar Deuda
                     </button>
                 </div>
@@ -682,12 +703,12 @@ require_once '../includes/sidebar.php';
                         list.innerHTML = '';
                         deudasPendientes.forEach(d => {
                             const item = document.createElement('label');
-                            item.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center cursor-pointer';
+                            item.className = 'list-group-item list-group-item-action bg-transparent text-main border-white border-opacity-10 d-flex justify-content-between align-items-center cursor-pointer';
                             item.innerHTML = `
                                 <div>
                                     <input class="form-check-input me-2" type="radio" name="id_deuda" value="${d.id}" data-saldo="${d.saldo_pendiente}" required>
-                                    <span class="small fw-bold">ID #${d.id}</span> 
-                                    <span class="text-muted ms-1">(${d.fecha_registro.split(' ')[0]})</span>
+                                    <span class="small fw-bold text-main">ID #${d.id}</span> 
+                                    <span class="text-main opacity-75 ms-1">(${d.fecha_registro.split(' ')[0]})</span>
                                 </div>
                                 <span class="badge bg-danger">Faltan $${d.saldo_pendiente}</span>
                             `;

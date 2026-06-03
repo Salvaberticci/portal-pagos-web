@@ -10,14 +10,15 @@ $sql = "
     LEFT JOIN bancos b ON pr.id_banco_destino = b.id_banco
     WHERE pr.estado = 'PENDIENTE'
     ORDER BY pr.fecha_registro DESC
+    LIMIT 100
 ";
 $resultado = $conn->query($sql);
 
 if ($resultado && $resultado->num_rows > 0): ?>
     <?php while ($row = $resultado->fetch_assoc()): ?>
         <tr>
-            <td>
-                <span class="d-block fw-bold">
+            <td class="ps-4">
+                <span class="d-block fw-bold text-main">
                     <?php echo date('d/m/Y', strtotime($row['fecha_registro'])); ?>
                 </span>
                 <small class="text-muted">
@@ -25,10 +26,10 @@ if ($resultado && $resultado->num_rows > 0): ?>
                 </small>
             </td>
             <td>
-                <span class="d-block fw-bold">
+                <span class="d-block fw-bold text-main">
                     <?php echo htmlspecialchars($row['nombre_titular']); ?>
                 </span>
-                <small class="badge bg-secondary">
+                <small class="badge bg-primary-light text-primary">
                     <?php echo htmlspecialchars($row['cedula_titular']); ?>
                 </small>
                 <div class="text-muted small">
@@ -62,27 +63,34 @@ if ($resultado && $resultado->num_rows > 0): ?>
                 </span>
             </td>
             <td>
-                <span class="text-wrap small">
-                    <?php echo htmlspecialchars($row['meses_pagados']); ?>
+                <?php
+                $meses_array = array_filter(explode(',', $row['meses_pagados']));
+                $cant_meses = count($meses_array);
+                ?>
+                <span class="badge bg-info text-dark mb-1 d-inline-block">
+                    <?php echo $cant_meses; ?> mes<?php echo $cant_meses != 1 ? 'es' : ''; ?>
                 </span>
+                <div class="text-wrap small text-muted">
+                    <?php echo htmlspecialchars($row['meses_pagados']); ?>
+                </div>
             </td>
             <td>
-                <a href="../../<?php echo $row['capture_path']; ?>" target="_blank" class="btn btn-sm btn-outline-info">
+                <a href="../../<?php echo $row['capture_path']; ?>" target="_blank" class="btn btn-sm btn-glass text-info">
                     <i class="fas fa-image me-1"></i> Ver Foto
                 </a>
             </td>
-            <td class="text-center">
-                <div class="btn-group">
-                    <button type="button" class="btn btn-sm btn-success"
+            <td class="text-center pe-4">
+                <div class="d-flex justify-content-center gap-2">
+                    <button type="button" class="btn btn-sm btn-glass text-success"
                         onclick="prepararAprobacion(<?php echo htmlspecialchars(json_encode($row)); ?>)"
                         title="Aprobar y Registrar">
                         <i class="fas fa-check"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-danger"
+                    <button type="button" class="btn btn-sm btn-glass text-danger"
                         onclick="confirmarRechazo(<?php echo $row['id_reporte']; ?>)" title="Rechazar">
                         <i class="fas fa-times"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-outline-danger"
+                    <button type="button" class="btn btn-sm btn-glass text-muted"
                         onclick="confirmarEliminacion(<?php echo $row['id_reporte']; ?>)"
                         title="Eliminar Reporte Permanentemente">
                         <i class="fas fa-trash"></i>
