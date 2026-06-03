@@ -110,14 +110,23 @@ if ($stmt_pagos) {
 // Obtener el último pago de mensualidad realizado por el cliente
 $ultimo_pago = null;
 $sql_ultimo_pago = "
-    SELECT cxc.fecha_pago, cxc.monto_total, h.justificacion, c.id AS id_contrato, p.nombre_plan
+    SELECT cxc.fecha_pago, cxc.fecha_emision, cxc.monto_total, h.justificacion, c.id AS id_contrato, p.nombre_plan
     FROM cuentas_por_cobrar cxc
-    JOIN cobros_manuales_historial h ON cxc.id_cobro = h.id_cobro_cxc
+    LEFT JOIN cobros_manuales_historial h ON cxc.id_cobro = h.id_cobro_cxc
     JOIN contratos c ON cxc.id_contrato = c.id
     LEFT JOIN planes p ON c.id_plan = p.id_plan
     WHERE c.cedula = ? 
       AND cxc.estado = 'PAGADO' 
-      AND h.justificacion LIKE '[MENSUALIDAD]%'
+      AND (
+          h.justificacion LIKE '%[MENSUALIDAD]%' 
+          OR h.justificacion IS NULL 
+          OR h.justificacion = ''
+          OR (
+              h.justificacion NOT LIKE '%[INSTALACION]%' 
+              AND h.justificacion NOT LIKE '%[EQUIPOS]%' 
+              AND h.justificacion NOT LIKE '%[PRORRATEO]%'
+          )
+      )
     ORDER BY cxc.fecha_pago DESC, cxc.id_cobro DESC
     LIMIT 1
 ";
@@ -128,9 +137,25 @@ if ($stmt_last) {
     $res_last = $stmt_last->get_result();
     if ($res_last->num_rows > 0) {
         $ultimo_pago = $res_last->fetch_assoc();
+        
+        $meses_es = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
+            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+        
         $ultimo_pago['mes'] = 'N/A';
-        if (preg_match('/\[MENSUALIDAD\]\s*\[([^\]]+)\]/i', $ultimo_pago['justificacion'], $matches)) {
+        $justif = $ultimo_pago['justificacion'] ?? '';
+        
+        if (preg_match('/\[(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\]/i', $justif, $matches)) {
             $ultimo_pago['mes'] = $matches[1];
+        } else if (preg_match('/(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)/i', $justif, $matches)) {
+            $ultimo_pago['mes'] = $matches[1];
+        } else {
+            $date_to_use = !empty($ultimo_pago['fecha_emision']) ? $ultimo_pago['fecha_emision'] : $ultimo_pago['fecha_pago'];
+            if ($date_to_use) {
+                $month_num = intval(date('n', strtotime($date_to_use)));
+                $ultimo_pago['mes'] = $meses_es[$month_num] ?? 'N/A';
+            }
         }
     }
     $stmt_last->close();
