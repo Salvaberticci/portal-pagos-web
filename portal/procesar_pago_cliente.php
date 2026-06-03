@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Manejo de archivo (Capture)
+    // Manejo de archivo (Capture - Opcional)
     $capture_path = '';
     if (isset($_FILES['capture_pago']) && $_FILES['capture_pago']['error'] === UPLOAD_ERR_OK) {
         $upload_dir = '../uploads/pagos/';
@@ -66,10 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: dashboard.php');
             exit;
         }
-    } else {
-        $_SESSION['pago_err'] = "Debe subir la imagen (capture) del pago.";
-        header('Location: dashboard.php');
-        exit;
     }
 
     // Insertar en pagos_reportados
