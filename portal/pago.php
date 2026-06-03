@@ -255,15 +255,12 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
     <!-- Barra de Resumen Inferior -->
     <div class="bottom-bar">
-        <div class="container d-flex justify-content-between align-items-center">
+        <div class="container d-flex justify-content-center align-items-center text-center">
             <div>
-                <small class="text-muted d-block">TOTAL A PAGAR</small>
-                <span class="fw-bold fs-5" id="summary-usd">$0.00</span>
-                <span class="text-muted small ms-2" id="summary-bs">Bs 0,00</span>
+                <small class="text-muted d-block" style="letter-spacing: 0.5px; font-weight: 600;">TOTAL A PAGAR</small>
+                <span class="fw-bold fs-4 text-gradient" id="summary-usd">$0.00</span>
+                <span class="text-muted small ms-2 d-block d-sm-inline" id="summary-bs">Bs 0,00</span>
             </div>
-            <button type="button" class="btn btn-premium px-4" id="btn-next-global" onclick="handleNextMain()" disabled>
-                Siguiente
-            </button>
         </div>
     </div>
 
@@ -287,18 +284,20 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
             // Show/Hide bottom bar button logic
             const btn = document.getElementById('btn-next-global');
-            if (currentStep === 1) {
-                btn.disabled = selectedAmountUsd === 0;
-            } else if (currentStep === 2) {
-                btn.disabled = selectedMethod === '';
-            } else if (currentStep === 3) {
-                btn.disabled = selectedBankId === null;
-            } else {
-                btn.style.display = 'none'; // Step 4 and 5 handle their own buttons
-            }
-            
-            if (currentStep < 4) {
-                btn.style.display = 'block';
+            if (btn) {
+                if (currentStep === 1) {
+                    btn.disabled = selectedAmountUsd === 0;
+                } else if (currentStep === 2) {
+                    btn.disabled = selectedMethod === '';
+                } else if (currentStep === 3) {
+                    btn.disabled = selectedBankId === null;
+                } else {
+                    btn.style.display = 'none'; // Step 4 and 5 handle their own buttons
+                }
+                
+                if (currentStep < 4) {
+                    btn.style.display = 'block';
+                }
             }
         }
 
