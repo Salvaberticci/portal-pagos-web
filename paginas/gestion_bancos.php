@@ -46,7 +46,7 @@ require_once 'includes/sidebar.php';
                                     <th>Nombre del Banco</th>
                                     <th>Número de Cuenta</th>
                                     <th>Propietario</th>
-                                    <th class="text-center">Habilitado</th>
+                                    <th class="text-center">Habilitado para el Portal</th>
                                     <th class="text-end pe-4">Acciones</th>
                                 </tr>
                             </thead>
