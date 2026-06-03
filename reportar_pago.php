@@ -482,7 +482,7 @@ $meses_nombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio"
             const selectedMetodo = this.value;
             inputBancoSelects.innerHTML = '<option value="">Seleccione el banco receptor...</option>';
             if (selectedMetodo) {
-                const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(selectedMetodo));
+                const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(selectedMetodo) && b.activo !== false);
                 if (filtrados.length > 0) {
                     filtrados.forEach(b => {
                         const opt = document.createElement('option');

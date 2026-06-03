@@ -112,22 +112,54 @@ require_once '../includes/sidebar.php';
             <div class="row g-4">
                 <!-- Columna Izquierda: Entradas -->
                 <div class="col-lg-5">
-                    <!-- Paso 1: Cargar Excel -->
+                    <!-- Paso 1: Consultar Movimientos (API BDV) -->
                     <div class="glass-panel mb-4">
                         <div class="card-header bg-transparent border-bottom border-white border-opacity-10 py-3 px-4">
-                            <h6 class="mb-0 fw-bold text-success d-flex align-items-center">
-                                <span class="step-number bg-success">1</span> Archivo del Banco (Excel)
+                            <h6 class="mb-0 fw-bold text-warning d-flex align-items-center">
+                                <span class="step-number" style="background:#e8b800;color:#000;width:24px;height:24px;font-size:0.85rem;margin-right:10px;">1</span>
+                                <i class="fa-solid fa-satellite-dish me-2"></i>
+                                Movimientos Banco de Venezuela (API)
                             </h6>
                         </div>
                         <div class="card-body p-4">
-                            <div id="drop-zone-excel" class="drop-zone">
-                                <i class="fa-solid fa-file-excel fa-3x text-success mb-3"></i>
-                                <h6 id="excel-label">Arrastra el Excel (.xls, .xlsx)</h6>
-                                <p class="text-muted small mb-0">Debe tener columna "Referencia"</p>
-                                <input type="file" id="excel-input" accept=".xlsx, .xls, .csv" style="display: none;">
+                            <div class="text-center mb-4">
+                                <div style="background:linear-gradient(135deg,rgba(232,184,0,.15),rgba(255,140,0,.1));border:1px solid rgba(232,184,0,.3);border-radius:12px;padding:16px 20px;">
+                                    <i class="fa-solid fa-bolt fa-2x mb-2" style="color:#e8b800;"></i>
+                                    <p class="mb-0 small fw-bold" style="color:#e8b800;">Consulta directa a la API del Banco de Venezuela</p>
+                                    <p class="mb-0 text-muted" style="font-size:.78rem;">Los movimientos se cargan en tiempo real para conciliación</p>
+                                </div>
                             </div>
-                            <div id="excel-info" class="mt-3 text-center text-success fw-bold small"
-                                style="display: none;"></div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted text-uppercase">Cuenta BDV</label>
+                                <input type="text" id="bdv-cuenta-input" class="form-control"
+                                    value="01020589150000001371" placeholder="20 dígitos">
+                            </div>
+                            <div class="row g-2 mb-3">
+                                <div class="col">
+                                    <label class="form-label small fw-bold text-muted text-uppercase">Desde</label>
+                                    <input type="date" id="bdv-fecha-ini" class="form-control"
+                                        value="<?php echo date('Y-m-d', strtotime('-7 days')); ?>">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label small fw-bold text-muted text-uppercase">Hasta</label>
+                                    <input type="date" id="bdv-fecha-fin" class="form-control"
+                                        value="<?php echo date('Y-m-d'); ?>">
+                                </div>
+                            </div>
+                            <button type="button" id="btn-consultar-bdv" class="btn w-100 py-2 fw-bold"
+                                onclick="consultarBdvApi()"
+                                style="background:linear-gradient(135deg,#e8b800,#ff8c00);color:#000;border:none;border-radius:10px;">
+                                <i class="fa-solid fa-satellite-dish me-2"></i>
+                                Consultar Movimientos BDV
+                            </button>
+                            <button type="button" id="btn-ver-movimientos" class="btn btn-outline-warning w-100 mt-2 py-2 fw-bold animate__animated animate__fadeIn"
+                                onclick="abrirModalMovimientos()"
+                                style="border-color:#e8b800;color:#e8b800;border-radius:10px;display:none;">
+                                <i class="fa-solid fa-eye me-2"></i>
+                                Ver Lista de Movimientos (<span id="bdv-movs-count">0</span>)
+                            </button>
+                            <div id="bdv-api-info" class="mt-3 text-center fw-bold small"
+                                style="display:none;"></div>
                         </div>
                     </div>
 
@@ -160,21 +192,6 @@ require_once '../includes/sidebar.php';
                                         onclick="handleManualSearch()">Verificar</button>
                                 </div>
                             </div>
-
-                            <hr class="my-4">
-
-                            <!-- Búsqueda Masiva Excel Secundario -->
-                            <div class="manual-search-section">
-                                <h6 class="fw-bold text-muted mb-3 small text-uppercase">O compara otro archivo Excel:
-                                </h6>
-                                <div id="drop-zone-excel-secondary" class="drop-zone"
-                                    style="min-height: 120px; padding: 15px;">
-                                    <i class="fa-solid fa-file-csv fa-2x text-secondary mb-2"></i>
-                                    <h6 id="excel-secondary-label" class="fs-6">Sube Excel Secundario</h6>
-                                    <input type="file" id="excel-secondary-input" accept=".xlsx, .xls, .csv"
-                                        style="display: none;">
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -203,9 +220,9 @@ require_once '../includes/sidebar.php';
 
                             <!-- Estado Inicial -->
                             <div id="initial-state" class="text-center py-5 text-muted">
-                                <i class="fa-solid fa-arrow-left fa-3x mb-3 opacity-25"></i>
-                                <h5>Esperando archivos...</h5>
-                                <p>Carga primero el Excel del banco y luego la imagen del capture.</p>
+                                <i class="fa-solid fa-satellite-dish fa-3x mb-3 opacity-25" style="color:#e8b800;"></i>
+                                <h5>Esperando consulta...</h5>
+                                <p>Consulta los movimientos con la API BDV (Paso 1) y luego procesa tu capture o referencia.</p>
                             </div>
 
                             <!-- Resultado: ÉXITO -->
@@ -260,7 +277,7 @@ require_once '../includes/sidebar.php';
                                     </span>
                                 </div>
                                 <h3 class="fw-bold text-danger mb-2">NO ENCONTRADO</h3>
-                                <p class="lead mb-4">El número no aparece en el Excel cargado.</p>
+                                <p class="lead mb-4">El número no aparece en los movimientos consultados.</p>
 
                                 <div class="card result-inner-card border-danger mx-4 text-start">
                                     <div class="card-body">
@@ -353,31 +370,35 @@ require_once '../includes/sidebar.php';
     const excelInfo = document.getElementById('excel-info');
 
     // Click simple para Excel
-    dropZoneExcel.addEventListener('click', function (e) {
-        if (e.target !== excelInput) {
-            excelInput.click();
-        }
-    });
+    if (dropZoneExcel) {
+        dropZoneExcel.addEventListener('click', function (e) {
+            if (e.target !== excelInput) {
+                excelInput.click();
+            }
+        });
 
-    dropZoneExcel.addEventListener('dragover', function (e) {
-        e.preventDefault();
-        dropZoneExcel.classList.add('active');
-    });
+        dropZoneExcel.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZoneExcel.classList.add('active');
+        });
 
-    dropZoneExcel.addEventListener('dragleave', function () {
-        dropZoneExcel.classList.remove('active');
-    });
+        dropZoneExcel.addEventListener('dragleave', function () {
+            dropZoneExcel.classList.remove('active');
+        });
 
-    dropZoneExcel.addEventListener('drop', function (e) {
-        e.preventDefault();
-        dropZoneExcel.classList.remove('active');
-        if (e.dataTransfer.files[0]) handleExcel(e.dataTransfer.files[0]);
-    });
+        dropZoneExcel.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZoneExcel.classList.remove('active');
+            if (e.dataTransfer.files[0]) handleExcel(e.dataTransfer.files[0]);
+        });
+    }
 
-    excelInput.addEventListener('click', function (e) { e.target.value = null; });
-    excelInput.addEventListener('change', function (e) {
-        if (e.target.files[0]) handleExcel(e.target.files[0]);
-    });
+    if (excelInput) {
+        excelInput.addEventListener('click', function (e) { e.target.value = null; });
+        excelInput.addEventListener('change', function (e) {
+            if (e.target.files[0]) handleExcel(e.target.files[0]);
+        });
+    }
 
     function handleExcel(file) {
         const validTypes = [
@@ -612,20 +633,24 @@ require_once '../includes/sidebar.php';
     const dropZoneExcelSec = document.getElementById('drop-zone-excel-secondary');
     const excelSecInput = document.getElementById('excel-secondary-input');
 
-    dropZoneExcelSec.addEventListener('click', function (e) {
-        if (e.target !== excelSecInput) excelSecInput.click();
-    });
-    dropZoneExcelSec.addEventListener('dragover', function (e) { e.preventDefault(); dropZoneExcelSec.classList.add('active'); });
-    dropZoneExcelSec.addEventListener('dragleave', function () { dropZoneExcelSec.classList.remove('active'); });
-    dropZoneExcelSec.addEventListener('drop', function (e) {
-        e.preventDefault();
-        dropZoneExcelSec.classList.remove('active');
-        if (e.dataTransfer.files[0]) handleSecondaryExcel(e.dataTransfer.files[0]);
-    });
-    excelSecInput.addEventListener('click', function (e) { e.target.value = null; });
-    excelSecInput.addEventListener('change', function (e) {
-        if (e.target.files[0]) handleSecondaryExcel(e.target.files[0]);
-    });
+    if (dropZoneExcelSec) {
+        dropZoneExcelSec.addEventListener('click', function (e) {
+            if (e.target !== excelSecInput) excelSecInput.click();
+        });
+        dropZoneExcelSec.addEventListener('dragover', function (e) { e.preventDefault(); dropZoneExcelSec.classList.add('active'); });
+        dropZoneExcelSec.addEventListener('dragleave', function () { dropZoneExcelSec.classList.remove('active'); });
+        dropZoneExcelSec.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZoneExcelSec.classList.remove('active');
+            if (e.dataTransfer.files[0]) handleSecondaryExcel(e.dataTransfer.files[0]);
+        });
+    }
+    if (excelSecInput) {
+        excelSecInput.addEventListener('click', function (e) { e.target.value = null; });
+        excelSecInput.addEventListener('change', function (e) {
+            if (e.target.files[0]) handleSecondaryExcel(e.target.files[0]);
+        });
+    }
 
     function handleSecondaryExcel(file) {
         if (bankData.length === 0) {
@@ -1063,6 +1088,200 @@ require_once '../includes/sidebar.php';
         imgInput.value = '';
         document.getElementById('drop-zone-img').click();
     }
+
+    // ─── BDV API: Consultar movimientos directamente del banco ───────────────
+    async function consultarBdvApi() {
+        const btn      = document.getElementById('btn-consultar-bdv');
+        const infoDiv  = document.getElementById('bdv-api-info');
+        const cuenta   = document.getElementById('bdv-cuenta-input').value.trim();
+        const fechaIni = document.getElementById('bdv-fecha-ini').value;
+        const fechaFin = document.getElementById('bdv-fecha-fin').value;
+
+        if (!fechaIni || !fechaFin) {
+            Swal.fire('Atención', 'Selecciona un rango de fechas.', 'warning');
+            return;
+        }
+
+        // Estado de carga
+        btn.disabled   = true;
+        btn.innerHTML  = '<span class="spinner-border spinner-border-sm me-2"></span>Consultando API BDV...';
+        infoDiv.style.display = 'none';
+
+        // Limpiar estado visual previo
+        initialStateDiv.style.display = 'none';
+        resultSuccess.style.display   = 'none';
+        resultError.style.display     = 'none';
+        resultBulk.style.display      = 'none';
+        statusDiv.style.display       = 'none';
+
+        try {
+            const resp = await fetch('consultar_bdv_api.php', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ fecha_inicio: fechaIni, fecha_fin: fechaFin, cuenta }),
+            });
+
+            const json = await resp.json();
+
+            if (!json.success) {
+                Swal.fire('Error API BDV', json.message || 'No se pudo obtener movimientos.', 'error');
+                infoDiv.innerHTML     = `<i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> ${json.message}`;
+                infoDiv.style.display = 'block';
+                const btnVer = document.getElementById('btn-ver-movimientos');
+                if (btnVer) btnVer.style.display = 'none';
+                return;
+            }
+
+            // Cargar los movimientos en bankData (reemplaza el Excel)
+            bankData = json.movs;
+
+            // Mostrar botón para ver la lista de movimientos
+            const btnVer = document.getElementById('btn-ver-movimientos');
+            if (btnVer) {
+                btnVer.style.display = 'block';
+                document.getElementById('bdv-movs-count').innerText = json.total;
+            }
+
+            infoDiv.innerHTML     = `<i class="fa-solid fa-check-circle me-1" style="color:#e8b800;"></i> <strong>${json.total}</strong> movimientos cargados desde la API del Banco de Venezuela`;
+            infoDiv.className     = 'mt-3 text-center fw-bold small';
+            infoDiv.style.color   = '#e8b800';
+            infoDiv.style.display = 'block';
+
+            // Si hay OCR activo con resultado previo, re-procesar automáticamente
+            if (ocrResultText) {
+                const tokens = ocrResultText.match(/\b\d{5,25}\b/g) || [];
+                if (tokens.length > 0) {
+                    processExtractedTokens(tokens, true);
+                    return;
+                }
+            }
+
+            // Estado: listo para recibir capture o búsqueda manual
+            initialStateDiv.innerHTML = `
+                <div style="animation: fadeIn .4s ease;">
+                    <i class="fa-solid fa-bolt fa-3x mb-3" style="color:#e8b800;opacity:.8;"></i>
+                    <h5 style="color:#e8b800;">¡${json.total} movimientos BDV cargados!</h5>
+                    <p class="text-muted">Sube un capture o ingresa una referencia para verificar.</p>
+                </div>
+            `;
+            initialStateDiv.style.display = 'block';
+
+        } catch (err) {
+            console.error(err);
+            Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+        } finally {
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fa-solid fa-satellite-dish me-2"></i>Consultar Movimientos BDV';
+        }
+    }
+
+    // ─── Modal & Listado de Movimientos BDV ──────────────────────────────────
+    function abrirModalMovimientos() {
+        const modal = new bootstrap.Modal(document.getElementById('modalMovimientosBdv'));
+        const tbody = document.getElementById('lista-movimientos-bdv-body');
+        tbody.innerHTML = '';
+        
+        if (bankData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No hay movimientos cargados</td></tr>';
+        } else {
+            bankData.forEach(m => {
+                const tipo = m['Tipo'] || m['mov'] || '';
+                const isCredit = tipo.toUpperCase() === 'CREDITO';
+                const colorBadge = isCredit ? 'success' : 'danger';
+                const labelBadge = isCredit ? 'Crédito' : 'Débito';
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="small">${escapeHtml(m['Fecha'] || '')}</td>
+                    <td class="fw-bold">${escapeHtml(m['Referencia'] || '')}</td>
+                    <td class="small">
+                        ${escapeHtml(m['Descripción'] || m['descripcion'] || '')}
+                        ${m['Observación'] || m['observacion'] ? '<br><span style="font-size:0.75rem; opacity: 0.65;">' + escapeHtml(m['Observación'] || m['observacion']) + '</span>' : ''}
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-${colorBadge} bg-opacity-25 text-${colorBadge} border border-${colorBadge} border-opacity-20 px-2 py-1" style="font-size:0.7rem; border-radius: 6px;">
+                            ${labelBadge}
+                        </span>
+                    </td>
+                    <td class="text-end fw-bold ${isCredit ? 'text-success' : 'text-danger'}">
+                        ${isCredit ? '+' : ''}${escapeHtml(m['Importe'] || m['importe'] || '0')}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // Reset filter input
+        document.getElementById('bdv-search-input').value = '';
+        modal.show();
+    }
+    
+    function filtrarMovimientosBdv() {
+        const query = document.getElementById('bdv-search-input').value.toLowerCase();
+        const rows = document.querySelectorAll('#lista-movimientos-bdv-body tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 </script>
+
+<!-- Modal de Listado de Movimientos BDV -->
+<div class="modal fade" id="modalMovimientosBdv" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header modal-header-gradient border-0 py-3" style="background: linear-gradient(135deg, #1e3a5f, #2563eb) !important;">
+                <h5 class="modal-title fw-bold d-flex align-items-center" style="color: #ffffff !important;">
+                    <i class="fa-solid fa-satellite-dish me-2 animate__animated animate__pulse animate__infinite"></i>
+                    Movimientos BDV - SITELCO C.A.
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Buscador de movimientos -->
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="text" id="bdv-search-input" class="form-control" placeholder="Buscar por referencia, descripción, monto, fecha..." onkeyup="filtrarMovimientosBdv()">
+                </div>
+                
+                <!-- Tabla scrollable -->
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border-radius: 10px;">
+                    <table class="table table-hover align-middle mb-0" id="tabla-movimientos-bdv">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-glass);">
+                                <th>Fecha</th>
+                                <th>Referencia</th>
+                                <th>Descripción / Observación</th>
+                                <th class="text-center">Tipo</th>
+                                <th class="text-end">Importe (Bs)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lista-movimientos-bdv-body">
+                            <!-- JS populated rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer py-3">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php require_once '../includes/layout_foot.php'; ?>

@@ -51,6 +51,7 @@ if ($action === 'add') {
     $titular = isset($_POST['titular_cuenta']) ? trim($_POST['titular_cuenta']) : '';
     $cedula = isset($_POST['cedula_propietario']) ? trim($_POST['cedula_propietario']) : '';
     $metodos = isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : []; // Esperamos un array
+    $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : true;
 
     if (empty($nombre)) {
         echo json_encode(['success' => false, 'message' => 'Nombre requerido']);
@@ -72,7 +73,8 @@ if ($action === 'add') {
         'numero_cuenta' => $numero,
         'cedula_propietario' => $cedula,
         'nombre_propietario' => $titular,
-        'metodos_pago' => $metodos
+        'metodos_pago' => $metodos,
+        'activo' => $activo
     ];
 
     $bancos[] = $nuevo;
@@ -88,6 +90,7 @@ if ($action === 'update') {
     $titular = isset($_POST['titular_cuenta']) ? trim($_POST['titular_cuenta']) : '';
     $cedula = isset($_POST['cedula_propietario']) ? trim($_POST['cedula_propietario']) : '';
     $metodos = isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : []; // Esperamos un array
+    $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : false;
 
     if (empty($id) || empty($nombre)) {
         echo json_encode(['success' => false, 'message' => 'ID y Nombre requeridos']);
@@ -102,6 +105,34 @@ if ($action === 'update') {
             $b['cedula_propietario'] = $cedula;
             $b['nombre_propietario'] = $titular;
             $b['metodos_pago'] = $metodos;
+            $b['activo'] = $activo;
+            $found = true;
+            break;
+        }
+    }
+
+    if ($found) {
+        savePartidas($file_path, $bancos);
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Banco no encontrado']);
+    }
+    exit;
+}
+
+if ($action === 'toggle_status') {
+    $id = isset($_POST['id_banco']) ? $_POST['id_banco'] : '';
+    $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : false;
+
+    if (empty($id)) {
+        echo json_encode(['success' => false, 'message' => 'ID requerido']);
+        exit;
+    }
+
+    $found = false;
+    foreach ($bancos as &$b) {
+        if ($b['id_banco'] == $id) {
+            $b['activo'] = $activo;
             $found = true;
             break;
         }

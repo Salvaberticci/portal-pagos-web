@@ -1,6 +1,7 @@
 <?php
 // procesar_reporte_pago.php - Procesa el envío del formulario público
 require_once 'paginas/conexion.php';
+require_once 'portal/bdv_autoverify_helper.php'; // Auto-verificación BDV
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cedula         = $conn->real_escape_string($_POST['cedula']);
@@ -52,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $check = getimagesize($_FILES['capture_pago']['tmp_name']);
         if ($check !== false) {
             if (move_uploaded_file($_FILES['capture_pago']['tmp_name'], $target_file)) {
-                $capture_path = $target_file;
+                $capture_path = $upload_dir . $file_name; // ruta relativa desde root
             } else {
                 die("Error al subir el comprobante.");
             }
@@ -78,13 +79,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $meses, $concepto, $capture_path, $id_contrato_asociado
     );
 
+    $id_reporte_nuevo = 0;
     if ($stmt->execute()) {
+        $id_reporte_nuevo = $conn->insert_id;
         $mensaje_exito = "¡Gracias! Tu reporte de pago ha sido enviado correctamente. Será verificado por nuestro equipo administrativo a la brevedad posible.";
     } else {
         $mensaje_err = "Error al procesar el reporte: " . $stmt->error;
     }
 
     $stmt->close();
+
+    // ─── Auto-verificación BDV ─────────────────────────────────────────────
+    if ($id_reporte_nuevo > 0) {
+        $id_contrato_para_bdv = $id_contrato_asociado ?? 0;
+        $tasa_dolar_val       = isset($_POST['tasa_dolar']) ? floatval($_POST['tasa_dolar']) : 0.00;
+        $monto_usd_val        = isset($_POST['monto_usd'])  ? floatval($_POST['monto_usd'])  : 0.00;
+        $id_banco_val         = isset($_POST['id_banco_destino']) ? intval($_POST['id_banco_destino']) : 0;
+
+        $auto_aprobado = verificar_y_aprobar_pago_bdv(
+            $conn,
+            $id_banco_val,
+            $referencia,
+            $monto_usd_val,
+            $tasa_dolar_val,
+            $fecha_pago,
+            $id_contrato_para_bdv,
+            $id_reporte_nuevo,
+            $capture_path,
+            $meses,
+            $concepto
+        );
+
+        if ($auto_aprobado) {
+            $mensaje_exito = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! "
+                . "Tu servicio ha sido actualizado al instante. Referencia: <strong>" . htmlspecialchars($referencia) . "</strong>.";
+        }
+    }
+
     $conn->close();
 }
 ?>

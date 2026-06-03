@@ -8,7 +8,8 @@
         "metodos_pago": [
             "Pago Móvil",
             "Transferencia"
-        ]
+        ],
+        "activo": false
     },
     {
         "id_banco": "5",
@@ -19,7 +20,8 @@
         "metodos_pago": [
             "Pago Móvil",
             "Transferencia"
-        ]
+        ],
+        "activo": false
     },
     {
         "id_banco": "6",
@@ -30,7 +32,8 @@
         "metodos_pago": [
             "Pago Móvil",
             "Transferencia"
-        ]
+        ],
+        "activo": false
     },
     {
         "id_banco": "7",
@@ -40,7 +43,8 @@
         "nombre_propietario": "EDINSON MEDINA-MORENO",
         "metodos_pago": [
             "Zelle"
-        ]
+        ],
+        "activo": false
     },
     {
         "id_banco": "8",
@@ -51,17 +55,32 @@
         "metodos_pago": [
             "Transferencia",
             "Divisas"
-        ]
+        ],
+        "activo": false
     },
     {
         "id_banco": "9",
-        "nombre_banco": "Banco de Vnezuela",
+        "nombre_banco": "Banco de Venezuela (Pago Móvil)",
         "numero_cuenta": "04247040713",
-        "cedula_propietario": "V10913095",
-        "nombre_propietario": "David Garcia",
+        "cedula_propietario": "J 408882540",
+        "nombre_propietario": "SITELCO C.A.",
+        "bdv_api": true,
         "metodos_pago": [
             "Pago Móvil"
-        ]
+        ],
+        "activo": true
+    },
+    {
+        "id_banco": "12",
+        "nombre_banco": "Banco de Venezuela (Transferencia)",
+        "numero_cuenta": "0102-0589-15-0000001371",
+        "cedula_propietario": "J 408882540",
+        "nombre_propietario": "SITELCO C.A.",
+        "bdv_api": true,
+        "metodos_pago": [
+            "Transferencia"
+        ],
+        "activo": true
     },
     {
         "id_banco": "10",
@@ -72,7 +91,8 @@
         "metodos_pago": [
             "Efectivo",
             "Divisas"
-        ]
+        ],
+        "activo": true
     },
     {
         "id_banco": "11",
@@ -82,6 +102,7 @@
         "nombre_propietario": "0",
         "metodos_pago": [
             "Efectivo"
-        ]
+        ],
+        "activo": true
     }
 ]

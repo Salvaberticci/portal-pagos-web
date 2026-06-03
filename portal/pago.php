@@ -341,7 +341,7 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             // Cargar bancos
             const list = document.getElementById('bancos-list');
             list.innerHTML = '';
-            const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(method));
+            const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(method) && b.activo !== false);
             
             filtrados.forEach(b => {
                 const div = document.createElement('div');

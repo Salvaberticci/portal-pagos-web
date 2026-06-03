@@ -46,12 +46,13 @@ require_once 'includes/sidebar.php';
                                     <th>Nombre del Banco</th>
                                     <th>Número de Cuenta</th>
                                     <th>Propietario</th>
+                                    <th class="text-center">Habilitado</th>
                                     <th class="text-end pe-4">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="lista_bancos_api">
                                 <tr>
-                                    <td colspan="5" class="text-center p-4"><i
+                                    <td colspan="6" class="text-center p-4"><i
                                             class="fas fa-spinner fa-spin me-2"></i>Cargando datos...</td>
                                 </tr>
                             </tbody>
@@ -136,6 +137,12 @@ require_once 'includes/sidebar.php';
                             </div>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="activo" id="reg_activo" checked value="1">
+                            <label class="form-check-label small fw-bold text-muted text-uppercase" for="reg_activo">Habilitado en Portal de Clientes</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
@@ -203,6 +210,12 @@ require_once 'includes/sidebar.php';
                             </div>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="activo" id="edit_activo" checked value="1">
+                            <label class="form-check-label small fw-bold text-muted text-uppercase" for="edit_activo">Habilitado en Portal de Clientes</label>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-transparent border-top border-white border-opacity-10 py-3">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
@@ -232,6 +245,7 @@ require_once 'includes/sidebar.php';
             if (!proceeds) return;
 
             const formData = new FormData(this);
+            formData.set('activo', this.activo.checked ? '1' : '0');
             try {
                 const resp = await fetch(API_URL + '?action=update', {
                     method: 'POST',
@@ -261,7 +275,7 @@ require_once 'includes/sidebar.php';
             tbody.innerHTML = '';
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted">No hay bancos registrados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted">No hay bancos registrados.</td></tr>';
                 renderPagination(result);
                 return;
             }
@@ -282,6 +296,11 @@ require_once 'includes/sidebar.php';
                         <div class="fw-semibold text-main">${b.nombre_propietario || 'Sin titular'}</div>
                         <small class="text-muted">${b.cedula_propietario || ''}</small>
                     </td>
+                    <td class="text-center">
+                        <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" role="switch" id="status_switch_${b.id_banco}" ${b.activo !== false ? 'checked' : ''} onchange="toggleBancoStatus('${b.id_banco}', this.checked)">
+                        </div>
+                    </td>
                     <td class="text-end pe-4">
                         <div class="btn-group gap-2">
                             <button class="btn btn-sm btn-glass text-primary" onclick='prepareEdit(${JSON.stringify(b)})' title="Editar">
@@ -299,7 +318,7 @@ require_once 'includes/sidebar.php';
             renderPagination(result);
         } catch (e) {
             console.error(e);
-            document.getElementById('lista_bancos_api').innerHTML = '<tr><td colspan="5" class="text-center text-danger p-4">Error al cargar datos.</td></tr>';
+            document.getElementById('lista_bancos_api').innerHTML = '<tr><td colspan="6" class="text-center text-danger p-4">Error al cargar datos.</td></tr>';
         }
     }
 
@@ -341,6 +360,7 @@ require_once 'includes/sidebar.php';
         document.getElementById('edit_numero_cuenta').value = banco.numero_cuenta || '';
         document.getElementById('edit_cedula_propietario').value = banco.cedula_propietario || '';
         document.getElementById('edit_titular_cuenta').value = banco.nombre_propietario || '';
+        document.getElementById('edit_activo').checked = (banco.activo !== false);
 
         // Limpiar y marcar métodos de pago
         const metodos = banco.metodos_pago || [];
@@ -394,6 +414,7 @@ require_once 'includes/sidebar.php';
         if (!proceeds) return;
 
         const formData = new FormData(this);
+        formData.set('activo', this.activo.checked ? '1' : '0');
         try {
             const resp = await fetch(API_URL + '?action=add', {
                 method: 'POST',
@@ -412,6 +433,40 @@ require_once 'includes/sidebar.php';
             Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
         }
     });
+
+    window.toggleBancoStatus = async function (id, isChecked) {
+        const formData = new FormData();
+        formData.append('id_banco', id);
+        formData.append('activo', isChecked ? '1' : '0');
+        try {
+            const resp = await fetch(API_URL + '?action=toggle_status', {
+                method: 'POST',
+                body: formData
+            });
+            const res = await resp.json();
+            if (res.success) {
+                // Toast de éxito muy sutil
+                const Toast = Swal.mixin({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    timerProgressBar: true
+                });
+                Toast.fire({
+                    icon: 'success',
+                    title: isChecked ? 'Banco habilitado en el portal' : 'Banco deshabilitado en el portal'
+                });
+            } else {
+                Swal.fire('Error', res.message || 'Error al actualizar estado', 'error');
+                // Revertir checkbox
+                document.getElementById('status_switch_' + id).checked = !isChecked;
+            }
+        } catch (e) {
+            Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
+            document.getElementById('status_switch_' + id).checked = !isChecked;
+        }
+    };
 
     window.eliminarBanco = async function (id) {
         const proceeds = await solicitarClaveAdmin('Eliminar Banco');
