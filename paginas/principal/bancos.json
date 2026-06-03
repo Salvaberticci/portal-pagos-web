@@ -64,11 +64,18 @@
         "numero_cuenta": "04247040713",
         "cedula_propietario": "J 408882540",
         "nombre_propietario": "SITELCO C.A.",
-        "bdv_api": true,
         "metodos_pago": [
             "Pago Móvil"
         ],
-        "activo": true
+        "activo": true,
+        "api_config": {
+            "habilitada": true,
+            "tipo": "bdv",
+            "api_key": "650D973744E70DFD936382F9B734405A",
+            "cuenta": "01020589150000001371",
+            "titular": "SITELCO C.A.",
+            "endpoint": "https://bdvconciliacion.banvenez.com:443/apis/bdv/consulta/movimientos"
+        }
     },
     {
         "id_banco": "12",
@@ -76,11 +83,18 @@
         "numero_cuenta": "0102-0589-15-0000001371",
         "cedula_propietario": "J 408882540",
         "nombre_propietario": "SITELCO C.A.",
-        "bdv_api": true,
         "metodos_pago": [
             "Transferencia"
         ],
-        "activo": true
+        "activo": true,
+        "api_config": {
+            "habilitada": true,
+            "tipo": "bdv",
+            "api_key": "650D973744E70DFD936382F9B734405A",
+            "cuenta": "01020589150000001371",
+            "titular": "SITELCO C.A.",
+            "endpoint": "https://bdvconciliacion.banvenez.com:443/apis/bdv/consulta/movimientos"
+        }
     },
     {
         "id_banco": "10",

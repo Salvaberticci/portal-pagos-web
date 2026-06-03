@@ -1,14 +1,13 @@
 <?php
 /**
  * API para Gestión de Bancos (JSON)
- * Acciones: get, add, delete
+ * Acciones: get, add, update, delete, toggle_status, save_api_config
  */
 
 header('Content-Type: application/json; charset=utf-8');
 
 $file_path = 'bancos.json';
 
-// Cargar Datos
 function loadPartidas($path)
 {
     if (!file_exists($path))
@@ -17,7 +16,6 @@ function loadPartidas($path)
     return json_decode($content, true) ?: [];
 }
 
-// Guardar Datos
 function savePartidas($path, $data)
 {
     return file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -50,7 +48,7 @@ if ($action === 'add') {
     $numero = isset($_POST['numero_cuenta']) ? trim($_POST['numero_cuenta']) : '';
     $titular = isset($_POST['titular_cuenta']) ? trim($_POST['titular_cuenta']) : '';
     $cedula = isset($_POST['cedula_propietario']) ? trim($_POST['cedula_propietario']) : '';
-    $metodos = isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : []; // Esperamos un array
+    $metodos = isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : [];
     $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : true;
 
     if (empty($nombre)) {
@@ -68,13 +66,13 @@ if ($action === 'add') {
     $newId = $maxId + 1;
 
     $nuevo = [
-        'id_banco' => (string) $newId,
-        'nombre_banco' => $nombre,
-        'numero_cuenta' => $numero,
-        'cedula_propietario' => $cedula,
-        'nombre_propietario' => $titular,
-        'metodos_pago' => $metodos,
-        'activo' => $activo
+        'id_banco'          => (string) $newId,
+        'nombre_banco'      => $nombre,
+        'numero_cuenta'     => $numero,
+        'cedula_propietario'=> $cedula,
+        'nombre_propietario'=> $titular,
+        'metodos_pago'      => $metodos,
+        'activo'            => $activo
     ];
 
     $bancos[] = $nuevo;
@@ -84,12 +82,12 @@ if ($action === 'add') {
 }
 
 if ($action === 'update') {
-    $id = isset($_POST['id_banco']) ? $_POST['id_banco'] : '';
+    $id     = isset($_POST['id_banco']) ? $_POST['id_banco'] : '';
     $nombre = isset($_POST['nombre_banco']) ? trim($_POST['nombre_banco']) : '';
     $numero = isset($_POST['numero_cuenta']) ? trim($_POST['numero_cuenta']) : '';
-    $titular = isset($_POST['titular_cuenta']) ? trim($_POST['titular_cuenta']) : '';
+    $titular= isset($_POST['titular_cuenta']) ? trim($_POST['titular_cuenta']) : '';
     $cedula = isset($_POST['cedula_propietario']) ? trim($_POST['cedula_propietario']) : '';
-    $metodos = isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : []; // Esperamos un array
+    $metodos= isset($_POST['metodos_pago']) ? $_POST['metodos_pago'] : [];
     $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : false;
 
     if (empty($id) || empty($nombre)) {
@@ -100,12 +98,13 @@ if ($action === 'update') {
     $found = false;
     foreach ($bancos as &$b) {
         if ($b['id_banco'] == $id) {
-            $b['nombre_banco'] = $nombre;
-            $b['numero_cuenta'] = $numero;
+            $b['nombre_banco']       = $nombre;
+            $b['numero_cuenta']      = $numero;
             $b['cedula_propietario'] = $cedula;
             $b['nombre_propietario'] = $titular;
-            $b['metodos_pago'] = $metodos;
-            $b['activo'] = $activo;
+            $b['metodos_pago']       = $metodos;
+            $b['activo']             = $activo;
+            // IMPORTANTE: preservar api_config existente — no se modifica desde este modal
             $found = true;
             break;
         }
@@ -121,7 +120,7 @@ if ($action === 'update') {
 }
 
 if ($action === 'toggle_status') {
-    $id = isset($_POST['id_banco']) ? $_POST['id_banco'] : '';
+    $id     = isset($_POST['id_banco']) ? $_POST['id_banco'] : '';
     $activo = isset($_POST['activo']) ? ($_POST['activo'] == '1' || $_POST['activo'] === 'true') : false;
 
     if (empty($id)) {
@@ -147,6 +146,67 @@ if ($action === 'toggle_status') {
     exit;
 }
 
+/**
+ * Acción: save_api_config
+ * Guarda o elimina la configuración de API de un banco.
+ * POST params: id_banco, api_habilitada, api_tipo, api_key, api_cuenta, api_titular, api_endpoint
+ */
+if ($action === 'save_api_config') {
+    $id          = isset($_POST['id_banco'])      ? trim($_POST['id_banco']) : '';
+    $habilitada  = isset($_POST['api_habilitada']) ? ($_POST['api_habilitada'] == '1') : false;
+    $tipo        = isset($_POST['api_tipo'])       ? trim($_POST['api_tipo'])       : '';
+    $api_key     = isset($_POST['api_key'])        ? trim($_POST['api_key'])        : '';
+    $cuenta      = isset($_POST['api_cuenta'])     ? trim($_POST['api_cuenta'])     : '';
+    $titular     = isset($_POST['api_titular'])    ? trim($_POST['api_titular'])    : '';
+    $endpoint    = isset($_POST['api_endpoint'])   ? trim($_POST['api_endpoint'])   : '';
+
+    if (empty($id)) {
+        echo json_encode(['success' => false, 'message' => 'ID requerido']);
+        exit;
+    }
+
+    if ($habilitada && (empty($tipo) || empty($api_key) || empty($cuenta))) {
+        echo json_encode(['success' => false, 'message' => 'Tipo, API Key y Cuenta son requeridos cuando la API está habilitada']);
+        exit;
+    }
+
+    $found = false;
+    foreach ($bancos as &$b) {
+        if ($b['id_banco'] == $id) {
+            if ($habilitada) {
+                $b['api_config'] = [
+                    'habilitada' => true,
+                    'tipo'       => $tipo,
+                    'api_key'    => $api_key,
+                    'cuenta'     => $cuenta,
+                    'titular'    => $titular,
+                    'endpoint'   => $endpoint,
+                ];
+            } else {
+                // Si se deshabilita, guardamos la config pero con habilitada=false
+                $existing = $b['api_config'] ?? [];
+                $b['api_config'] = array_merge($existing, [
+                    'habilitada' => false,
+                    'tipo'       => $tipo ?: ($existing['tipo'] ?? ''),
+                    'api_key'    => $api_key ?: ($existing['api_key'] ?? ''),
+                    'cuenta'     => $cuenta ?: ($existing['cuenta'] ?? ''),
+                    'titular'    => $titular ?: ($existing['titular'] ?? ''),
+                    'endpoint'   => $endpoint ?: ($existing['endpoint'] ?? ''),
+                ]);
+            }
+            $found = true;
+            break;
+        }
+    }
+
+    if ($found) {
+        savePartidas($file_path, $bancos);
+        echo json_encode(['success' => true, 'message' => 'Configuración de API guardada correctamente']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Banco no encontrado']);
+    }
+    exit;
+}
 
 if ($action === 'delete') {
     $id = isset($_POST['id']) ? $_POST['id'] : '';
@@ -160,7 +220,7 @@ if ($action === 'delete') {
         return $b['id_banco'] != $id;
     });
 
-    savePartidas($file_path, array_values($bancos)); // Re-index array
+    savePartidas($file_path, array_values($bancos));
     echo json_encode(['success' => true]);
     exit;
 }

@@ -10,7 +10,7 @@
  *   - bdv_api_helper.php cargado (define consultar_movimientos_bdv y buscar_movimiento_bdv)
  */
 
-require_once __DIR__ . '/../paginas/principal/bdv_api_helper.php';
+require_once __DIR__ . '/../paginas/principal/banco_api_router.php'; // incluye bdv_api_helper
 
 /**
  * Intenta verificar y aprobar automáticamente un pago cuyo banco sea BDV.
@@ -54,8 +54,9 @@ function verificar_y_aprobar_pago_bdv(
     string $concepto      = 'Pago de mensualidad'
 ): bool {
 
-    // Solo proceder si el banco es Banco de Venezuela
-    if (!in_array($id_banco, BDV_IDS_BANCO)) {
+    // Solo proceder si el banco tiene una API habilitada configurada
+    $api_cfg = obtener_config_api_banco($id_banco);
+    if ($api_cfg === null) {
         return false;
     }
 
@@ -73,7 +74,7 @@ function verificar_y_aprobar_pago_bdv(
     $fecha_ini  = date('Y-m-d', strtotime('-1 day', $ts));
     $fecha_fin  = date('Y-m-d', strtotime('+1 day', $ts));
 
-    $resultado = consultar_movimientos_bdv(BDV_CUENTA_DEFECTO, $fecha_ini, $fecha_fin);
+    $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
 
     if (!$resultado['success'] || empty($resultado['movs'])) {
         // API caída o sin movimientos → dejar como PENDIENTE
@@ -82,7 +83,12 @@ function verificar_y_aprobar_pago_bdv(
     }
 
     // Buscar el movimiento que coincida con la referencia y el monto
-    $movimiento = buscar_movimiento_bdv($resultado['movs'], $referencia, $monto_bs);
+    // Usar el buscador según el tipo de API del banco
+    $movimiento = null;
+    $api_tipo = $api_cfg['tipo'] ?? 'bdv';
+    if ($api_tipo === 'bdv') {
+        $movimiento = buscar_movimiento_bdv($resultado['movs'], $referencia, $monto_bs);
+    }
 
     if (!$movimiento) {
         error_log('[BDV AutoVerify] No se encontró movimiento matching. Ref=' . $referencia . ' MontoBs=' . $monto_bs);

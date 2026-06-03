@@ -47,12 +47,13 @@ require_once 'includes/sidebar.php';
                                     <th>Número de Cuenta</th>
                                     <th>Propietario</th>
                                     <th class="text-center">Habilitado para el Portal</th>
+                                    <th class="text-center">API</th>
                                     <th class="text-end pe-4">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="lista_bancos_api">
                                 <tr>
-                                    <td colspan="6" class="text-center p-4"><i
+                                    <td colspan="7" class="text-center p-4"><i
                                             class="fas fa-spinner fa-spin me-2"></i>Cargando datos...</td>
                                 </tr>
                             </tbody>
@@ -227,6 +228,106 @@ require_once 'includes/sidebar.php';
 </div>
 
 
+<!-- Modal Configuración de API -->
+<div class="modal fade" id="modalApiConfig" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 text-white" style="background: linear-gradient(135deg,#7c3aed,#4f46e5);">
+                <div>
+                    <h5 class="modal-title fw-bold mb-0"><i class="fa-solid fa-plug me-2"></i>Configurar API del Banco</h5>
+                    <small id="api_config_banco_nombre" class="opacity-75"></small>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="form-api-config">
+                <input type="hidden" id="api_config_id_banco" name="id_banco">
+                <div class="modal-body p-4">
+
+                    <!-- Switch habilitar -->
+                    <div class="p-3 rounded-3 mb-4 d-flex align-items-center justify-content-between"
+                         style="background:var(--bg-card);border:1px solid var(--border-glass);">
+                        <div>
+                            <div class="fw-bold">Habilitar auto-verificación por API</div>
+                            <small class="text-muted">Al habilitar, los pagos de este banco se verificarán automáticamente</small>
+                        </div>
+                        <div class="form-check form-switch mb-0 ms-3">
+                            <input class="form-check-input" type="checkbox" id="api_habilitada" name="api_habilitada"
+                                   role="switch" style="width:3rem;height:1.5rem;" onchange="toggleApiFields()">
+                        </div>
+                    </div>
+
+                    <!-- Campos (se ocultan si deshabilitado) -->
+                    <div id="api_fields_wrapper">
+                        <!-- Tipo de API -->
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold text-uppercase">Tipo de API / Banco</label>
+                            <select class="form-select" id="api_tipo" name="api_tipo" onchange="autoFillEndpoint()">
+                                <option value="">-- Selecciona un tipo --</option>
+                                <option value="bdv">🏦 Banco de Venezuela (BDV)</option>
+                                <!-- Futuras opciones:
+                                <option value="banesco">🏦 Banesco</option>
+                                <option value="mercantil">🏦 Mercantil</option>
+                                -->
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label small text-muted fw-bold text-uppercase">API Key</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control font-monospace" id="api_key" name="api_key"
+                                           placeholder="Clave secreta de la API" autocomplete="new-password">
+                                    <button type="button" class="btn btn-outline-secondary" id="btn_toggle_apikey"
+                                            onclick="toggleApiKeyVisibility()" title="Mostrar/Ocultar">
+                                        <i class="fa-solid fa-eye" id="icon_apikey"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label small text-muted fw-bold text-uppercase">Titular de la cuenta</label>
+                                <input type="text" class="form-control" id="api_titular" name="api_titular"
+                                       placeholder="EMPRESA C.A.">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold text-uppercase">Número de Cuenta (20 dígitos)</label>
+                            <input type="text" class="form-control font-monospace" id="api_cuenta" name="api_cuenta"
+                                   placeholder="01020000000000000000" maxlength="20">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-muted fw-bold text-uppercase">URL del Endpoint</label>
+                            <div class="input-group">
+                                <input type="url" class="form-control font-monospace" id="api_endpoint" name="api_endpoint"
+                                       placeholder="https://...">
+                                <button type="button" class="btn btn-outline-secondary" onclick="autoFillEndpoint()" title="Restaurar URL por defecto">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Se auto-rellena al seleccionar el tipo de API.</div>
+                        </div>
+
+                        <!-- Resultado de prueba -->
+                        <div id="api_test_result" class="rounded-3 p-3 d-none" style="border:1px solid var(--border-glass);"></div>
+                    </div>
+
+                </div>
+                <div class="modal-footer border-0 py-3" style="background:var(--bg-card);">
+                    <button type="button" class="btn btn-outline-secondary me-auto" id="btn_test_api" onclick="testApiConnection()">
+                        <i class="fa-solid fa-satellite-dish me-2"></i>Probar Conexión
+                    </button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn px-4 text-white fw-semibold"
+                            style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;">
+                        <i class="fa-solid fa-floppy-disk me-2"></i>Guardar Configuración
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../js/jquery.min.js"></script>
@@ -285,6 +386,18 @@ require_once 'includes/sidebar.php';
                 const metodos = b.metodos_pago || [];
                 const metodosHtml = metodos.map(m => `<span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1" style="font-size: 0.65rem;">${m}</span>`).join('');
 
+                // Badge de estado de API
+                const apiCfg = b.api_config || null;
+                let apiBadge;
+                if (apiCfg && apiCfg.habilitada) {
+                    const tipoLabel = (apiCfg.tipo || '').toUpperCase();
+                    apiBadge = `<span class="badge d-inline-flex align-items-center gap-1" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25);font-size:.68rem;"><i class="fa-solid fa-plug"></i>${tipoLabel}</span>`;
+                } else if (apiCfg && !apiCfg.habilitada) {
+                    apiBadge = `<span class="badge d-inline-flex align-items-center gap-1" style="background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.25);font-size:.68rem;"><i class="fa-solid fa-plug-circle-xmark"></i>Inactiva</span>`;
+                } else {
+                    apiBadge = `<span class="badge d-inline-flex align-items-center gap-1" style="background:rgba(251,191,36,.1);color:#d97706;border:1px solid rgba(251,191,36,.25);font-size:.68rem;"><i class="fa-solid fa-triangle-exclamation"></i>Sin API</span>`;
+                }
+
                 tr.innerHTML = `
                     <td class="ps-4 text-muted">#${b.id_banco}</td>
                     <td>
@@ -301,10 +414,14 @@ require_once 'includes/sidebar.php';
                             <input class="form-check-input" type="checkbox" role="switch" id="status_switch_${b.id_banco}" ${b.activo !== false ? 'checked' : ''} onchange="toggleBancoStatus('${b.id_banco}', this.checked)">
                         </div>
                     </td>
+                    <td class="text-center">${apiBadge}</td>
                     <td class="text-end pe-4">
                         <div class="btn-group gap-2">
                             <button class="btn btn-sm btn-glass text-primary" onclick='prepareEdit(${JSON.stringify(b)})' title="Editar">
                                 <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn btn-sm btn-glass" style="color:#8b5cf6" onclick='prepareApiConfig(${JSON.stringify(b)})' title="Configurar API">
+                                <i class="fa-solid fa-plug"></i>
                             </button>
                             <button class="btn btn-sm btn-glass text-danger" onclick="eliminarBanco('${b.id_banco}')" title="Eliminar">
                                 <i class="fa-solid fa-trash"></i>
@@ -467,6 +584,150 @@ require_once 'includes/sidebar.php';
             document.getElementById('status_switch_' + id).checked = !isChecked;
         }
     };
+
+    // ── Configuración de API ──────────────────────────────────────────────────
+
+    const ENDPOINT_PRESETS = {
+        'bdv': 'https://bdvconciliacion.banvenez.com:443/apis/bdv/consulta/movimientos',
+        // 'banesco': 'https://...',
+        // 'mercantil': 'https://...',
+    };
+
+    window.prepareApiConfig = function (banco) {
+        const cfg = banco.api_config || {};
+        document.getElementById('api_config_id_banco').value   = banco.id_banco;
+        document.getElementById('api_config_banco_nombre').textContent = banco.nombre_banco;
+        document.getElementById('api_habilitada').checked      = !!cfg.habilitada;
+        document.getElementById('api_tipo').value              = cfg.tipo     || '';
+        document.getElementById('api_key').value               = cfg.api_key  || '';
+        document.getElementById('api_cuenta').value            = cfg.cuenta   || '';
+        document.getElementById('api_titular').value           = cfg.titular  || '';
+        document.getElementById('api_endpoint').value          = cfg.endpoint || '';
+
+        // Resetear resultado de prueba
+        const testDiv = document.getElementById('api_test_result');
+        testDiv.className = 'rounded-3 p-3 d-none';
+        testDiv.innerHTML = '';
+
+        toggleApiFields();
+        new bootstrap.Modal(document.getElementById('modalApiConfig')).show();
+    };
+
+    window.toggleApiFields = function () {
+        const habilitada = document.getElementById('api_habilitada').checked;
+        document.getElementById('api_fields_wrapper').style.opacity  = habilitada ? '1' : '0.45';
+        document.getElementById('api_fields_wrapper').style.pointerEvents = habilitada ? '' : 'none';
+    };
+
+    window.autoFillEndpoint = function () {
+        const tipo = document.getElementById('api_tipo').value;
+        const preset = ENDPOINT_PRESETS[tipo] || '';
+        if (preset) document.getElementById('api_endpoint').value = preset;
+    };
+
+    window.toggleApiKeyVisibility = function () {
+        const input = document.getElementById('api_key');
+        const icon  = document.getElementById('icon_apikey');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fa-solid fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fa-solid fa-eye';
+        }
+    };
+
+    window.testApiConnection = async function () {
+        const tipo     = document.getElementById('api_tipo').value;
+        const api_key  = document.getElementById('api_key').value.trim();
+        const cuenta   = document.getElementById('api_cuenta').value.trim();
+        const endpoint = document.getElementById('api_endpoint').value.trim();
+        const testDiv  = document.getElementById('api_test_result');
+
+        if (!tipo || !api_key || !cuenta) {
+            testDiv.className = 'rounded-3 p-3';
+            testDiv.style.cssText = 'background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.35);color:#d97706;';
+            testDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation me-2"></i>Completa Tipo, API Key y Cuenta antes de probar.';
+            return;
+        }
+
+        const btn = document.getElementById('btn_test_api');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Probando...';
+        testDiv.className = 'rounded-3 p-3';
+        testDiv.style.cssText = 'background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);color:var(--text-main);';
+        testDiv.innerHTML = '<i class="fa-solid fa-satellite-dish me-2"></i>Conectando con la API...';
+
+        try {
+            const resp = await fetch('principal/test_banco_api.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tipo, api_key, cuenta, endpoint })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                testDiv.style.cssText = 'background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#16a34a;';
+                testDiv.innerHTML = `<i class="fa-solid fa-circle-check me-2"></i>${res.message}`;
+            } else {
+                testDiv.style.cssText = 'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#dc2626;';
+                testDiv.innerHTML = `<i class="fa-solid fa-circle-xmark me-2"></i>${res.message}`;
+            }
+        } catch (e) {
+            testDiv.style.cssText = 'background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#dc2626;';
+            testDiv.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Error de red al contactar el servidor.';
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-satellite-dish me-2"></i>Probar Conexión';
+    };
+
+    $('#form-api-config').on('submit', async function (e) {
+        e.preventDefault();
+        const habilitada = document.getElementById('api_habilitada').checked;
+
+        if (habilitada) {
+            const tipo   = document.getElementById('api_tipo').value;
+            const apiKey = document.getElementById('api_key').value.trim();
+            const cuenta = document.getElementById('api_cuenta').value.trim();
+            if (!tipo || !apiKey || !cuenta) {
+                Swal.fire('Campos requeridos', 'Tipo, API Key y Cuenta son obligatorios cuando la API está habilitada.', 'warning');
+                return;
+            }
+        }
+
+        const proceeds = await solicitarClaveAdmin('Guardar Configuración de API');
+        if (!proceeds) return;
+
+        const formData = new FormData(this);
+        formData.set('api_habilitada', habilitada ? '1' : '0');
+
+        try {
+            const resp = await fetch(API_URL + '?action=save_api_config', {
+                method: 'POST',
+                body: formData
+            });
+            const res = await resp.json();
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Configuración guardada!',
+                    text: habilitada
+                        ? 'La API ha sido habilitada. Los pagos de este banco se verificarán automáticamente.'
+                        : 'La API ha sido deshabilitada para este banco.',
+                    timer: 3500,
+                    showConfirmButton: false,
+                });
+                bootstrap.Modal.getInstance(document.getElementById('modalApiConfig')).hide();
+                cargarBancos(currentPage);
+            } else {
+                Swal.fire('Error', res.message || 'Error al guardar', 'error');
+            }
+        } catch (err) {
+            Swal.fire('Error', 'No se pudo conectar con el servidor.', 'error');
+        }
+    });
+
+    // ─────────────────────────────────────────────────────────────────────────
 
     window.eliminarBanco = async function (id) {
         const proceeds = await solicitarClaveAdmin('Eliminar Banco');

@@ -1,11 +1,16 @@
 <?php
-// paginas/principal/consultar_bdv_api.php
-// Endpoint AJAX para el panel admin de conciliación.
-// Recibe: { fecha_inicio, fecha_fin, cuenta? }  via POST JSON
-// Devuelve: JSON con movimientos normalizados listos para el grid de conciliación.
+/**
+ * consultar_bdv_api.php
+ * Endpoint AJAX para el panel admin de conciliación.
+ *
+ * Recibe via POST JSON: { fecha_inicio, fecha_fin, id_banco? }
+ * Devuelve: JSON con movimientos normalizados listos para el grid de conciliación.
+ *
+ * Si no se pasa id_banco, usa el primer banco BDV habilitado en bancos.json.
+ */
 
 require_once '../conexion.php';
-require_once 'bdv_api_helper.php';
+require_once 'banco_api_router.php'; // router genérico (incluye bdv_api_helper)
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -18,15 +23,29 @@ $input = json_decode(file_get_contents('php://input'), true);
 
 $fecha_inicio = trim($input['fecha_inicio'] ?? '');
 $fecha_fin    = trim($input['fecha_fin']    ?? '');
-$cuenta       = trim($input['cuenta']       ?? BDV_CUENTA_DEFECTO);
+$id_banco     = $input['id_banco'] ?? null;
 
 if (empty($fecha_inicio) || empty($fecha_fin)) {
     echo json_encode(['success' => false, 'message' => 'Se requieren fecha_inicio y fecha_fin.']);
     exit;
 }
 
-// Llamar a la API
-$resultado = consultar_movimientos_bdv($cuenta, $fecha_inicio, $fecha_fin);
+// Si no se especificó banco, usar el primer BDV habilitado
+if (empty($id_banco)) {
+    $ids_bdv = obtener_ids_banco_con_api('bdv');
+    $id_banco = $ids_bdv[0] ?? null;
+}
+
+if (empty($id_banco)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'No hay ningún banco con API BDV habilitada configurada. Por favor configure la API en Gestión de Bancos.',
+    ]);
+    exit;
+}
+
+// Consultar vía router genérico
+$resultado = consultar_movimientos_banco($id_banco, $fecha_inicio, $fecha_fin);
 
 if (!$resultado['success']) {
     echo json_encode([
@@ -40,7 +59,6 @@ if (!$resultado['success']) {
 $movs = $resultado['movs'];
 
 // Normalizar los movimientos al formato que espera el grid de conciliacion.php
-// (keys: Fecha, Referencia, Descripción, Tipo, Importe, Observación)
 $movs_norm = array_map(function($m) {
     return [
         'Fecha'        => $m['fecha']       ?? '',
