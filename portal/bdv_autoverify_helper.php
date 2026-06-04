@@ -94,6 +94,12 @@ function verificar_y_aprobar_pago_bdv(
     $fecha_ini  = date('Y-m-d', strtotime('-1 day', $ts));
     $fecha_fin  = date('Y-m-d', strtotime('+1 day', $ts));
 
+    // Evitar que la fecha fin sea en el futuro, ya que la API de BDV lo rechaza
+    $hoy = date('Y-m-d');
+    if ($fecha_fin > $hoy) {
+        $fecha_fin = $hoy;
+    }
+
     $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
 
     if (!$resultado['success'] || empty($resultado['movs'])) {
