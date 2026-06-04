@@ -37,11 +37,6 @@ if (!$contrato) {
 $deuda = floatval($contrato['deuda_mensualidades'] ?? 0);
 $monto_plan = floatval($contrato['monto_plan']);
 
-if ($cedula === 'V99999999') {
-    $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-    $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-}
-
 // Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
@@ -65,6 +60,11 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
         }
     }
     curl_close($ch);
+}
+
+if ($cedula === 'V99999999') {
+    $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+    $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
 
 // Bancos
