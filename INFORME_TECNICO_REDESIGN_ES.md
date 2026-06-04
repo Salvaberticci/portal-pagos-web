@@ -81,9 +81,8 @@ Todos los cambios se han comprometido y enviado al repositorio remoto y están a
 
 ---
 
-## 7. Pruebas y Validación
+## 7. Pruebas y Validación**Tests Unitarios/Integración:** 25 pruebas pasan validando el recorrido completo de pago.
 
-- **Tests Unitarios/Integración:** 25 pruebas pasan validando el recorrido completo de pago.
 - **QA Manual:** Verificado UI en Chrome, Firefox y Edge en modos claro y oscuro.
 - **Rendimiento:** Tiempo de carga medio bajo **1.5 s** (simulación 3G).
 
