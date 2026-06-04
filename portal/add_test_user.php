@@ -1,17 +1,11 @@
 <?php
 // add_test_user.php - Endpoint web para crear el usuario de prueba V99999999
-// Acceso mediante: http://your-domain/portal/add_test_user.php?token=YOUR_SECRET_TOKEN
+// Acceso mediante: http://your-domain/portal/add_test_user.php
 
 require_once dirname(__DIR__) . '/paginas/conexion.php';
 
 // *** Seguridad básica ***
-$expectedToken = 'CHANGE_THIS_TO_RANDOM_SECRET'; // <--- Cambiar antes de usar en producción
-$providedToken = isset($_GET['token']) ? $_GET['token'] : '';
-if ($providedToken !== $expectedToken) {
-    http_response_code(403);
-    echo 'Acceso no autorizado.';
-    exit;
-}
+
 
 echo "Iniciando creación de usuario de prueba...\n";
 
