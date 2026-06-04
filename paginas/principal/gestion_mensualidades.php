@@ -231,6 +231,33 @@ if ($planes_query) {
         border-radius: 8px 8px 0 0;
         margin-bottom: -1px;
     }
+
+    /* Estilo para el selector de Estado SAE Plus */
+    .sae-status-select {
+        min-width: 130px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 4px 24px 4px 8px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        background-color: var(--card-bg, #ffffff);
+        border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+    .sae-status-select.text-success {
+        border-color: #198754;
+        color: #198754 !important;
+        background-color: rgba(25, 135, 84, 0.05);
+    }
+    .sae-status-select.text-danger {
+        border-color: #dc3545;
+        color: #dc3545 !important;
+        background-color: rgba(220, 53, 69, 0.05);
+    }
+    .sae-status-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+    }
 </style>
 
 <main class="main-content">
