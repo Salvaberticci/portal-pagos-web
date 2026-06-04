@@ -115,7 +115,7 @@ function buscar_movimiento_en_bancos(
     string $fechaFin,
     string $referencia,
     float  $monto_bs,
-    float  $tolerancia = 1.00
+    float  $tolerancia = 0.10
 ): ?array {
     // Obtener IDs de bancos con API habilitada del tipo dado
     $ids = obtener_ids_banco_con_api($tipo);

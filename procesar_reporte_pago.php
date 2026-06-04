@@ -121,10 +121,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $concepto
         );
 
-        if ($auto_aprobado) {
-            $mensaje_exito = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! "
+    // After auto verification attempt
+    if (isset($auto_aprobado) && $auto_aprobado) {
+        // Auto-approval succeeded, $mensaje_exito already set earlier.
+        $mensaje_exito = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! "
                 . "Tu servicio ha sido actualizado al instante. Referencia: <strong>" . htmlspecialchars($referencia) . "</strong>.";
+    } else {
+        // No auto‑approval: set pending message with specific reason
+        $razon = $GLOBALS['bdv_falla_motivo'] ?? "la referencia o el monto no coinciden con los datos del banco";
+        $mensaje_pendiente = "🔔 Pago pendiente de revisión: $razon. Nuestro equipo lo verificará manualmente.";
+        $mensaje_exito = $mensaje_pendiente;
+        // Update DB with pending reason for manual review
+        $sql_update = "UPDATE pagos_reportados SET motivo_rechazo = ? WHERE id_reporte = ?";
+        $stmt_upd = $conn->prepare($sql_update);
+        if ($stmt_upd) {
+            $motivo = $razon;
+            $stmt_upd->bind_param("si", $motivo, $id_reporte_nuevo);
+            $stmt_upd->execute();
+            $stmt_upd->close();
         }
+    }
     }
 
     $conn->close();
@@ -172,15 +188,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <body>
     <div class="card success-card p-4 text-center">
-        <?php if (isset($mensaje_exito)): ?>
-            <div class="icon-box"><i class="fas fa-check"></i></div>
-            <h3 class="fw-bold mb-3 text-success">Envío Exitoso</h3>
-            <p class="text-muted">
-                <?php echo $mensaje_exito; ?>
-            </p>
-            <hr>
-            <a href="reportar_pago.php" class="btn btn-primary">Reportar otro pago</a>
-        <?php else: ?>
+<?php if (isset($mensaje_exito)): ?>
+    <div class="icon-box <?php echo (isset($auto_aprobado) && $auto_aprobado) ? '' : 'bg-warning-subtle text-warning'; ?>">
+        <i class="fas <?php echo (isset($auto_aprobado) && $auto_aprobado) ? 'fa-check' : 'fa-exclamation-triangle'; ?>"></i>
+    </div>
+    <h3 class="fw-bold mb-3 <?php echo (isset($auto_aprobado) && $auto_aprobado) ? 'text-success' : 'text-warning'; ?>"><?php echo (isset($auto_aprobado) && $auto_aprobado) ? 'Envío Exitoso' : 'Pago Pendiente'; ?></h3>
+    <p class="text-muted" id="msg-box">
+        <?php echo $mensaje_exito; ?>
+    </p>
+    <hr>
+    <a href="reportar_pago.php" class="btn btn-primary">Reportar otro pago</a>
+    <script>
+        // Hide the message after 5 seconds
+        setTimeout(() => {
+            const box = document.getElementById('msg-box');
+            if (box) box.style.transition = 'opacity 0.5s';
+            if (box) box.style.opacity = '0';
+        }, 5000);
+    </script>
+<?php else: ?>
             <div class="icon-box bg-danger-subtle text-danger"><i class="fas fa-times"></i></div>
             <h3 class="fw-bold mb-3 text-danger">Error</h3>
             <p class="text-muted">

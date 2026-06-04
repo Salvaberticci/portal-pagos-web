@@ -54,6 +54,8 @@ function verificar_y_aprobar_pago_bdv(
     string $concepto      = 'Pago de mensualidad'
 ): bool {
 
+    $GLOBALS['bdv_falla_motivo'] = "Pendiente de validación.";
+
     // Solo proceder si el banco tiene una API habilitada configurada
     $api_cfg = obtener_config_api_banco($id_banco);
     if ($api_cfg === null) {
@@ -108,18 +110,52 @@ function verificar_y_aprobar_pago_bdv(
         return false;
     }
 
-    // Buscar el movimiento que coincida con la referencia y el monto
-    // Usar el buscador según el tipo de API del banco
-    $movimiento = null;
-    $api_tipo = $api_cfg['tipo'] ?? 'bdv';
-    if ($api_tipo === 'bdv') {
-        $movimiento = buscar_movimiento_bdv($resultado['movs'], $referencia, $monto_bs);
+    // Buscar movimiento por referencia de manera flexible
+    $mov_ref = null;
+    $ref_user_clean = preg_replace('/\D/', '', $referencia);
+    // Si la referencia del cliente tiene más de 8 dígitos, tomar únicamente los últimos 8 dígitos
+    if (strlen($ref_user_clean) > 8) {
+        $ref_user_clean = substr($ref_user_clean, -8);
     }
+    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
+    $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
 
-    if (!$movimiento) {
-        error_log('[BDV AutoVerify] No se encontró movimiento matching. Ref=' . $referencia . ' MontoBs=' . $monto_bs);
+    foreach ($resultado['movs'] as $mov) {
+        // Asegurar que solo consideramos transacciones tipo CRÉDITO (abonos de pago)
+        $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
+        if ($tipo !== 'CREDITO') {
+            continue;
+        }
+
+        if (isset($mov['referencia'])) {
+            $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
+            $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
+            $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
+
+            if (
+                $ref_banco_clean === $ref_user_clean ||
+                ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
+                ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
+            ) {
+                $mov_ref = $mov;
+                break;
+            }
+        }
+    }
+    if (!$mov_ref) {
+        // No match by reference
+        $GLOBALS['bdv_falla_motivo'] = "La referencia no coincide con los registros del banco.";
         return false;
     }
+    // Verificar monto (puede venir en 'importe' o 'monto' y contener formato con comas)
+    $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
+    $monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
+    if (abs($monto_mov - $monto_bs) > 0.01) { // tolerancia 0.01 Bs
+        $GLOBALS['bdv_falla_motivo'] = "El monto ingresado no coincide con el registrado en el banco.";
+        return false;
+    }
+    // Si llegamos aquí, usar la referencia encontrada como movimiento
+    $movimiento = $mov_ref;
 
     // ─── Match encontrado → aprobar automáticamente ───────────────────────────
     $justificacion = "[MENSUALIDAD] Auto-aprobado por API BDV. "
@@ -165,6 +201,11 @@ function verificar_y_aprobar_pago_bdv(
         }
 
         $conn->commit();
+
+        if (function_exists('log_security_event')) {
+            $cedula_log = $row_rep['cedula_titular'] ?? null;
+            log_security_event('PAYMENT_AUTO_APPROVED', "Pago verificado y aprobado automáticamente por API. Reporte #$id_reporte, Ref: $referencia, Monto: $monto_bs Bs", $cedula_log);
+        }
 
         // 4. Eliminar el capture del disco (ya aprobado por la API, no es necesario conservarlo)
         if (!empty($capture_path)) {

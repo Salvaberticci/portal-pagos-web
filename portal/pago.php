@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once 'security_helper.php';
+enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
     header('Location: index.php');
     exit;
@@ -94,6 +95,7 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
     <div class="container py-4" style="margin-bottom: 120px;">
         <form id="paymentForm" action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
             <input type="hidden" name="id_contrato" value="<?php echo $id_contrato; ?>">
             <input type="hidden" name="tasa_dolar" value="<?php echo $tasa_bcv; ?>">
             <input type="hidden" name="monto_usd" id="input_monto_usd" value="">

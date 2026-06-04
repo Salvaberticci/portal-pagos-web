@@ -238,10 +238,18 @@ if ($stmt_last) {
         </div>
 
         <?php if (isset($_SESSION['pago_msg'])): ?>
-            <div class="alert alert-success glass-panel mb-4">
-                <i class="fas fa-check-circle me-2"></i> <?php echo $_SESSION['pago_msg']; unset($_SESSION['pago_msg']); ?>
+            <div class="alert alert-success glass-panel mb-4" id="alert-pago-ok">
+                <i class="fas fa-check-circle me-2"></i>
+                <?php echo $_SESSION['pago_msg']; unset($_SESSION['pago_msg']); ?>
             </div>
+            <script>
+                setTimeout(() => {
+                    const a = document.getElementById('alert-pago-ok');
+                    if (a) { a.style.transition = 'opacity 0.6s'; a.style.opacity = '0'; setTimeout(() => a.remove(), 650); }
+                }, 6000);
+            </script>
         <?php endif; ?>
+        <?php if (isset($_SESSION['pago_pendiente'])) { unset($_SESSION['pago_pendiente']); } ?>
         <?php if (isset($_SESSION['pago_err'])): ?>
             <div class="alert alert-danger glass-panel mb-4">
                 <i class="fas fa-times-circle me-2"></i> <?php echo $_SESSION['pago_err']; unset($_SESSION['pago_err']); ?>
@@ -281,18 +289,31 @@ if ($stmt_last) {
                 <?php foreach ($pagos_recientes as $pago): ?>
                     <?php if ($pago['estado'] === 'PENDIENTE'): ?>
                         <div class="glass-panel p-3 mb-2 border-start border-warning border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(245, 158, 11, 0.05);">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-warning bg-opacity-10 p-2 me-3">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="rounded-circle bg-warning bg-opacity-10 p-2 mt-1 flex-shrink-0">
                                         <i class="fas fa-clock text-warning"></i>
                                     </div>
                                     <div>
-                                        <div class="fw-bold text-main">Pago en revisión (Ref: <?php echo $pago['referencia']; ?>)</div>
-                                        <div class="small text-muted">Estamos verificando tu reporte de $<?php echo number_format($pago['monto_usd'], 2); ?>.</div>
+                                        <div class="fw-bold text-main mb-1">
+                                            Pago en revisión &mdash; Ref: <span class="text-warning"><?php echo htmlspecialchars($pago['referencia']); ?></span>
+                                        </div>
+                                        <div class="small text-muted mb-1">
+                                            Monto: <strong>$<?php echo number_format($pago['monto_usd'], 2); ?></strong>
+                                            &nbsp;&bull;&nbsp; Fecha: <?php echo date('d/m/Y', strtotime($pago['fecha_pago'])); ?>
+                                        </div>
+                                        <?php if (!empty($pago['motivo_rechazo'])): ?>
+                                            <div class="small mt-1" style="color: #f59e0b;">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                <strong>Motivo:</strong> <?php echo htmlspecialchars($pago['motivo_rechazo']); ?>
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="small text-muted mt-1">Tu pago está siendo verificado por nuestro equipo.</div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
-                                <div class="d-flex align-items-center">
-                                    <div class="badge bg-warning text-dark me-2">PENDIENTE</div>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                    <div class="badge bg-warning text-dark">PENDIENTE</div>
                                     <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
                                 </div>
                             </div>

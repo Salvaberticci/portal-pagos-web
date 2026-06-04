@@ -1,6 +1,6 @@
 <?php
 // portal/procesar_pago_cliente.php
-session_start();
+require_once 'security_helper.php';
 if (!isset($_SESSION['cliente_cedula'])) {
     header('Location: index.php');
     exit;
@@ -16,9 +16,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fecha_pago       = $conn->real_escape_string($_POST['fecha_pago']);
     $metodo_pago      = $conn->real_escape_string($_POST['metodo_pago']);
     $id_banco_destino = isset($_POST['id_banco_destino']) ? intval($_POST['id_banco_destino']) : null;
-    $referencia       = isset($_POST['referencia']) ? $conn->real_escape_string($_POST['referencia']) : '';
+    $referencia       = isset($_POST['referencia']) ? trim($_POST['referencia']) : '';
     $concepto         = "Pago de mensualidad por portal";
     $id_contrato_asociado = isset($_POST['id_contrato']) ? intval($_POST['id_contrato']) : null;
+
+    // 1. Rate Limiting (5 reportes por 10 minutos)
+    if (!check_rate_limit('payment_submit', 5, 600)) {
+        log_security_event('RATE_LIMIT_EXCEEDED', 'Intento de reporte de pago bloqueado por exceso de peticiones', $cedula);
+        $_SESSION['pago_err'] = "Has enviado demasiados reportes de pago en poco tiempo. Por favor, espera unos minutos antes de intentar de nuevo.";
+        header('Location: dashboard.php');
+        exit;
+    }
+
+    // 2. CSRF Verification
+    $csrf_token = isset($_POST['csrf_token']) ? $_POST['csrf_token'] : '';
+    if (!verify_csrf_token($csrf_token)) {
+        log_security_event('CSRF_VIOLATION', 'Fallo de verificación CSRF al reportar pago', $cedula);
+        $_SESSION['pago_err'] = "Petición de seguridad inválida. Por favor, recarga el asistente de pagos.";
+        header('Location: dashboard.php');
+        exit;
+    }
+
+    // 3. Strict Input Validation (Referencia)
+    $referencia_clean = preg_replace('/[^a-zA-Z0-9]/', '', $referencia);
+    if (empty($referencia_clean) || strlen($referencia_clean) < 6) {
+        log_security_event('VALIDATION_FAILED', "La referencia de pago no es válida: '$referencia'", $cedula);
+        $_SESSION['pago_err'] = "La referencia de pago debe ser alfanumérica y tener al menos 6 caracteres.";
+        header('Location: dashboard.php');
+        exit;
+    }
+    $referencia = $conn->real_escape_string($referencia_clean);
 
     // Meses a pagar
     $meses_adelanto = isset($_POST['meses_adelanto']) ? intval($_POST['meses_adelanto']) : 0;
@@ -43,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validaciones
     if (empty($metodo_pago) || empty($referencia) || empty($id_banco_destino)) {
+        log_security_event('VALIDATION_FAILED', 'Campos requeridos faltantes al reportar pago', $cedula);
         $_SESSION['pago_err'] = "Método de Pago, Banco y Referencia son obligatorios.";
         header('Location: dashboard.php');
         exit;
@@ -98,8 +126,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmt->execute()) {
             $id_reporte_nuevo = $conn->insert_id;
+            log_security_event('PAYMENT_SUBMITTED', "Pago reportado. ID Reporte: $id_reporte_nuevo, Ref: $referencia, Banco: $id_banco_destino, Monto: $monto_bs Bs / $monto_usd USD", $cedula);
         } else {
-            $_SESSION['pago_err'] = "Error en base de datos: " . $stmt->error;
+            log_security_event('DATABASE_ERROR', "Error insertando reporte de pago: " . $stmt->error, $cedula);
+            $_SESSION['pago_err'] = "Error en base de datos al reportar el pago.";
             $stmt->close();
             $conn->close();
             header('Location: dashboard.php');
@@ -107,7 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $stmt->close();
     } else {
-        $_SESSION['pago_err'] = "Error preparando la consulta.";
+        log_security_event('DATABASE_ERROR', "Error preparando consulta de reporte de pago", $cedula);
+        $_SESSION['pago_err'] = "Error de sistema al procesar el reporte.";
         $conn->close();
         header('Location: dashboard.php');
         exit;
@@ -133,11 +164,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Mensaje al cliente según resultado
     if ($auto_aprobado) {
+        log_security_event('PAYMENT_AUTO_APPROVED', "Pago verificado automáticamente por API. Ref: $referencia, Monto: $monto_bs Bs", $cedula);
+        // Pago aprobado automáticamente: mensaje verde
         $_SESSION['pago_msg'] = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! "
             . "Tu servicio ha sido actualizado al instante. Referencia: <strong>$referencia</strong>.";
+        unset($_SESSION['pago_pendiente']);
     } else {
-        $_SESSION['pago_msg'] = "Tu pago ha sido reportado exitosamente. "
-            . "En breve será verificado por administración.";
+        // Pago quedó pendiente: mensaje amarillo con motivo específico
+        $razon = $GLOBALS['bdv_falla_motivo'] ?? 'La referencia o el monto no coinciden con los registros del banco.';
+        log_security_event('PAYMENT_PENDING', "Pago enviado a revisión manual. Ref: $referencia, Monto: $monto_bs Bs. Motivo: $razon", $cedula);
+        $_SESSION['pago_pendiente'] = "⏳ Tu pago está <strong>en revisión manual</strong>. Motivo: $razon Nuestro equipo lo verificará a la brevedad.";
+        unset($_SESSION['pago_msg']);
+
+        // Guardar motivo en la base de datos
+        if ($id_reporte_nuevo > 0) {
+            $sql_motivo = "UPDATE pagos_reportados SET motivo_rechazo = ? WHERE id_reporte = ?";
+            $stmt_m = $conn->prepare($sql_motivo);
+            if ($stmt_m) {
+                $stmt_m->bind_param('si', $razon, $id_reporte_nuevo);
+                $stmt_m->execute();
+                $stmt_m->close();
+            }
+        }
     }
 
     $conn->close();

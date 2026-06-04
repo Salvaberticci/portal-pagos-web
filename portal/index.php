@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once 'security_helper.php';
+enforce_https();
 if (isset($_SESSION['cliente_cedula'])) {
     header('Location: dashboard.php');
     exit;
@@ -43,6 +44,7 @@ if (isset($_SESSION['cliente_cedula'])) {
             <?php endif; ?>
 
             <form action="auth.php" method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <div class="mb-4 text-start">
                     <label class="label-premium">Ingresa tu Cédula</label>
                     <div class="input-group">

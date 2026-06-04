@@ -194,7 +194,7 @@ function consultar_movimientos_bdv(
  *
  * @return array|null  El movimiento encontrado o null si no hay match.
  */
-function buscar_movimiento_bdv(array $movimientos, string $referencia, float $monto_bs, float $tolerancia = 1.00): ?array
+function buscar_movimiento_bdv(array $movimientos, string $referencia, float $monto_bs, float $tolerancia = 0.10): ?array
 {
     $ref_limpia = preg_replace('/\D/', '', $referencia);
     $ref_6 = strlen($ref_limpia) >= 6 ? substr($ref_limpia, -6) : $ref_limpia;

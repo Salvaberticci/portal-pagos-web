@@ -739,11 +739,22 @@ require_once '../includes/sidebar.php';
 
             let matched = false;
             for (let r = 0; r < bankData.length; r++) {
-                let cellValue = colRef ? String(bankData[r][colRef]).trim() : Object.values(bankData[r]).join(" ");
+                let row = bankData[r];
+
+                // Ignorar débitos o egresos (comisiones)
+                let movTipo = String(row['Tipo'] || row['mov'] || '').toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                let importeRaw = String(row['Importe'] || row['importe'] || row['Monto'] || row['monto'] || '0');
+                let importeVal = parseFloat(importeRaw.replace(/[^\d.-]/g, '').replace(',', '.'));
+                
+                if (movTipo === 'DEBITO' || movTipo === 'EGRESO' || (!isNaN(importeVal) && importeVal < 0)) {
+                    continue;
+                }
+
+                let cellValue = colRef ? String(row[colRef]).trim() : Object.values(row).join(" ");
                 if (cellValue.indexOf(cleanToken) !== -1) {
                     matched = true;
                     // Guardar ref y row data para "Verificar" botón
-                    foundRefs.push({ ref: cleanToken, row: bankData[r] });
+                    foundRefs.push({ ref: cleanToken, row: row });
                     break;
                 }
             }
@@ -844,6 +855,16 @@ require_once '../includes/sidebar.php';
 
             for (let r = 0; r < bankData.length; r++) {
                 let row = bankData[r];
+
+                // Ignorar débitos o egresos (comisiones)
+                let movTipo = String(row['Tipo'] || row['mov'] || '').toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                let importeRaw = String(row['Importe'] || row['importe'] || row['Monto'] || row['monto'] || '0');
+                let importeVal = parseFloat(importeRaw.replace(/[^\d.-]/g, '').replace(',', '.'));
+                
+                if (movTipo === 'DEBITO' || movTipo === 'EGRESO' || (!isNaN(importeVal) && importeVal < 0)) {
+                    continue;
+                }
+
                 let cellValue = "";
 
                 if (colRef) {

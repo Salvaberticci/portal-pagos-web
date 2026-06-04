@@ -44,7 +44,7 @@
         "metodos_pago": [
             "Zelle"
         ],
-        "activo": false
+        "activo": true
     },
     {
         "id_banco": "8",
@@ -61,7 +61,7 @@
     {
         "id_banco": "9",
         "nombre_banco": "Banco de Venezuela (Pago Móvil)",
-        "numero_cuenta": "04247040713",
+        "numero_cuenta": "04247377954",
         "cedula_propietario": "J 408882540",
         "nombre_propietario": "SITELCO C.A.",
         "metodos_pago": [
@@ -74,7 +74,7 @@
             "api_key": "650D973744E70DFD936382F9B734405A",
             "cuenta": "01020589150000001371",
             "titular": "SITELCO C.A.",
-            "endpoint": "https://bdvconciliacion.banvenez.com:443/apis/bdv/consulta/movimientos"
+            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos"
         }
     },
     {
@@ -93,7 +93,7 @@
             "api_key": "650D973744E70DFD936382F9B734405A",
             "cuenta": "01020589150000001371",
             "titular": "SITELCO C.A.",
-            "endpoint": "https://bdvconciliacion.banvenez.com:443/apis/bdv/consulta/movimientos"
+            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos"
         }
     },
     {
@@ -106,7 +106,7 @@
             "Efectivo",
             "Divisas"
         ],
-        "activo": true
+        "activo": false
     },
     {
         "id_banco": "11",
@@ -117,6 +117,6 @@
         "metodos_pago": [
             "Efectivo"
         ],
-        "activo": true
+        "activo": false
     }
 ]
