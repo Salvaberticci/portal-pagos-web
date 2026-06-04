@@ -99,3 +99,45 @@ Todos los cambios están **pushed** a la rama `master` y disponibles en el servi
 ---
 
 *Informe generado automáticamente por el asistente Antigravity AI.*
+
+---
+
+## 9. Creación del usuario de pruebas V99999999 vía endpoint web
+
+Para facilitar pruebas y demostraciones, se añadió un **endpoint público** que genera automáticamente el contrato y la cuenta por cobrar de prueba con cédula `V99999999`.  El script está ubicado en `portal/add_test_user.php` y **no requiere token**; basta con acceder a la URL:
+
+```
+http://<DOMINIO>/portal/add_test_user.php
+```
+
+### Qué hace el endpoint
+- Verifica si ya existe un contrato con la cédula `V99999999`.
+- Si no existe, lo crea con los siguientes datos:
+  - Nombre: *USUARIO DE PRUEBA (1 BS)*
+  - Plan: *4* (monto 17,50 BS)
+  - Dirección de prueba, teléfono `04120000000`, estado *ACTIVO*.
+- Comprueba si el contrato tiene una cuenta por cobrar en estado **PENDIENTE**.
+- Si no la tiene, inserta una cuenta por cobrar de **17,50 BS** en estado *PENDIENTE*.
+- Devuelve mensajes de texto claros indicando cada paso y el ID generado.
+
+### Propósito para el cliente
+- Permite crear rápidamente un registro de cliente completo para pruebas de pagos, integración BDV y flujos UI.
+- Evita la necesidad de manipular directamente la base de datos.
+- El usuario de pruebas tiene un límite de pago de **1 BS** (configurado en el commit `5f89fd1`), lo que garantiza que cualquier intento de pago supera ese límite y es rechazado, facilitando pruebas de validación.
+
+### Seguridad y consideraciones
+- El endpoint está pensado **solo para entornos de staging/demo**.  En producción se recomienda volver a habilitar una protección (token, whitelist de IP, autenticación).
+- La URL está expuesta, pero la operación solo inserta datos estáticos y no afecta a usuarios reales.
+- Se incluye una breve nota en el código `// *** Seguridad básica ***` (comentada) para recordar volver a protegerlo si se despliega a producción.
+
+### Verificación
+- Después de acceder a la URL, el navegador muestra mensajes como:
+  - `Iniciando creación de usuario de prueba...`
+  - `El contrato de prueba con Cédula V99999999 ya existe (ID: 123).` **ó** `Contrato de prueba creado exitosamente (ID: 124).`
+  - `Cuenta por cobrar PENDIENTE creada exitosamente para el contrato de prueba.`
+  - `Proceso completado.`
+- Se puede confirmar en la base de datos (`SELECT * FROM contratos WHERE cedula='V99999999';`).
+
+---
+
+*Informe actualizado el 2026‑06‑04 para incluir el nuevo endpoint de usuario de pruebas.*
