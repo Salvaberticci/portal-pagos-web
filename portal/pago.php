@@ -37,6 +37,11 @@ if (!$contrato) {
 $deuda = floatval($contrato['deuda_mensualidades'] ?? 0);
 $monto_plan = floatval($contrato['monto_plan']);
 
+if ($cedula === 'V99999999') {
+    $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+    $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+}
+
 // Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
@@ -97,6 +102,12 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
             <!-- PASO 1: Selección de Monto -->
             <div class="wizard-step active" id="step-1">
+                <?php if ($cedula === 'V99999999'): ?>
+                    <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px; font-size: 0.9rem;">
+                        <i class="fas fa-info-circle me-2 text-info"></i>
+                        Usuario de prueba: Se muestran montos demo de Bs. 1.00, Bs. 2.00 y Bs. 4.00.
+                    </div>
+                <?php endif; ?>
                 <h3 class="mb-4">¿Cuánto quieres pagar hoy?</h3>
                 <div class="selection-card" onclick="selectAmount(<?php echo $deuda; ?>, 0, this)">
                     <div class="d-flex align-items-center">

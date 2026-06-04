@@ -64,6 +64,10 @@ if ($stmt) {
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
         $row['deuda_mensualidades'] = floatval($row['deuda_mensualidades'] ?? 0);
+        if ($cedula === 'V99999999') {
+            $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+            $row['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+        }
         $row['nombre_plan'] = $row['nombre_plan'] ?: 'Plan Básico';
         
         // Cargar últimos 5 pagos para este contrato
@@ -198,6 +202,14 @@ if ($stmt_last) {
     </header>
 
     <div class="container main-container animate-fade">
+        <?php if ($cedula === 'V99999999'): ?>
+            <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px;">
+                <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px; color: #bae6fd;">
+                    <i class="fas fa-info-circle me-2 text-info"></i> 
+                    MODO DE PRUEBA: Iniciaste sesión como usuario de prueba. Todos tus pagos serán facturados a exactamente <span class="text-info fs-5">Bs. 1,00</span> para pruebas de la API.
+                </p>
+            </div>
+        <?php endif; ?>
         <div class="d-flex justify-content-between align-items-end mb-4">
             <div>
                 <h2 class="mb-1 text-gradient">Gestión de Mensualidades</h2>
