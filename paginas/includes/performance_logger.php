@@ -1,17 +1,14 @@
 <?php
 /**
  * Performance Logger - Mide y registra el tiempo de ejecución de cada petición.
- * Incluir al inicio de cualquier página: require_once 'includes/performance_logger.php';
- * Crea automáticamente la tabla 'performance_logs' si no existe.
+ * Se incluye automáticamente desde layout_head.php.
+ * Crea la tabla 'performance_logs' si no existe.
  */
 
-// --- Configuración ---
 define('PERF_LOG_ENABLED', true);
-define('PERF_LOG_SLOW_THRESHOLD', 2.0); // segundos - peticiones lentas se marcan
-define('PERF_LOG_QUERY_SLOW', 1.0);     // segundos - consultas SQL lentas
-define('PERF_LOG_MAX_SAMPLE_QUERY', 200); // chars máximos para guardar una consulta
+define('PERF_LOG_SLOW_THRESHOLD', 2.0);
+define('PERF_LOG_MAX_SAMPLE_QUERY', 200);
 
-// Solo en páginas del admin
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -22,16 +19,20 @@ if (!isset($_SESSION['usuario_id'])) {
 $perf_start_time = microtime(true);
 $perf_start_memory = memory_get_usage();
 $perf_queries = [];
-$perf_include_start = 0;
 
-// Interceptar consultas SQL lentas guardando el original mysqli_query
-if (!defined('PERF_MYSQLI_WRAPPED') && PERF_LOG_ENABLED) {
-    define('PERF_MYSQLI_WRAPPED', true);
+if (!defined('PERF_LOGGER_ACTIVE') && PERF_LOG_ENABLED) {
+    define('PERF_LOGGER_ACTIVE', true);
 
-    // Solo wrappear si existe $conn (conexión global)
+    // Asegurar que $conn exista incluyendo conexion.php si hace falta
     global $conn;
+    if (!$conn) {
+        $connFile = dirname(__DIR__, 2) . '/conexion.php';
+        if (file_exists($connFile)) {
+            @require_once $connFile;
+        }
+    }
 
-    // Crear la tabla si no existe (se ejecuta una sola vez)
+    // Crear tabla si no existe
     $create_sql = "CREATE TABLE IF NOT EXISTS performance_logs (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         usuario_id INT UNSIGNED NULL,
@@ -52,64 +53,21 @@ if (!defined('PERF_MYSQLI_WRAPPED') && PERF_LOG_ENABLED) {
         INDEX idx_url (url(100))
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
-    // Conexión directa para evitar dependencia
-    try {
-        $perf_db_host = $hostname ?? 'localhost';
-        $perf_db_user = $username ?? 'root';
-        $perf_db_pass = $password ?? '';
-        $perf_db_name = $database ?? 'tecnico-administrativo-wirelessdb';
-
-        $perf_conn = mysqli_connect($perf_db_host, $perf_db_user, $perf_db_pass, $perf_db_name);
-        if ($perf_conn) {
-            $perf_conn->set_charset("utf8mb4");
-            mysqli_query($perf_conn, $create_sql);
-            define('PERF_DB_CONN', $perf_conn);
-        }
-    } catch (Throwable $e) {
-        // Silencio - no romper la app si falla la conexión de logging
-        define('PERF_DB_CONN', null);
+    if ($conn) {
+        @$conn->query($create_sql);
     }
 }
 
-/**
- * Registrar una consulta SQL para medir su duración.
- * Llamar antes/después de cada mysqli_query.
- */
-function perf_start_query($sql) {
-    global $perf_queries;
-    if (!defined('PERF_DB_CONN') || !PERF_DB_CONN) return;
-    $perf_queries[] = [
-        'sql' => mb_substr($sql, 0, PERF_LOG_MAX_SAMPLE_QUERY),
-        'start' => microtime(true),
-        'time' => 0
-    ];
-}
-
-function perf_end_query() {
-    global $perf_queries;
-    if (!defined('PERF_DB_CONN') || !PERF_DB_CONN) return;
-    if (empty($perf_queries)) return;
-    $idx = count($perf_queries) - 1;
-    $perf_queries[$idx]['time'] = (microtime(true) - $perf_queries[$idx]['start']) * 1000; // ms
-}
-
-// Registrar al final de la petición
 register_shutdown_function(function () use (&$perf_start_time, &$perf_start_memory, &$perf_queries) {
-    if (!defined('PERF_DB_CONN') || !PERF_DB_CONN) return;
+    if (!PERF_LOG_ENABLED) return;
+    global $conn;
+    if (!$conn) return;
 
     $exec_time = microtime(true) - $perf_start_time;
     $memory_used = memory_get_usage() - $perf_start_memory;
     $peak_memory = memory_get_peak_usage();
     $is_slow = $exec_time >= PERF_LOG_SLOW_THRESHOLD;
-
     $num_queries = count($perf_queries);
-    $slow_q = 0;
-    foreach ($perf_queries as $q) {
-        if ($q['time'] >= PERF_LOG_QUERY_SLOW * 1000) {
-            $slow_q++;
-        }
-    }
-
     $url = $_SERVER['REQUEST_URI'] ?? '';
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -117,25 +75,32 @@ register_shutdown_function(function () use (&$perf_start_time, &$perf_start_memo
     $uid = $_SESSION['usuario_id'] ?? 0;
     $status = http_response_code();
 
+    $slow_q = 0;
+    foreach ($perf_queries as $q) {
+        if ($q['time'] >= 1000) $slow_q++;
+    }
+
     $sql = "INSERT INTO performance_logs 
-        (usuario_id, url, method, exec_time, memory_used, peak_memory, 
+        (usuario_id, url, method, exec_time, memory_used, peak_memory,
          num_queries, slow_queries, status_code, is_slow, ip_address, user_agent, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
 
-    $stmt = mysqli_prepare(PERF_DB_CONN, $sql);
+    $stmt = @$conn->prepare($sql);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, 'issdiiiiisss',
-            $uid, $url, $method, $exec_time,
-            $memory_used, $peak_memory, $num_queries, $slow_q,
-            $status, $is_slow, $ip, $ua
-        );
-        mysqli_stmt_execute($stmt);
-        mysqli_stmt_close($stmt);
+        $uid = (int)$uid;
+        $is_slow = (int)$is_slow;
+        $status = (int)$status;
+        $mem = (int)$memory_used;
+        $peak = (int)$peak_memory;
+        $nq = (int)$num_queries;
+        $sq = (int)$slow_q;
+        $stmt->bind_param('issdiiiiisss', $uid, $url, $method, $exec_time, $mem, $peak, $nq, $sq, $status, $is_slow, $ip, $ua);
+        $stmt->execute();
+        $stmt->close();
     }
 
-    // Limpiar registros viejos (> 7 días)
-    if (rand(1, 100) === 1) { // 1% de probabilidad para no saturar
-        mysqli_query(PERF_DB_CONN, 
-            "DELETE FROM performance_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+    // Limpiar registros viejos (> 7 días) - 1% de probabilidad
+    if (rand(1, 100) === 1) {
+        @$conn->query("DELETE FROM performance_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
     }
 });
