@@ -96,6 +96,22 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                     </ul>
                 </li>
 
+                <!-- WispHub Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="dropWisphub" role="button" data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                        <i class="fa-solid fa-network-wired me-1" style="color:#8b5cf6;"></i> WispHub
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="dropWisphub">
+                        <li><a class="dropdown-item"
+                                href="<?php echo $path_fix; ?>paginas/admin_wisphub.php"><i
+                                    class="fa-solid fa-gauge-high w-20 me-2" style="color:#8b5cf6;"></i> Panel WispHub</a></li>
+                        <li><a class="dropdown-item"
+                                href="<?php echo $path_fix; ?>paginas/admin_wisphub.php#credenciales"><i
+                                    class="fa-solid fa-key w-20 me-2" style="color:#f59e0b;"></i> Credenciales API</a></li>
+                    </ul>
+                </li>
+
                 <!-- Cobranzas Dropdown -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="dropCobranzas" role="button"
@@ -188,6 +204,22 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                                 href="<?php echo $path_fix; ?>paginas/reportes_pdf/reporte_clientes.php"><i
                                     class="fa-solid fa-users-viewfinder w-20 me-2 text-muted"></i> Reporte Clientes</a>
                         </li>
+                    </ul>
+                </li>
+
+                <!-- Sistema Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="dropSistema" role="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fa-solid fa-gear me-1" style="color:#8b5cf6;"></i> Sistema
+                    </a>
+                    <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="dropSistema">
+                        <li><a class="dropdown-item"
+                                href="<?php echo $path_fix; ?>paginas/principal/rendimiento.php"><i
+                                    class="fa-solid fa-gauge-high w-20 me-2" style="color:#10b981;"></i> Monitor de Rendimiento</a></li>
+                        <li><a class="dropdown-item"
+                                href="<?php echo $path_fix; ?>paginas/principal/diagnostico_sistema.php"><i
+                                    class="fa-solid fa-stethoscope w-20 me-2" style="color:#f59e0b;"></i> Diagnóstico del Sistema</a></li>
                     </ul>
                 </li>
             </ul>

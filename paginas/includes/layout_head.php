@@ -8,6 +8,9 @@ if (!isset($_SESSION['usuario_id'])) {
     header("Location: " . $path_fix_auth . "index.html");
     exit;
 }
+
+// Performance logger - mide tiempos de carga automáticamente
+@include_once __DIR__ . '/performance_logger.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
