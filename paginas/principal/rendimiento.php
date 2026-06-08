@@ -7,6 +7,14 @@ require_once '../includes/sidebar.php';
 
 $perf_start = microtime(true);
 
+// --- Ruta raíz del proyecto ---
+$projectRoot = dirname(__DIR__, 2);
+// Verificar que estamos en el proyecto correcto, no subiendo de más
+while (!file_exists($projectRoot . '/paginas/conexion.php') && $projectRoot !== dirname($projectRoot)) {
+    $projectRoot = dirname($projectRoot);
+}
+define('PROJECT_ROOT', $projectRoot);
+
 // --- Helper functions ---
 function formatBytes($bytes, $precision = 2) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -514,18 +522,17 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                     <div class="card-body p-3">
                         <?php
                         $paths = [
-                            'Raíz (proyecto)' => __DIR__ . '/../../',
+                            'Raíz (proyecto)' => PROJECT_ROOT,
                             'paginas/' => __DIR__ . '/../',
-                            'portal/' => __DIR__ . '/../../portal/',
-                            'vendor/' => __DIR__ . '/../../vendor/',
-                            'css/' => __DIR__ . '/../../css/',
-                            'js/' => __DIR__ . '/../../js/',
-                            'dompdf/' => __DIR__ . '/../../dompdf/',
-                            'uploads/' => __DIR__ . '/../../uploads/',
-                            'logs/' => __DIR__ . '/../../logs/',
+                            'portal/' => PROJECT_ROOT . '/portal/',
+                            'vendor/' => PROJECT_ROOT . '/vendor/',
+                            'css/' => PROJECT_ROOT . '/css/',
+                            'js/' => PROJECT_ROOT . '/js/',
+                            'dompdf/' => PROJECT_ROOT . '/dompdf/',
+                            'uploads/' => PROJECT_ROOT . '/uploads/',
+                            'logs/' => PROJECT_ROOT . '/logs/',
                         ];
-                        $sizeError = null;
-                        $raizSize = getDirectorySize(__DIR__ . '/../../', $sizeError);
+                        $raizSize = getDirectorySize(PROJECT_ROOT, $sizeError);
                         if ($sizeError): ?>
                         <div class="alert alert-warning py-2 small mb-3">
                             <i class="fa-solid fa-triangle-exclamation me-1"></i>
@@ -1052,13 +1059,13 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                     <div class="card-body p-3">
                         <?php
                         $keyPages = [
-                            'Panel Principal' => '../menu.php',
-                            'Gestión Contratos' => 'gestion_contratos.php',
-                            'Gestión Mensualidades' => 'gestion_mensualidades.php',
-                            'Gestión Deudores' => 'gestion_deudores.php',
-                            'Gestión Usuarios' => '../gestion_usuarios.php',
-                            'Gestión Fallas' => '../soporte/gestion_fallas.php',
-                            'Conciliación' => 'conciliacion.php',
+                            'Panel Principal' => PROJECT_ROOT . '/paginas/menu.php',
+                            'Gestión Contratos' => PROJECT_ROOT . '/paginas/principal/gestion_contratos.php',
+                            'Gestión Mensualidades' => PROJECT_ROOT . '/paginas/principal/gestion_mensualidades.php',
+                            'Gestión Deudores' => PROJECT_ROOT . '/paginas/principal/gestion_deudores.php',
+                            'Gestión Usuarios' => PROJECT_ROOT . '/paginas/gestion_usuarios.php',
+                            'Gestión Fallas' => PROJECT_ROOT . '/paginas/soporte/gestion_fallas.php',
+                            'Conciliación' => PROJECT_ROOT . '/paginas/principal/conciliacion.php',
                         ];
                         ?>
                         <div class="table-responsive">
@@ -1130,9 +1137,9 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                         // Also check for error_log files in app directories
                         $appLogs = [];
                         $searchDirs = [
-                            __DIR__ . '/../../logs/',
+                            PROJECT_ROOT . '/logs/',
                             __DIR__ . '/../',
-                            __DIR__ . '/../../',
+                            PROJECT_ROOT,
                         ];
                         foreach ($searchDirs as $dir) {
                             if (is_dir($dir)) {
