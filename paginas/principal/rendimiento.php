@@ -2,6 +2,28 @@
 $page_title = "Monitor de Rendimiento";
 $path_to_root = '../../';
 require_once '../conexion.php';
+
+// Crear tabla de rendimiento si no existe
+$conn->query("CREATE TABLE IF NOT EXISTS performance_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT UNSIGNED NULL,
+    url VARCHAR(500) NOT NULL DEFAULT '',
+    method VARCHAR(10) NOT NULL DEFAULT 'GET',
+    exec_time DECIMAL(10,4) NOT NULL DEFAULT 0.0000,
+    memory_used INT UNSIGNED NOT NULL DEFAULT 0,
+    peak_memory INT UNSIGNED NOT NULL DEFAULT 0,
+    num_queries SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    slow_queries SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    status_code SMALLINT UNSIGNED NOT NULL DEFAULT 200,
+    is_slow TINYINT(1) NOT NULL DEFAULT 0,
+    ip_address VARCHAR(45) NOT NULL DEFAULT '',
+    user_agent VARCHAR(500) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_created (created_at),
+    INDEX idx_slow (is_slow, created_at),
+    INDEX idx_url (url(100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
 require_once '../includes/layout_head.php';
 require_once '../includes/sidebar.php';
 

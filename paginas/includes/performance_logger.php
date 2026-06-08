@@ -26,9 +26,9 @@ if (!defined('PERF_LOGGER_ACTIVE') && PERF_LOG_ENABLED) {
     // Asegurar que $conn exista incluyendo conexion.php si hace falta
     global $conn;
     if (!$conn) {
-        $connFile = dirname(__DIR__, 2) . '/conexion.php';
+        $connFile = dirname(__DIR__) . '/conexion.php';
         if (file_exists($connFile)) {
-            @require_once $connFile;
+            require_once $connFile;
         }
     }
 
