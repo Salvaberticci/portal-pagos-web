@@ -33,28 +33,73 @@ function getDirectorySize($path, &$error = null) {
     if (is_file($path)) return @filesize($path);
     $path = realpath($path);
 
-    $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
+    // Cache de tamaños en JSON para evitar recalcular en cada carga
+    $cacheFile = __DIR__ . '/.rendimiento_cache.json';
+    $cacheKey = md5($path);
+    if (file_exists($cacheFile) && time() - filemtime($cacheFile) < 300) {
+        $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
+        if (isset($cache[$cacheKey])) return (int) $cache[$cacheKey];
+    }
 
-    if (PHP_OS_FAMILY !== 'Windows' && !in_array('exec', $disabled)) {
-        @exec("du -sb " . escapeshellarg($path) . " 2>/dev/null", $output, $code);
-        if ($code === 0 && !empty($output[0]) && preg_match('/^(\d+)/', $output[0], $m)) {
+    // 1) exec con du (Linux)
+    $output = null; $code = -1;
+    @exec("du -sb " . escapeshellarg($path) . " 2>/dev/null", $output, $code);
+    if ($code === 0 && !empty($output[0]) && preg_match('/^(\d+)/', $output[0], $m)) {
+        $size = (int) $m[1];
+        return $size;
+    }
+
+    // 2) shell_exec con du
+    $output = @shell_exec("du -sb " . escapeshellarg($path) . " 2>/dev/null");
+    if ($output !== null && preg_match('/^(\d+)/', $output, $m)) {
+        $size = (int) $m[1];
+        return $size;
+    }
+
+    // 3) popen con du
+    $handle = @popen("du -sb " . escapeshellarg($path) . " 2>/dev/null", "r");
+    if (is_resource($handle)) {
+        $output = @fread($handle, 4096);
+        @pclose($handle);
+        if ($output !== false && preg_match('/^(\d+)/', $output, $m)) {
             return (int) $m[1];
         }
     }
-    if (PHP_OS_FAMILY === 'Windows' && !in_array('shell_exec', $disabled)) {
-        $output = @shell_exec("powershell -Command \"(Get-ChildItem -LiteralPath '$path' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum\" 2>&1");
-        if ($output !== null && is_numeric(trim($output))) {
-            return (int) trim($output);
+
+    // 4) Fallback PHP con timeout, saltea vendor/ y dompdf/ para no agotar tiempo
+    $size = 0;
+    $dirs = [$path];
+    $checked = [];
+    $timeout = microtime(true) + 2; // max 2 segundos
+    while ($dir = array_shift($dirs)) {
+        if (microtime(true) > $timeout) { $error = 'timeout'; break; }
+        $handle = @opendir($dir);
+        if (!$handle) continue;
+        $realDir = realpath($dir);
+        if (!$realDir || isset($checked[$realDir])) { closedir($handle); continue; }
+        $checked[$realDir] = true;
+        while (($item = readdir($handle)) !== false) {
+            if ($item === '.' || $item === '..') continue;
+            $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_link($fullPath)) continue;
+            if (is_file($fullPath)) {
+                $size += @filesize($fullPath);
+            } elseif (is_dir($fullPath)) {
+                $base = basename($fullPath);
+                if ($base === 'vendor' || $base === 'dompdf' || $base === 'node_modules') continue;
+                $r = realpath($fullPath);
+                if ($r && !isset($checked[$r])) $dirs[] = $fullPath;
+            }
         }
+        closedir($handle);
     }
 
-    // No hay comando de sistema disponible - contar solo archivos PHP y mostrar warning
-    static $warned = false;
-    if (!$warned) {
-        $warned = true;
-        $error = 'exec/du no disponible';
-    }
-    return 0;
+    // Guardar en caché
+    $cacheData = file_exists($cacheFile) ? (json_decode(file_get_contents($cacheFile), true) ?: []) : [];
+    $cacheData[$cacheKey] = $size;
+    @file_put_contents($cacheFile, json_encode($cacheData));
+
+    return $size;
 }
 
 function getServerLoad() {
