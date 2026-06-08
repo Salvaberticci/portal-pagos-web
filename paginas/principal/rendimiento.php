@@ -28,6 +28,17 @@ function microtimeToMs($microtime) {
     return round($microtime * 1000, 2);
 }
 
+function getDirectorySize($path) {
+    $size = 0;
+    if (!is_dir($path)) {
+        return file_exists($path) ? filesize($path) : 0;
+    }
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)) as $file) {
+        $size += $file->getSize();
+    }
+    return $size;
+}
+
 function getServerLoad() {
     // Windows: usar wmic
     if (PHP_OS_FAMILY === 'Windows') {
@@ -441,27 +452,40 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                         <?php
                         $paths = [
                             'Raíz (proyecto)' => __DIR__ . '/../../',
-                            'Archivos temporales' => sys_get_temp_dir(),
-                            'Uploads' => __DIR__ . '/../../uploads/',
-                            'Logs' => __DIR__ . '/../../logs/',
+                            'paginas/' => __DIR__ . '/../',
+                            'portal/' => __DIR__ . '/../../portal/',
+                            'vendor/' => __DIR__ . '/../../vendor/',
+                            'css/' => __DIR__ . '/../../css/',
+                            'js/' => __DIR__ . '/../../js/',
+                            'dompdf/' => __DIR__ . '/../../dompdf/',
+                            'uploads/' => __DIR__ . '/../../uploads/',
+                            'logs/' => __DIR__ . '/../../logs/',
                         ];
+                        $raizSize = getDirectorySize(__DIR__ . '/../../');
                         foreach ($paths as $label => $p):
                             if (!file_exists($p)) continue;
-                            $total = @disk_total_space($p);
-                            $free = @disk_free_space($p);
-                            $used = $total - $free;
-                            $pct = $total > 0 ? round($used / $total * 100, 1) : 0;
+                            $dirSize = getDirectorySize($p);
+                            $pct = $raizSize > 0 ? round($dirSize / $raizSize * 100, 1) : 0;
                         ?>
                         <div class="mb-2">
                             <div class="d-flex justify-content-between small mb-1">
                                 <span class="text-muted"><?php echo $label; ?></span>
-                                <span class="fw-bold"><?php echo formatBytes($used); ?> / <?php echo formatBytes($total); ?> (<?php echo $pct; ?>%)</span>
+                                <span class="fw-bold"><?php echo formatBytes($dirSize); ?> (<?php echo $pct; ?>%)</span>
                             </div>
                             <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-<?php echo $pct > 80 ? 'danger' : ($pct > 50 ? 'warning' : 'success'); ?>" style="width: <?php echo $pct; ?>%"></div>
+                                <div class="progress-bar bg-<?php echo $pct > 40 ? 'warning' : ($pct > 20 ? 'primary' : 'success'); ?>" style="width: <?php echo $pct; ?>%"></div>
                             </div>
                         </div>
                         <?php endforeach; ?>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">Disco total (partición)</span>
+                            <span class="fw-bold"><?php echo formatBytes(@disk_total_space(__DIR__)); ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">Espacio libre</span>
+                            <span class="fw-bold"><?php echo formatBytes(@disk_free_space(__DIR__)); ?></span>
+                        </div>
                     </div>
                 </div>
             </div>
