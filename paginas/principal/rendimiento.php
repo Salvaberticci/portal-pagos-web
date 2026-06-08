@@ -36,78 +36,56 @@ function microtimeToMs($microtime) {
     return round($microtime * 1000, 2);
 }
 
-function getDirectorySize($path, &$error = null) {
-    if (!is_dir($path) && !is_file($path)) return 0;
+function getDirectorySize($path) {
+    if (!is_dir($path) && !is_file($path)) return -1;
     if (is_file($path)) return @filesize($path);
     $path = realpath($path);
 
-    // Cache de tamaños en JSON para evitar recalcular en cada carga
-    $cacheFile = __DIR__ . '/.rendimiento_cache.json';
-    $cacheKey = md5($path);
-    if (file_exists($cacheFile) && time() - filemtime($cacheFile) < 300) {
-        $cache = json_decode(file_get_contents($cacheFile), true) ?: [];
-        if (isset($cache[$cacheKey])) return (int) $cache[$cacheKey];
+    $cmds = [];
+    if (PHP_OS_FAMILY !== 'Windows') {
+        $cmds[] = 'exec';
+        $cmds[] = 'shell_exec';
+        $cmds[] = 'popen';
+    } else {
+        $cmds[] = 'shell_exec';
     }
 
-    // 1) exec con du (Linux)
-    $output = null; $code = -1;
-    @exec("du -sb " . escapeshellarg($path) . " 2>/dev/null", $output, $code);
-    if ($code === 0 && !empty($output[0]) && preg_match('/^(\d+)/', $output[0], $m)) {
-        $size = (int) $m[1];
-        return $size;
-    }
+    $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
 
-    // 2) shell_exec con du
-    $output = @shell_exec("du -sb " . escapeshellarg($path) . " 2>/dev/null");
-    if ($output !== null && preg_match('/^(\d+)/', $output, $m)) {
-        $size = (int) $m[1];
-        return $size;
-    }
-
-    // 3) popen con du
-    $handle = @popen("du -sb " . escapeshellarg($path) . " 2>/dev/null", "r");
-    if (is_resource($handle)) {
-        $output = @fread($handle, 4096);
-        @pclose($handle);
-        if ($output !== false && preg_match('/^(\d+)/', $output, $m)) {
-            return (int) $m[1];
-        }
-    }
-
-    // 4) Fallback PHP con timeout, saltea vendor/ y dompdf/ para no agotar tiempo
-    $size = 0;
-    $dirs = [$path];
-    $checked = [];
-    $timeout = microtime(true) + 2; // max 2 segundos
-    while ($dir = array_shift($dirs)) {
-        if (microtime(true) > $timeout) { $error = 'timeout'; break; }
-        $handle = @opendir($dir);
-        if (!$handle) continue;
-        $realDir = realpath($dir);
-        if (!$realDir || isset($checked[$realDir])) { closedir($handle); continue; }
-        $checked[$realDir] = true;
-        while (($item = readdir($handle)) !== false) {
-            if ($item === '.' || $item === '..') continue;
-            $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_link($fullPath)) continue;
-            if (is_file($fullPath)) {
-                $size += @filesize($fullPath);
-            } elseif (is_dir($fullPath)) {
-                $base = basename($fullPath);
-                if ($base === 'vendor' || $base === 'dompdf' || $base === 'node_modules') continue;
-                $r = realpath($fullPath);
-                if ($r && !isset($checked[$r])) $dirs[] = $fullPath;
+    foreach ($cmds as $cmd) {
+        if (in_array($cmd, $disabled)) continue;
+        if ($cmd === 'exec') {
+            $out = []; $c = -1;
+            @exec("du -sb " . escapeshellarg($path) . " 2>/dev/null", $out, $c);
+            if ($c === 0 && !empty($out[0]) && preg_match('/^(\d+)/', $out[0], $m)) return (int) $m[1];
+        } elseif ($cmd === 'shell_exec') {
+            $out = @shell_exec("du -sb " . escapeshellarg($path) . " 2>/dev/null");
+            if ($out !== null && preg_match('/^(\d+)/', $out, $m)) return (int) $m[1];
+        } elseif ($cmd === 'popen') {
+            $h = @popen("du -sb " . escapeshellarg($path) . " 2>/dev/null", "r");
+            if (is_resource($h)) {
+                $out = @fread($h, 4096);
+                @pclose($h);
+                if ($out !== false && preg_match('/^(\d+)/', $out, $m)) return (int) $m[1];
             }
         }
-        closedir($handle);
     }
 
-    // Guardar en caché
-    $cacheData = file_exists($cacheFile) ? (json_decode(file_get_contents($cacheFile), true) ?: []) : [];
-    $cacheData[$cacheKey] = $size;
-    @file_put_contents($cacheFile, json_encode($cacheData));
+    return -1;
+}
 
-    return $size;
+function getFileCount($path) {
+    if (!is_dir($path)) return 0;
+    $count = 0;
+    try {
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)
+        );
+        foreach ($it as $f) {
+            if ($f->isFile()) $count++;
+        }
+    } catch (Throwable $e) {}
+    return $count;
 }
 
 function getServerLoad() {
@@ -516,8 +494,9 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                     </div>
                 </div>
                 <div class="card border-white border-opacity-5 mt-3">
-                    <div class="card-header bg-transparent border-bottom p-3">
-                        <h6 class="fw-bold mb-0"><i class="fa-solid fa-folder-open me-2"></i> Espacio en Disco</h6>
+                    <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0"><i class="fa-solid fa-folder-open me-2"></i> Archivos por Carpeta</h6>
+                        <span class="small text-muted">Tamaños vía <code>du</code>: <?php echo getDirectorySize(PROJECT_ROOT) >= 0 ? '<span class="text-success">Disponible</span>' : '<span class="text-warning">No disponible</span>'; ?></span>
                     </div>
                     <div class="card-body p-3">
                         <?php
@@ -532,38 +511,68 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                             'uploads/' => PROJECT_ROOT . '/uploads/',
                             'logs/' => PROJECT_ROOT . '/logs/',
                         ];
-                        $raizSize = getDirectorySize(PROJECT_ROOT, $sizeError);
-                        if ($sizeError): ?>
-                        <div class="alert alert-warning py-2 small mb-3">
-                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                            Tamaños calculados con comando de sistema no disponible. Los valores pueden no estar exactos.
-                        </div>
-                        <?php endif;
-                        foreach ($paths as $label => $p):
-                            if (!file_exists($p)) continue;
-                            $dirSize = getDirectorySize($p);
-                            $pct = $raizSize > 0 ? round($dirSize / $raizSize * 100, 1) : 0;
+                        $raizSize = getDirectorySize(PROJECT_ROOT);
+                        $raizFiles = getFileCount(PROJECT_ROOT);
                         ?>
-                        <div class="mb-2">
-                            <div class="d-flex justify-content-between small mb-1">
-                                <span class="text-muted"><?php echo $label; ?></span>
-                                <span class="fw-bold"><?php echo $raizSize > 0 ? formatBytes($dirSize) . ' (' . $pct . '%)' : '<span class="text-muted">N/A</span>'; ?></span>
-                            </div>
-                            <?php if ($raizSize > 0): ?>
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar bg-<?php echo $pct > 40 ? 'warning' : ($pct > 20 ? 'primary' : 'success'); ?>" style="width: <?php echo $pct; ?>%"></div>
-                            </div>
-                            <?php endif; ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm small mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-0">Carpeta</th>
+                                        <th class="text-end">Archivos</th>
+                                        <th class="text-end">Tamaño</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($paths as $label => $p):
+                                        if (!file_exists($p)) continue;
+                                        $size = getDirectorySize($p);
+                                        $files = getFileCount($p);
+                                    ?>
+                                    <tr>
+                                        <td class="ps-0 text-muted"><?php echo $label; ?></td>
+                                        <td class="text-end fw-bold"><?php echo number_format($files); ?></td>
+                                        <td class="text-end fw-medium">
+                                            <?php if ($size >= 0): ?>
+                                                <?php echo formatBytes($size); ?>
+                                            <?php else: ?>
+                                                <span class="text-muted" title="Usa el visor de disco de cPanel">N/A</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td class="ps-0 border-0">Total proyecto</td>
+                                        <td class="text-end border-0"><?php echo number_format($raizFiles); ?></td>
+                                        <td class="text-end border-0"><?php echo $raizSize >= 0 ? formatBytes($raizSize) : 'N/A'; ?></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
-                        <?php endforeach; ?>
+
+                        <?php if ($raizSize < 0): ?>
+                        <div class="alert alert-info py-2 small mt-2 mb-0">
+                            <i class="fa-solid fa-circle-info me-1"></i>
+                            <code>exec()</code> no está disponible en este hosting. Los tamaños no se pueden calcular desde PHP.
+                            Para ver el uso exacto de disco, revisá el <strong>Visor de Disco</strong> en cPanel.
+                        </div>
+                        <?php endif; ?>
+
                         <hr class="my-2">
+                        <div class="small text-muted mb-1"><i class="fa-solid fa-server me-1"></i> <strong>Partición del servidor compartido:</strong> (espacio total del servidor, no solo tu proyecto)</div>
                         <div class="d-flex justify-content-between small">
-                            <span class="text-muted">Disco total (partición)</span>
+                            <span class="text-muted">Total partición</span>
                             <span class="fw-bold"><?php echo formatBytes(@disk_total_space(__DIR__)); ?></span>
                         </div>
                         <div class="d-flex justify-content-between small">
                             <span class="text-muted">Espacio libre</span>
                             <span class="fw-bold"><?php echo formatBytes(@disk_free_space(__DIR__)); ?></span>
+                        </div>
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">Usado (servidor completo)</span>
+                            <span class="fw-bold"><?php echo formatBytes(@disk_total_space(__DIR__) - @disk_free_space(__DIR__)); ?></span>
                         </div>
                     </div>
                 </div>
