@@ -559,21 +559,6 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                             Para ver el uso exacto de disco, revisá el <strong>Visor de Disco</strong> en cPanel.
                         </div>
                         <?php endif; ?>
-
-                        <hr class="my-2">
-                        <div class="small text-muted mb-1"><i class="fa-solid fa-server me-1"></i> <strong>Partición del servidor compartido:</strong> (espacio total del servidor, no solo tu proyecto)</div>
-                        <div class="d-flex justify-content-between small">
-                            <span class="text-muted">Total partición</span>
-                            <span class="fw-bold"><?php echo formatBytes(@disk_total_space(__DIR__)); ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between small">
-                            <span class="text-muted">Espacio libre</span>
-                            <span class="fw-bold"><?php echo formatBytes(@disk_free_space(__DIR__)); ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between small">
-                            <span class="text-muted">Usado (servidor completo)</span>
-                            <span class="fw-bold"><?php echo formatBytes(@disk_total_space(__DIR__) - @disk_free_space(__DIR__)); ?></span>
-                        </div>
                     </div>
                 </div>
             </div>
