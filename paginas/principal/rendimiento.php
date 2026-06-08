@@ -1,6 +1,7 @@
 <?php
 $page_title = "Monitor de Rendimiento";
 $path_to_root = '../../';
+require_once '../conexion.php';
 require_once '../includes/layout_head.php';
 require_once '../includes/sidebar.php';
 
