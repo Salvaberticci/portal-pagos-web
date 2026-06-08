@@ -28,44 +28,33 @@ function microtimeToMs($microtime) {
     return round($microtime * 1000, 2);
 }
 
-function getDirectorySize($path) {
+function getDirectorySize($path, &$error = null) {
     if (!is_dir($path) && !is_file($path)) return 0;
-    if (is_file($path)) return filesize($path);
+    if (is_file($path)) return @filesize($path);
     $path = realpath($path);
-    if (PHP_OS_FAMILY === 'Windows') {
+
+    $disabled = array_map('trim', explode(',', ini_get('disable_functions')));
+
+    if (PHP_OS_FAMILY !== 'Windows' && !in_array('exec', $disabled)) {
+        @exec("du -sb " . escapeshellarg($path) . " 2>/dev/null", $output, $code);
+        if ($code === 0 && !empty($output[0]) && preg_match('/^(\d+)/', $output[0], $m)) {
+            return (int) $m[1];
+        }
+    }
+    if (PHP_OS_FAMILY === 'Windows' && !in_array('shell_exec', $disabled)) {
         $output = @shell_exec("powershell -Command \"(Get-ChildItem -LiteralPath '$path' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum\" 2>&1");
         if ($output !== null && is_numeric(trim($output))) {
             return (int) trim($output);
         }
-    } else {
-        $output = @shell_exec("du -sb " . escapeshellarg($path) . " 2>/dev/null");
-        if ($output !== null && preg_match('/^(\d+)/', $output, $m)) {
-            return (int) $m[1];
-        }
     }
-    $size = 0;
-    $dirs = [$path];
-    $checked = [];
-    while ($dir = array_shift($dirs)) {
-        $handle = @opendir($dir);
-        if (!$handle) continue;
-        $realDir = realpath($dir);
-        if (!$realDir || isset($checked[$realDir])) { if ($handle) closedir($handle); continue; }
-        $checked[$realDir] = true;
-        while (($item = readdir($handle)) !== false) {
-            if ($item === '.' || $item === '..') continue;
-            $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
-            if (is_link($fullPath)) continue;
-            if (is_file($fullPath)) {
-                $size += @filesize($fullPath);
-            } elseif (is_dir($fullPath)) {
-                $r = realpath($fullPath);
-                if ($r && !isset($checked[$r])) $dirs[] = $fullPath;
-            }
-        }
-        closedir($handle);
+
+    // No hay comando de sistema disponible - contar solo archivos PHP y mostrar warning
+    static $warned = false;
+    if (!$warned) {
+        $warned = true;
+        $error = 'exec/du no disponible';
     }
-    return $size;
+    return 0;
 }
 
 function getServerLoad() {
@@ -490,7 +479,14 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                             'uploads/' => __DIR__ . '/../../uploads/',
                             'logs/' => __DIR__ . '/../../logs/',
                         ];
-                        $raizSize = getDirectorySize(__DIR__ . '/../../');
+                        $sizeError = null;
+                        $raizSize = getDirectorySize(__DIR__ . '/../../', $sizeError);
+                        if ($sizeError): ?>
+                        <div class="alert alert-warning py-2 small mb-3">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            Tamaños calculados con comando de sistema no disponible. Los valores pueden no estar exactos.
+                        </div>
+                        <?php endif;
                         foreach ($paths as $label => $p):
                             if (!file_exists($p)) continue;
                             $dirSize = getDirectorySize($p);
@@ -499,11 +495,13 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                         <div class="mb-2">
                             <div class="d-flex justify-content-between small mb-1">
                                 <span class="text-muted"><?php echo $label; ?></span>
-                                <span class="fw-bold"><?php echo formatBytes($dirSize); ?> (<?php echo $pct; ?>%)</span>
+                                <span class="fw-bold"><?php echo $raizSize > 0 ? formatBytes($dirSize) . ' (' . $pct . '%)' : '<span class="text-muted">N/A</span>'; ?></span>
                             </div>
+                            <?php if ($raizSize > 0): ?>
                             <div class="progress" style="height: 6px;">
                                 <div class="progress-bar bg-<?php echo $pct > 40 ? 'warning' : ($pct > 20 ? 'primary' : 'success'); ?>" style="width: <?php echo $pct; ?>%"></div>
                             </div>
+                            <?php endif; ?>
                         </div>
                         <?php endforeach; ?>
                         <hr class="my-2">
