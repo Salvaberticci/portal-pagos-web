@@ -3,6 +3,17 @@ $page_title = "Monitor de Rendimiento";
 $path_to_root = '../../';
 require_once '../conexion.php';
 
+// Verificar conexión a la BD
+if (!$conn) {
+    echo '<div class="alert alert-danger m-3">Error: No hay conexión a la base de datos. Verifica conexion.php</div>';
+    require_once '../includes/layout_foot.php';
+    exit;
+}
+
+// Obtener nombre de la BD activa
+$dbRow = $conn->query("SELECT DATABASE()")->fetch_row();
+$dbName = $dbRow[0] ?? $database ?? 'tecnico-administrativo-wirelessdb';
+
 // Crear tabla de rendimiento si no existe
 $conn->query("CREATE TABLE IF NOT EXISTS performance_logs (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -307,7 +318,6 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                         $totalRows = 0;
                         $totalSize = 0;
                         $tableCount = 0;
-                        $dbName = $database ?? 'tecnico-administrativo-wirelessdb';
                         $res = mysqli_query($conn, "SELECT TABLE_NAME, TABLE_ROWS, 
                             (DATA_LENGTH + INDEX_LENGTH) AS total_size,
                             ENGINE, CREATE_TIME
@@ -729,7 +739,7 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                             </tr>
                             <tr>
                                 <td class="text-muted ps-0">Charset conexión</td>
-                                <td class="fw-bold"><?php echo $conn->character_set_name(); ?></td>
+                                <td class="fw-bold"><?php echo $conn ? $conn->character_set_name() : 'N/A'; ?></td>
                             </tr>
                             <?php
                             $uptimeRes = mysqli_query($conn, "SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Uptime'");
@@ -787,6 +797,7 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
 <?php elseif ($active_tab === 'trafico'): ?>
         <!-- === TAB: TRÁFICO === -->
         <div class="row g-4">
+            <?php $perfExists = mysqli_num_rows(mysqli_query($conn, "SHOW TABLES LIKE 'performance_logs'")) > 0; ?>
             <?php if ($perfExists): ?>
             <div class="col-12">
                 <div class="card border-white border-opacity-5">
