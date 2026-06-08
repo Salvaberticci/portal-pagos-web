@@ -29,26 +29,38 @@ function microtimeToMs($microtime) {
 }
 
 function getDirectorySize($path) {
-    $size = 0;
-    if (!is_dir($path)) {
-        return file_exists($path) ? filesize($path) : 0;
+    if (!is_dir($path) && !is_file($path)) return 0;
+    if (is_file($path)) return filesize($path);
+    $path = realpath($path);
+    if (PHP_OS_FAMILY === 'Windows') {
+        $output = @shell_exec("powershell -Command \"(Get-ChildItem -LiteralPath '$path' -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum\" 2>&1");
+        if ($output !== null && is_numeric(trim($output))) {
+            return (int) trim($output);
+        }
+    } else {
+        $output = @shell_exec("du -sb " . escapeshellarg($path) . " 2>/dev/null");
+        if ($output !== null && preg_match('/^(\d+)/', $output, $m)) {
+            return (int) $m[1];
+        }
     }
+    $size = 0;
     $dirs = [$path];
     $checked = [];
     while ($dir = array_shift($dirs)) {
         $handle = @opendir($dir);
         if (!$handle) continue;
         $realDir = realpath($dir);
-        if (isset($checked[$realDir])) { closedir($handle); continue; }
+        if (!$realDir || isset($checked[$realDir])) { if ($handle) closedir($handle); continue; }
         $checked[$realDir] = true;
         while (($item = readdir($handle)) !== false) {
             if ($item === '.' || $item === '..') continue;
             $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
-            $realPath = realpath($fullPath);
+            if (is_link($fullPath)) continue;
             if (is_file($fullPath)) {
-                $size += filesize($fullPath);
-            } elseif (is_dir($fullPath) && $realPath && !isset($checked[$realPath]) && !is_link($fullPath)) {
-                $dirs[] = $fullPath;
+                $size += @filesize($fullPath);
+            } elseif (is_dir($fullPath)) {
+                $r = realpath($fullPath);
+                if ($r && !isset($checked[$r])) $dirs[] = $fullPath;
             }
         }
         closedir($handle);
