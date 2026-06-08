@@ -184,10 +184,7 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                         <?php
                         $cpuLoad = getServerLoad();
                         $memTotal = 0; $memFree = 0; $memUsed = 0;
-                        $diskTotal = disk_total_space(__DIR__);
-                        $diskFree = disk_free_space(__DIR__);
-                        $diskUsed = $diskTotal - $diskFree;
-                        $diskPct = $diskTotal > 0 ? round($diskUsed / $diskTotal * 100, 1) : 0;
+                        $projSize = getDirectorySize(PROJECT_ROOT);
 
                         if (PHP_OS_FAMILY === 'Windows') {
                             $output = @shell_exec('wmic OS get TotalVisibleMemorySize,FreePhysicalMemory 2>&1');
@@ -245,15 +242,13 @@ if (!in_array($active_tab, $valid_tabs)) $active_tab = 'resumen';
                                 </td>
                             </tr>
                             <tr>
-                                <td class="text-muted ps-0">Disco</td>
+                                <td class="text-muted ps-0">Tamaño del Sistema</td>
                                 <td class="fw-bold">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div class="progress flex-grow-1" style="height: 8px;">
-                                            <div class="progress-bar bg-<?php echo $diskPct > 80 ? 'danger' : ($diskPct > 50 ? 'warning' : 'success'); ?>" 
-                                                 style="width: <?php echo $diskPct; ?>%"></div>
-                                        </div>
-                                        <small><?php echo formatBytes($diskUsed); ?> / <?php echo formatBytes($diskTotal); ?> (<?php echo $diskPct; ?>%)</small>
-                                    </div>
+                                    <?php if ($projSize >= 0): ?>
+                                        <?php echo formatBytes($projSize); ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">N/A</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <tr>
