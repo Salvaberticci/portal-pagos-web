@@ -33,8 +33,25 @@ function getDirectorySize($path) {
     if (!is_dir($path)) {
         return file_exists($path) ? filesize($path) : 0;
     }
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS)) as $file) {
-        $size += $file->getSize();
+    $dirs = [$path];
+    $checked = [];
+    while ($dir = array_shift($dirs)) {
+        $handle = @opendir($dir);
+        if (!$handle) continue;
+        $realDir = realpath($dir);
+        if (isset($checked[$realDir])) { closedir($handle); continue; }
+        $checked[$realDir] = true;
+        while (($item = readdir($handle)) !== false) {
+            if ($item === '.' || $item === '..') continue;
+            $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
+            $realPath = realpath($fullPath);
+            if (is_file($fullPath)) {
+                $size += filesize($fullPath);
+            } elseif (is_dir($fullPath) && $realPath && !isset($checked[$realPath]) && !is_link($fullPath)) {
+                $dirs[] = $fullPath;
+            }
+        }
+        closedir($handle);
     }
     return $size;
 }
