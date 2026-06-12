@@ -45,7 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
                 }
             }
-        }
         
         elseif ($action === 'suspend_service') {
             $accountId = trim($_POST['account_id'] ?? '');
