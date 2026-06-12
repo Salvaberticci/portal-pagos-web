@@ -6,6 +6,7 @@ paginas/conexion.php
 *.zip
 node_modules/
 *.sql
+!database/migrations/*.sql
 
 # Logs (IGNORAR para evitar conflictos en hosting)
 paginas/principal/logs/
