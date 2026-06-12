@@ -52,6 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             if (empty($accountId)) {
                 $response['message'] = 'El ID de cuenta de WispHub es obligatorio.';
+            } elseif ($accountId !== '902') {
+                $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
             } else {
                 $res = $wispClient->suspendService($accountId, $reason);
                 $status = $res['status'] ?? 0;
@@ -94,6 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             if (empty($accountId)) {
                 $response['message'] = 'El ID de cuenta de WispHub es obligatorio.';
+            } elseif ($accountId !== '902') {
+                $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
             } else {
                 $res = $wispClient->activateService($accountId);
                 $status = $res['status'] ?? 0;
@@ -139,14 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             if (empty($accountId) || empty($reference)) {
                 $response['message'] = 'El ID de cuenta y la Referencia son obligatorios.';
+            } elseif ($accountId !== '902') {
+                $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
             } else {
                 $cedula = 'V99999999';
-                if ($contractId > 0) {
-                    $res_c = $conn->query("SELECT cedula FROM contratos WHERE id = $contractId");
-                    if ($res_c && $row_c = $res_c->fetch_assoc()) {
-                        $cedula = $row_c['cedula'];
-                    }
-                }
                 
                 // Registrar pago simulado
                 $tasa = 40.00;
@@ -218,6 +218,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             
             if (empty($accountId)) {
                 $response['message'] = 'El ID de cuenta de WispHub es requerido.';
+            } elseif ($accountId !== '902') {
+                $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
             } else {
                 $payload = [
                     'event' => $eventType,
@@ -341,17 +343,7 @@ $resLogs = $conn->query("SELECT * FROM wisp_hub_logs ORDER BY id DESC LIMIT 15")
 if ($resLogs) {
     while ($row = $resLogs->fetch_assoc()) $recentLogs[] = $row;
 }
-
-// Cargar contratos de la base de datos para el selector
-$contracts = [];
-$res_c = $conn->query("SELECT id, cedula, nombre_completo, estado FROM contratos ORDER BY id DESC LIMIT 30");
-if ($res_c) {
-    while ($row = $res_c->fetch_assoc()) {
-        $contracts[] = $row;
-    }
-}
 ?>
-
 <main class="main-content">
     <?php include 'includes/header.php'; ?>
 
@@ -415,27 +407,21 @@ if ($res_c) {
                     </h5>
                     
                     <div class="mb-4">
-                        <label class="form-label small fw-semibold">1. Seleccionar Cliente / Contrato Local</label>
-                        <select class="form-select form-select-sm rounded-3" id="sim_contract_id" onchange="updateAccountField()">
-                            <option value="0" data-cedula="V99999999">-- Generar cliente de prueba (Cédula: V99999999) --</option>
-                            <?php foreach ($contracts as $c): ?>
-                                <option value="<?= $c['id'] ?>" data-cedula="<?= htmlspecialchars($c['cedula']) ?>">
-                                    #<?= $c['id'] ?> - <?= htmlspecialchars($c['nombre_completo']) ?> (<?= htmlspecialchars($c['cedula']) ?>) [<?= $c['estado'] ?>]
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label class="form-label small fw-semibold">1. Cliente de Prueba</label>
+                        <div class="d-flex align-items-center gap-2 p-2 rounded-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+                            <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill">V99999999</span>
+                            <span class="small text-muted">Cliente OFICINA Prueba</span>
+                        </div>
+                        <input type="hidden" id="sim_contract_id" value="0">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-semibold">2. ID de Cuenta en WispHub (Sandbox)</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text rounded-start-3">Wisp Account ID</span>
-                            <input type="text" id="sim_account_id" class="form-control font-monospace" placeholder="Ej: 12345 o sandbox_user_123" value="sandbox_user_9999">
-                            <button class="btn btn-outline-secondary" type="button" onclick="randomizeAccountId()">
-                                <i class="fa-solid fa-dice"></i>
-                            </button>
+                        <label class="form-label small fw-semibold">2. ID de Servicio en WispHub</label>
+                        <div class="d-flex align-items-center gap-2 p-2 rounded-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+                            <span class="badge bg-warning bg-opacity-25 text-warning px-3 py-2 rounded-pill">#902</span>
+                            <span class="small text-muted">ONU_PRUEBA_OFICINA — Router CCR2116_ESCUQUE</span>
                         </div>
-                        <div class="form-text small">Para pruebas en sandbox-api, puedes usar IDs arbitrarios de prueba.</div>
+                        <input type="hidden" id="sim_account_id" value="902">
                     </div>
 
                     <hr class="opacity-10 my-4">
@@ -645,30 +631,12 @@ if ($res_c) {
 <script>
 // Inicializaciones
 document.addEventListener('DOMContentLoaded', () => {
-    randomizeAccountId();
     generateRef();
 });
-
-function randomizeAccountId() {
-    const rand = Math.floor(10000 + Math.random() * 90000);
-    document.getElementById('sim_account_id').value = 'sandbox_user_' + rand;
-}
 
 function generateRef() {
     const rand = Math.floor(10000000 + Math.random() * 90000000);
     document.getElementById('sim_ref').value = 'REF' + rand;
-}
-
-function updateAccountField() {
-    const sel = document.getElementById('sim_contract_id');
-    const opt = sel.options[sel.selectedIndex];
-    const cedula = opt.getAttribute('data-cedula');
-    if (cedula !== 'V99999999') {
-        // Sugerir ID de cuenta basado en cédula
-        document.getElementById('sim_account_id').value = 'wisp_' + cedula.replace(/[^0-9]/g, '');
-    } else {
-        randomizeAccountId();
-    }
 }
 
 function toggleLogDetail(id) {
