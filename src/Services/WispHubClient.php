@@ -13,6 +13,10 @@ class WispHubClient
     private $apiKey;
     /** @var Client Guzzle HTTP client */
     private $http;
+    /** @var float Tiempo del último request (para rate limiting) */
+    private $lastRequestTime = 0;
+    /** @var int Microsegundos mínimos entre requests */
+    private $minIntervalUs = 200000; // 200ms → ~5 req/segundo
 
     /**
      * Constructor
@@ -26,7 +30,7 @@ class WispHubClient
         $this->http = new Client([
             'base_uri' => $this->baseUrl,
             'timeout'  => 15,
-            'verify'   => false,
+            'verify'   => true,
             'headers'  => [
                 'Authorization' => "Api-Key {$this->apiKey}",
                 'Content-Type'  => 'application/json',
@@ -37,9 +41,18 @@ class WispHubClient
 
     /**
      * Realiza una petición HTTP a la API de WispHub.
+     * Incluye rate limiting básico (200ms entre requests).
      */
     private function request(string $method, string $uri, array $data = []): array
     {
+        // Rate limiting: esperar si fue hace menos de minIntervalUs
+        $now = microtime(true);
+        $elapsed = ($now - $this->lastRequestTime) * 1_000_000; // a microsegundos
+        if ($elapsed < $this->minIntervalUs) {
+            usleep((int)($this->minIntervalUs - $elapsed));
+        }
+        $this->lastRequestTime = microtime(true);
+
         $opts = [];
         if (!empty($data)) {
             $opts['body'] = json_encode($data);
@@ -57,6 +70,7 @@ class WispHubClient
                 $json   = json_decode($body, true);
                 return ['status' => $status, 'data' => $json, 'error' => $body];
             }
+            error_log('[WispHubClient] RequestException sin respuesta: ' . $e->getMessage());
             return ['status' => 0, 'error' => $e->getMessage()];
         }
     }
@@ -153,6 +167,11 @@ class WispHubClient
         $result = $this->request('GET', "clientes/{$serviceId}/saldo/");
         if ($result['status'] === 200 && !empty($result['data']['facturas'])) {
             return $result['data']['facturas'];
+        }
+        if ($result['status'] !== 200) {
+            error_log('[WispHubClient] getPendingInvoices falló para service ' . $serviceId
+                . ' status=' . ($result['status'] ?? 0)
+                . ' error=' . ($result['error'] ?? 'sin error'));
         }
         return [];
     }

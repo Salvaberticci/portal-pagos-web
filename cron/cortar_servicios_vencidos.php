@@ -7,9 +7,13 @@
  * y suspende el servicio en WispHub.
  *
  * Uso (CLI):
- *   php cron/cortar_servicios_vencidos.php [dias_gracia]
+ *   php cron/cortar_servicios_vencidos.php [dias_gracia] [--batch=50] [--offset=0] [--max=0]
  *
- * Por defecto: 5 días de gracia después del vencimiento.
+ * Parámetros:
+ *   dias_gracia  Días después del vencimiento para cortar (default: 5)
+ *   --batch=N    Número máximo de contratos por ejecución (default: 50)
+ *   --offset=N   Saltar los primeros N contratos (para retomar desde un punto)
+ *   --max=0      Máximo total de suspensiones (0 = sin límite)
  *
  * Configurar en crontab (todos los días a las 6:00 AM):
  *   0 6 * * * /usr/bin/php /ruta/al/proyecto/cron/cortar_servicios_vencidos.php
@@ -19,18 +23,36 @@ if (php_sapi_name() !== 'cli') {
     die("Este script solo puede ejecutarse desde la línea de comandos (CLI).\n");
 }
 
-$diasGracia = isset($argv[1]) ? intval($argv[1]) : 5;
+set_time_limit(0);
+ini_set('memory_limit', '512M');
+
+$diasGracia = isset($argv[1]) && is_numeric($argv[1]) ? intval($argv[1]) : 5;
 if ($diasGracia < 0) $diasGracia = 0;
+
+$batchSize = 50;
+$offset = 0;
+$maxSuspensions = 0;
+for ($i = 1; $i < $argc; $i++) {
+    if (preg_match('/^--batch=(\d+)$/', $argv[$i], $m)) {
+        $batchSize = max(1, min(500, intval($m[1])));
+    } elseif (preg_match('/^--offset=(\d+)$/', $argv[$i], $m)) {
+        $offset = intval($m[1]);
+    } elseif (preg_match('/^--max=(\d+)$/', $argv[$i], $m)) {
+        $maxSuspensions = intval($m[1]);
+    }
+}
 
 echo "=== Cortar Servicios Vencidos ===\n";
 echo "Días de gracia: $diasGracia\n";
+echo "Batch size: $batchSize\n";
+echo "Offset: $offset\n";
+echo "Max suspensiones: " . ($maxSuspensions > 0 ? $maxSuspensions : 'sin límite') . "\n";
 echo "Iniciando: " . date('Y-m-d H:i:s') . "\n\n";
 
 require_once __DIR__ . '/../paginas/conexion.php';
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 
-// ── Crear tablas si no existen ────────────────────────────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `payment_id` INT DEFAULT NULL,
@@ -64,8 +86,6 @@ $procesados = 0;
 $errores = 0;
 $saltados = 0;
 
-// Buscar contratos ACTIVOS con cuentas por cobrar PENDIENTE vencidas
-// Solo considerar contratos que tengan wisp_hub_links (integración con WispHub)
 $sql = "
     SELECT DISTINCT c.id AS id_contrato, c.cedula, c.nombre_completo,
            wl.wisp_account_id
@@ -75,9 +95,11 @@ $sql = "
     WHERE c.estado = 'ACTIVO'
       AND cxc.estado = 'PENDIENTE'
       AND cxc.fecha_vencimiento <= '$fechaLimite'
+      AND c.id > $offset
     GROUP BY c.id
     HAVING COUNT(cxc.id_cobro) > 0
     ORDER BY c.id
+    LIMIT $batchSize
 ";
 
 $result = $conn->query($sql);
@@ -85,7 +107,7 @@ if (!$result) {
     die("Error en consulta: " . $conn->error . "\n");
 }
 
-echo "Contratos a procesar: " . $result->num_rows . "\n\n";
+echo "Contratos en este batch: " . $result->num_rows . "\n\n";
 
 while ($row = $result->fetch_assoc()) {
     $idContrato = (int)$row['id_contrato'];
@@ -93,9 +115,13 @@ while ($row = $result->fetch_assoc()) {
     $nombre = $row['nombre_completo'];
     $wispAccountId = $row['wisp_account_id'];
 
+    if ($maxSuspensions > 0 && $procesados >= $maxSuspensions) {
+        echo "[LÍMITE] Se alcanzó el máximo de $maxSuspensions suspensiones. Deteniendo.\n";
+        break;
+    }
+
     echo "[#{$idContrato}] {$nombre} ({$cedula}) - Account: {$wispAccountId}... ";
 
-    // Saltar si ya se suspendió hoy (evita reintentos diarios)
     $checkLog = $conn->query("SELECT id FROM wisp_hub_logs WHERE payment_id IS NULL AND request_payload LIKE '%cron_suspend%' AND request_payload LIKE '%$wispAccountId%' AND created_at >= NOW() - INTERVAL 1 DAY");
     if ($checkLog && $checkLog->num_rows > 0) {
         echo "YA PROCESADO HOY (saltando)\n";
@@ -104,14 +130,12 @@ while ($row = $result->fetch_assoc()) {
     }
 
     try {
-        // Llamar a WispHub para suspender el servicio
         $razon = "Corte por vencimiento de pago - " . $diasGracia . " días de gracia excedidos";
         $response = $wispClient->suspendService($wispAccountId, $razon);
 
         $exitoso = ($response['status'] === 200 || $response['status'] === 201);
 
         if ($exitoso) {
-            // Actualizar estado del contrato
             $stmtUpd = $conn->prepare("UPDATE contratos SET estado = 'SUSPENDIDO' WHERE id = ? AND estado = 'ACTIVO'");
             if ($stmtUpd) {
                 $stmtUpd->bind_param("i", $idContrato);
@@ -119,7 +143,6 @@ while ($row = $result->fetch_assoc()) {
                 $stmtUpd->close();
             }
 
-            // Actualizar wisp_hub_links
             $stmtLink = $conn->prepare("UPDATE wisp_hub_links SET status = 'SUSPENDED', last_event = 'cron.suspend', updated_at = NOW() WHERE contract_id = ? AND wisp_account_id = ?");
             if ($stmtLink) {
                 $stmtLink->bind_param("is", $idContrato, $wispAccountId);
@@ -127,7 +150,6 @@ while ($row = $result->fetch_assoc()) {
                 $stmtLink->close();
             }
 
-            // Log en wisp_hub_logs
             $logPayload = json_encode([
                 'action' => 'cron_suspend',
                 'contract_id' => $idContrato,
@@ -158,6 +180,31 @@ while ($row = $result->fetch_assoc()) {
 echo "\n=== Resumen ===\n";
 echo "Procesados: $procesados\n";
 echo "Errores: $errores\n";
+echo "Saltados (ya procesados hoy): $saltados\n";
+
+$ultimoId = 0;
+if ($procesados > 0 || $errores > 0) {
+    // Re-consultar para obtener el último id_contrato procesado
+    $lastRes = $conn->query("SELECT MAX(c.id) AS ultimo FROM contratos c
+        INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
+        INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+        WHERE c.estado = 'ACTIVO'
+          AND cxc.estado = 'PENDIENTE'
+          AND cxc.fecha_vencimiento <= '$fechaLimite'
+          AND c.id > $offset
+        GROUP BY c.id
+        HAVING COUNT(cxc.id_cobro) > 0");
+    if ($lastRes && $lastRow = $lastRes->fetch_assoc()) {
+        $ultimoId = $lastRow['ultimo'];
+    }
+    echo "Próximo offset sugerido: " . ($ultimoId) . "\n";
+    echo "Para continuar: php " . $argv[0] . " $diasGracia --batch=$batchSize --offset=$ultimoId";
+    if ($maxSuspensions > 0) {
+        echo " --max=$maxSuspensions";
+    }
+    echo "\n";
+}
+
 echo "Finalizado: " . date('Y-m-d H:i:s') . "\n";
 
 $conn->close();
