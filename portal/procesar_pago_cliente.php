@@ -22,7 +22,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
 $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `payment_id` INT DEFAULT NULL,
-    `contract_id` INT NOT NULL,
+    `contract_id` INT DEFAULT NULL,
     `wisp_account_id` VARCHAR(50) NOT NULL,
     `status` VARCHAR(20) DEFAULT 'PENDING',
     `last_event` VARCHAR(100) DEFAULT NULL,
