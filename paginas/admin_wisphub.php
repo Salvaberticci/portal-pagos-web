@@ -434,35 +434,39 @@ if ($stat_res) {
                 </div>
             <?php endif; ?>
 
-            <form method="POST" class="row g-2 align-items-end" onsubmit="return confirm('¿Ejecutar corte ahora? Se procesarán hasta <?= $batchSize ?> contratos.');">
+            <form method="POST" onsubmit="return confirm('¿Ejecutar corte ahora? Se procesarán hasta <?= $batchSize ?> contratos.');">
                 <input type="hidden" name="action" value="run_cron">
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">Días de gracia</label>
-                    <input type="number" name="dias_gracia" class="form-control form-control-sm" value="5" min="0" max="60">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label small mb-1">Batch</label>
-                    <input type="number" name="batch_size" class="form-control form-control-sm" value="10" min="1" max="200">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label small mb-1">Comando para cPanel</label>
-                    <div class="input-group input-group-sm">
-                        <input type="text" class="form-control form-control-sm font-monospace"
-                               value='wget -O /dev/null "https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY"'
-                               readonly onclick="this.select(); navigator.clipboard?.writeText(this.value)">
-                        <button class="btn btn-outline-secondary" type="button"
-                                onclick="this.previousElementSibling.select(); navigator.clipboard?.writeText(this.previousElementSibling.value)">
-                            <i class="fa-solid fa-copy"></i>
-                        </button>
+                <div class="d-flex align-items-end gap-3 flex-wrap mb-3">
+                    <div>
+                        <label class="form-label small mb-1 fw-semibold">Días de gracia</label>
+                        <input type="number" name="dias_gracia" class="form-control form-control-sm" value="5" min="0" max="60" style="width:90px">
                     </div>
-                    <span class="text-muted small">Reemplazá CRON_KEY por la clave en <code>wisphub_cron_dashboard.php</code></span>
-                </div>
-                <div class="col-md-3 d-grid">
-                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
-                        <i class="fa-solid fa-play me-1"></i> Ejecutar corte ahora
+                    <div>
+                        <label class="form-label small mb-1 fw-semibold">Batch</label>
+                        <input type="number" name="batch_size" class="form-control form-control-sm" value="10" min="1" max="200" style="width:90px">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold px-3">
+                        <i class="fa-solid fa-play me-1"></i> Ejecutar corte
                     </button>
                 </div>
             </form>
+
+            <div class="border-top pt-3">
+                <label class="form-label small fw-semibold text-muted mb-1">Comando para configurar el cron en cPanel</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="font-size:.8rem;"><i class="fa-solid fa-terminal"></i></span>
+                    <input type="text"
+                           class="form-control form-control-sm font-monospace"
+                           value='wget -O /dev/null "https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY"'
+                           readonly
+                           onclick="this.select(); navigator.clipboard?.writeText(this.value)">
+                    <button class="btn btn-sm btn-outline-secondary" type="button"
+                            onclick="this.previousElementSibling.select(); navigator.clipboard?.writeText(this.previousElementSibling.value)">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-muted">Reemplazá <code>CRON_KEY</code> por la clave definida en <code>wisphub_cron_dashboard.php</code>. Ejemplo de horario: <code>0 6 * * *</code></small>
+            </div>
             <p class="text-muted small mt-2 mb-0">
                 <i class="fa-solid fa-info-circle me-1"></i>
                 Solo se muestran datos agregados — sin información de usuarios reales.
