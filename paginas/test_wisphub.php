@@ -6,65 +6,33 @@
  * Permite simular cortes, reactivaciones, reportes de pago y webhooks.
  */
 
-$page_title = "WispHub — Simulador de Integración";
-require_once 'includes/layout_head.php';
-require_once 'includes/sidebar.php';
-require_once 'conexion.php';
-
-// ── Crear tablas si no existen ────────────────────────────────────────────────
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `request_payload` TEXT,
-    `response_payload` TEXT,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_payment_id` (`payment_id`),
-    INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `contract_id` INT NOT NULL,
-    `wisp_account_id` VARCHAR(50) NOT NULL,
-    `status` VARCHAR(20) DEFAULT 'PENDING',
-    `last_event` VARCHAR(100) DEFAULT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_contract_id` (`contract_id`),
-    INDEX `idx_wisp_account_id` (`wisp_account_id`),
-    INDEX `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-// Cargar cliente WispHub (tolerante a errores de configuración)
-$wispConfigLoaded = false;
-$wispConfig = ['api_key' => '', 'base_url' => 'https://api.wisphub.net/api'];
-$wispClient = null;
-try {
-    require_once __DIR__ . '/../vendor/autoload.php';
-    require_once __DIR__ . '/../src/Services/WispHubClient.php';
-    $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-    if (!empty($wispConfig['api_key'])) {
-        $wispClient = new \Services\WispHubClient($wispConfig);
-        $wispConfigLoaded = true;
-    }
-} catch (\Throwable $e) {
-    // Configuración no disponible — se usará $wispConfigLoaded=false
-}
-
-// --- AJAX Actions Handler ---
+// ─── AJAX Handler (al inicio, antes de cualquier salida HTML) ────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
+    ob_clean();
     header('Content-Type: application/json');
+
+    if (!@include_once __DIR__ . '/../vendor/autoload.php') {
+        echo json_encode(['success' => false, 'message' => 'vendor/autoload.php no encontrado. Ejecuta composer install.']);
+        exit;
+    }
+    require_once __DIR__ . '/../src/Services/WispHubClient.php';
+
+    $wispConfig = @include __DIR__ . '/../config/wisp_hub.php';
+    if (!is_array($wispConfig) || empty($wispConfig['api_key'])) {
+        echo json_encode(['success' => false, 'message' => 'API Key no configurada. Crea config/wisphub_credentials.php.']);
+        exit;
+    }
+
+    require_once 'conexion.php';
+
+    $wispClient = new \Services\WispHubClient($wispConfig);
     $action = $_POST['ajax_action'];
     $response = ['success' => false, 'message' => 'Acción no válida'];
 
     try {
         if ($action === 'ping_connection') {
-            if (!$wispConfigLoaded) {
-                $response['message'] = 'API Key no configurada. Crea config/wisphub_credentials.php o configúrala desde el panel.';
-            } else {
-                try {
-                    $res = $wispClient->listClients(['limit' => 1]);
+            try {
+                $res = $wispClient->listClients(['limit' => 1]);
                     $status = $res['status'] ?? 0;
                     if ($status === 200) {
                         $total = $res['data']['count'] ?? 0;
@@ -77,10 +45,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
                 }
             }
-        }
-        
-        elseif (!$wispConfigLoaded) {
-            $response['message'] = 'API Key no configurada. Crea config/wisphub_credentials.php primero.';
         }
         
         elseif ($action === 'suspend_service') {
@@ -319,6 +283,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
     
     echo json_encode($response);
     exit;
+}
+
+// ─── Inicialización normal de la página (GET requests) ────────────────────────
+$page_title = "WispHub — Simulador de Integración";
+require_once 'includes/layout_head.php';
+require_once 'includes/sidebar.php';
+require_once 'conexion.php';
+
+$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `payment_id` INT DEFAULT NULL,
+    `request_payload` TEXT,
+    `response_payload` TEXT,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_payment_id` (`payment_id`),
+    INDEX `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `payment_id` INT DEFAULT NULL,
+    `contract_id` INT NOT NULL,
+    `wisp_account_id` VARCHAR(50) NOT NULL,
+    `status` VARCHAR(20) DEFAULT 'PENDING',
+    `last_event` VARCHAR(100) DEFAULT NULL,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_contract_id` (`contract_id`),
+    INDEX `idx_wisp_account_id` (`wisp_account_id`),
+    INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// Cargar cliente WispHub (tolerante a errores de configuración)
+$wispConfigLoaded = false;
+$wispConfig = ['api_key' => '', 'base_url' => 'https://api.wisphub.net/api'];
+$wispClient = null;
+try {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    require_once __DIR__ . '/../src/Services/WispHubClient.php';
+    $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+    if (!empty($wispConfig['api_key'])) {
+        $wispClient = new \Services\WispHubClient($wispConfig);
+        $wispConfigLoaded = true;
+    }
+} catch (\Throwable $e) {
 }
 
 // Cargar últimos registros para mostrar en tablas
