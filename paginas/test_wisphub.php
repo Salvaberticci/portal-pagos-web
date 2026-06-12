@@ -163,12 +163,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 $sql_ins_p = "INSERT INTO pagos_reportados 
                     (cedula_titular, nombre_titular, telefono_titular, fecha_pago, metodo_pago,
                      id_banco_destino, referencia, monto_bs, monto_usd, tasa_dolar,
-                     meses_pagados, concepto, capture_path, id_contrato_asociado, aprobado_por, fecha_aprobacion)
-                    VALUES (?, 'TEST SIMULADO', '04120000000', ?, 'PAGO_MOVIL', 1, ?, ?, ?, ?, '1 mes', ?, '', ?, 'admin_test', NOW())";
+                     meses_pagados, concepto, capture_path, id_contrato_asociado, estado)
+                    VALUES (?, 'TEST SIMULADO', '04120000000', ?, 'PAGO_MOVIL', 1, ?, ?, ?, ?, '1 mes', ?, '', ?, 'APROBADO')";
                 
                 $stmt_p = $conn->prepare($sql_ins_p);
                 if ($stmt_p) {
-                    $stmt_p->bind_param("ssssddssi", $cedula, $fecha, $reference, $monto_bs, $amountUsd, $tasa, $concepto, $contractId);
+                    $stmt_p->bind_param("sssdddsi", $cedula, $fecha, $reference, $monto_bs, $amountUsd, $tasa, $concepto, $contractId);
                     $stmt_p->execute();
                     $paymentId = $conn->insert_id;
                     $stmt_p->close();
