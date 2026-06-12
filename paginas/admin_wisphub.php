@@ -353,7 +353,7 @@ if ($stat_res) {
                             <tr class="log-row" data-bs-toggle="tooltip" title="Click para expandir">
                                 <td class="text-muted small"><?= (int)$log['id'] ?></td>
                                 <td>
-                                    <span class="badge bg-primary bg-opacity-20 text-primary rounded-pill">
+                                    <span class="badge bg-primary bg-opacity-25 text-white rounded-pill">
                                         #<?= (int)$log['payment_id'] ?>
                                     </span>
                                 </td>
