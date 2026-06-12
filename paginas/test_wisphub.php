@@ -328,7 +328,7 @@ if ($resLogs) {
                 <div class="glass-panel p-4 mb-4 animate-fade">
                     <h5 class="fw-bold mb-3 text-gradient d-flex align-items-center justify-content-between">
                         <span><i class="fa-solid fa-server me-2" style="color:#6366f1;"></i> Conectividad API</span>
-                        <button type="button" class="btn btn-xs btn-primary rounded-pill py-0 px-2 shadow-sm" onclick="pingConnection(this)" style="font-size:0.75rem;">
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" onclick="pingConnection(this)">
                             <i class="fa-solid fa-arrows-rotate me-1"></i> Probar Conexión
                         </button>
                     </h5>
@@ -437,7 +437,7 @@ if ($resLogs) {
                             <i class="fa-solid fa-link me-2 text-primary"></i>
                             Enlaces Locales (`wisp_hub_links`)
                         </h5>
-                        <button class="btn btn-xs btn-outline-danger rounded-pill" onclick="clearTestLogs(this)">
+                        <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="clearTestLogs(this)">
                             <i class="fa-solid fa-trash-can me-1"></i> Limpiar Pruebas
                         </button>
                     </div>
