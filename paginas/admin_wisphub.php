@@ -464,29 +464,32 @@ if ($stat_res) {
             </form>
 
             <div class="border-top pt-3">
-                <h6 class="fw-semibold mb-2"><i class="fa-solid fa-robot me-1 text-info"></i> UptimeRobot — Monitoreo automático</h6>
-                <p class="text-muted small mb-2">Configurá un monitor HTTP en UptimeRobot para que ejecute el corte automáticamente cada 24h. Sin cPanel, sin SSH, sin servicios adicionales.</p>
+                <?php
+                $projectBase = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/\\');
+                $cronJobUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $projectBase . '/wisphub_cron_dashboard.php?action=run&key=CRON_KEY';
+                ?>
+                <h6 class="fw-semibold mb-2"><i class="fa-solid fa-clock me-1 text-info"></i> cron-job.org — Programación automática</h6>
+                <p class="text-muted small mb-2">El cron ya está configurado en cron-job.org para ejecutarse todos los días a la 1:00 AM. Esta es la URL por si necesitás copiarla para otro monitor o verificar:</p>
                 <div class="input-group mb-2">
                     <span class="input-group-text" style="font-size:.8rem;"><i class="fa-solid fa-link"></i></span>
                     <input type="text"
                            class="form-control form-control-sm font-monospace"
-                           id="uptimeUrl"
-                           value='https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY'
+                           id="cronJobUrl"
+                           value="<?= htmlspecialchars($cronJobUrl) ?>"
                            readonly
                            onclick="this.select(); navigator.clipboard?.writeText(this.value)">
                     <button class="btn btn-sm btn-outline-info" type="button" title="Copiar URL"
-                            onclick="document.getElementById('uptimeUrl').select(); navigator.clipboard?.writeText(document.getElementById('uptimeUrl').value)">
+                            onclick="document.getElementById('cronJobUrl').select(); navigator.clipboard?.writeText(document.getElementById('cronJobUrl').value)">
                         <i class="fa-solid fa-copy"></i>
                     </button>
                 </div>
                 <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <a href="https://uptimerobot.com" target="_blank" class="btn btn-sm btn-outline-success">
-                        <i class="fa-solid fa-external-link-alt me-1"></i> Ir a UptimeRobot
+                    <a href="https://cron-job.org" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="fa-solid fa-external-link-alt me-1"></i> Ir a cron-job.org
                     </a>
                     <small class="text-muted">
-                        1. Creá monitor → tipo HTTP → pegá la URL de arriba (reemplazando CRON_KEY por la clave en <code>wisphub_cron_dashboard.php</code>)<br>
-                        2. Intervalo: cada <strong>60 minutos</strong> → el cron checkea si hay cortes pendientes y los ejecuta una sola vez al día<br>
-                        3. Si el monitor se pone rojo, UptimeRobot te avisa por email
+                        Configuración actual: todos los días a la <strong>1:00 AM</strong> (America/Caracas).<br>
+                        Si querés cambiar horario o agregar notificaciones, entrá a tu panel en cron-job.org.
                     </small>
                 </div>
             </div>
