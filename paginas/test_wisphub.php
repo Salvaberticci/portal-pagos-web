@@ -220,65 +220,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         echo json_encode($response);
         exit;
         
-        if ($action === 'simulate_webhook') {
-            $accountId = trim($_POST['account_id'] ?? '');
-            $eventType = trim($_POST['event_type'] ?? 'service.activated');
-            
-            if (empty($accountId)) {
-                $response['message'] = 'El ID de cuenta de WispHub es requerido.';
-            } elseif ($accountId !== '902') {
-                $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
-            } else {
-                $payload = [
-                    'event' => $eventType,
-                    'account_id' => $accountId,
-                    'contract_id' => rand(1000, 9999),
-                    'timestamp' => time()
-                ];
-                $payload_json = json_encode($payload);
-                
-                $apiSecret = $wispConfig['api_secret'] ?? '';
-                $signature = hash_hmac('sha256', $payload_json, $apiSecret);
-                
-                $proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                $webhookUrl = "$proto://$host/portal/wisp_hub_webhook.php";
-                
-                $ch = curl_init($webhookUrl);
-                curl_setopt_array($ch, [
-                    CURLOPT_RETURNTRANSFER => true,
-                    CURLOPT_POST => true,
-                    CURLOPT_POSTFIELDS => $payload_json,
-                    CURLOPT_HTTPHEADER => [
-                        'Content-Type: application/json',
-                        'X-WispHub-Signature: ' . $signature
-                    ],
-                    CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => false,
-                    CURLOPT_TIMEOUT => 8
-                ]);
-                
-                $webhook_res = curl_exec($ch);
-                $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                $curl_err = curl_error($ch);
-                curl_close($ch);
-                
-                if ($curl_err) {
-                    $response['message'] = "Error de red cURL local: " . $curl_err;
-                } else {
-                    $response['success'] = ($http_code === 200);
-                    $response['message'] = "Webhook recibido localmente con código $http_code. Respuesta: " . $webhook_res;
-                    $response['data'] = [
-                        'payload' => $payload,
-                        'signature' => $signature,
-                        'response' => json_decode($webhook_res, true) ?: $webhook_res
-                    ];
-                }
-            }
-        }
-        echo json_encode($response);
-        exit;
-        
         if ($action === 'clear_test_logs') {
             $conn->query("DELETE FROM wisp_hub_logs WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
             $conn->query("DELETE FROM wisp_hub_links WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
@@ -387,7 +328,7 @@ if ($resLogs) {
                 <div class="glass-panel p-4 mb-4 animate-fade">
                     <h5 class="fw-bold mb-3 text-gradient d-flex align-items-center justify-content-between">
                         <span><i class="fa-solid fa-server me-2" style="color:#6366f1;"></i> Conectividad API</span>
-                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill py-0 px-2" onclick="pingConnection(this)" style="font-size:0.75rem;">
+                        <button type="button" class="btn btn-xs btn-primary rounded-pill py-0 px-2 shadow-sm" onclick="pingConnection(this)" style="font-size:0.75rem;">
                             <i class="fa-solid fa-arrows-rotate me-1"></i> Probar Conexión
                         </button>
                     </h5>
@@ -402,9 +343,9 @@ if ($resLogs) {
                             <div class="col-sm-4 text-muted">Modo de Operación:</div>
                             <div class="col-sm-8">
                                 <?php if (strpos($wispConfig['base_url'], 'sandbox') !== false): ?>
-                                    <span class="badge bg-warning bg-opacity-20 text-warning rounded-pill">SANDBOX</span>
+                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2">SANDBOX</span>
                                 <?php else: ?>
-                                    <span class="badge bg-success bg-opacity-20 text-success rounded-pill">PRODUCCIÓN</span>
+                                    <span class="badge bg-success text-white rounded-pill px-3 py-2">PRODUCCIÓN</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -480,25 +421,6 @@ if ($resLogs) {
                         <button type="button" class="btn btn-sm btn-primary w-100 rounded-3" onclick="triggerAction('notify_payment', this)">
                             <i class="fa-solid fa-paper-plane me-1"></i> Reportar Pago y Auto-Activar
                         </button>
-                    </div>
-
-                    <!-- SECCIÓN C: SIMULAR WEBHOOK DE ENTRADA -->
-                    <div class="mb-2">
-                        <h6 class="fw-bold small mb-2"><i class="fa-solid fa-webhook me-1 text-info"></i> Simular Webhook Entrante de WispHub</h6>
-                        <p class="text-muted small mb-3">Genera una firma segura HMAC y hace una petición local al webhook receptor para validar la sincronización del estado.</p>
-                        
-                        <div class="row g-2">
-                            <div class="col-sm-6">
-                                <button type="button" class="btn btn-sm btn-outline-warning w-100 rounded-3" onclick="triggerWebhook('service.suspended', this)">
-                                    <i class="fa-solid fa-bell me-1"></i> Webhook: Suspendido
-                                </button>
-                            </div>
-                            <div class="col-sm-6">
-                                <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-3" onclick="triggerWebhook('service.activated', this)">
-                                    <i class="fa-solid fa-bell me-1"></i> Webhook: Activado
-                                </button>
-                            </div>
-                        </div>
                     </div>
 
                 </div>
@@ -762,56 +684,6 @@ function triggerAction(action, btn) {
 }
 
 // Simular Webhook
-function triggerWebhook(eventType, btn) {
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Procesando...';
-
-    const accountId = document.getElementById('sim_account_id').value;
-
-    const formData = new FormData();
-    formData.append('ajax_action', 'simulate_webhook');
-    formData.append('account_id', accountId);
-    formData.append('event_type', eventType);
-
-    fetch('test_wisphub.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        const modal = new bootstrap.Modal(document.getElementById('responseModal'));
-        const modalAlert = document.getElementById('modalAlert');
-        const modalResponseText = document.getElementById('modalResponseText');
-        const modalTitle = document.getElementById('modalTitle');
-
-        modalTitle.textContent = 'Simulación de Webhook Inbound';
-        
-        if (data.success) {
-            modalAlert.className = 'alert alert-success py-2 rounded-3';
-            modalAlert.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>' + data.message;
-        } else {
-            modalAlert.className = 'alert alert-danger py-2 rounded-3';
-            modalAlert.innerHTML = '<i class="fa-solid fa-circle-exmark me-2"></i>' + data.message;
-        }
-
-        modalResponseText.textContent = JSON.stringify(data.data, null, 2);
-        modal.show();
-    })
-    .catch(err => {
-        console.error(err);
-        alert('Error simulando webhook.');
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        
-        setTimeout(() => {
-            location.reload();
-        }, 3000);
-    });
-}
-
 // Limpiar Logs
 function clearTestLogs(btn) {
     if (!confirm('¿Estás seguro de que deseas eliminar todos los logs y enlaces generados por simulación y pruebas?')) return;
