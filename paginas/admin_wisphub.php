@@ -7,8 +7,6 @@
  */
 
 $page_title = "WispHub — Panel de Integración";
-require_once 'includes/layout_head.php';
-require_once 'includes/sidebar.php';
 require_once 'conexion.php';
 
 // ── Crear tablas de integración si no existen ─────────────────────────────────
@@ -41,63 +39,86 @@ $conn->query("ALTER TABLE `wisp_hub_links` MODIFY `contract_id` INT DEFAULT NULL
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 
-// ── Endpoint JSON para heartbeat (AJAX) ───────────────────────────────────────
+// ── Endpoint JSON para heartbeat (AJAX) — ANTES de enviar HTML ─────────────────
 if (isset($_GET['action']) && $_GET['action'] === 'cron_status' && isset($_GET['ajax'])) {
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     
-    $lastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'")->fetch_assoc();
-    $lastPing = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%'")->fetch_assoc();
-    $todayTotals = $conn->query("
-        SELECT COUNT(*) AS total,
-               SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS ok,
-               SUM(CASE WHEN response_payload NOT LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS err
-        FROM wisp_hub_logs
-        WHERE request_payload LIKE '%cron_suspend%' AND DATE(created_at) = CURDATE()
-    ")->fetch_assoc();
-    $pendientes = $conn->query("
-        SELECT COUNT(DISTINCT c.id) AS n
-        FROM contratos c
-        INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
-        INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
-        WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
-    ")->fetch_assoc();
-    $cronJobPings = $conn->query("SELECT COUNT(*) AS n FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%' AND DATE(created_at) = CURDATE()")->fetch_assoc();
+    try {
+        $qLastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'");
+        $lastRun = $qLastRun ? $qLastRun->fetch_assoc() : null;
 
-    $ultimo = $lastRun['ultimo'] ?? null;
-    $health = 'gray';
-    if ($ultimo) {
-        $horas = (time() - strtotime($ultimo)) / 3600;
-        if ($horas < 26)      $health = 'ok';
-        elseif ($horas < 48)  $health = 'warning';
-        else                  $health = 'danger';
+        $qLastPing = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%'");
+        $lastPing = $qLastPing ? $qLastPing->fetch_assoc() : null;
+
+        $qToday = $conn->query("
+            SELECT COUNT(*) AS total,
+                   SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS ok,
+                   SUM(CASE WHEN response_payload NOT LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS err
+            FROM wisp_hub_logs
+            WHERE request_payload LIKE '%cron_suspend%' AND DATE(created_at) = CURDATE()
+        ");
+        $todayTotals = $qToday ? $qToday->fetch_assoc() : null;
+
+        $qPend = $conn->query("
+            SELECT COUNT(DISTINCT c.id) AS n
+            FROM contratos c
+            INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
+            INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+            WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
+        ");
+        $pendientes = $qPend ? $qPend->fetch_assoc() : null;
+
+        $qPings = $conn->query("SELECT COUNT(*) AS n FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%' AND DATE(created_at) = CURDATE()");
+        $cronJobPings = $qPings ? $qPings->fetch_assoc() : null;
+
+        $ultimo = $lastRun['ultimo'] ?? null;
+        $health = 'gray';
+        if ($ultimo) {
+            $horas = (time() - strtotime($ultimo)) / 3600;
+            if ($horas < 26)      $health = 'ok';
+            elseif ($horas < 48)  $health = 'warning';
+            else                  $health = 'danger';
+        }
+
+        $pingTime = $lastPing['ultimo'] ?? null;
+        $pingHealth = 'gray';
+        if ($pingTime) {
+            $horasPing = (time() - strtotime($pingTime)) / 3600;
+            if ($horasPing < 26)      $pingHealth = 'ok';
+            elseif ($horasPing < 48)  $pingHealth = 'warning';
+            else                      $pingHealth = 'danger';
+        }
+
+        echo json_encode([
+            'lastRun'      => $ultimo,
+            'health'       => $health,
+            'hoursAgo'     => $ultimo ? round((time() - strtotime($ultimo)) / 3600, 1) : null,
+            'todayOk'      => (int)($todayTotals['ok'] ?? 0),
+            'todayErr'     => (int)($todayTotals['err'] ?? 0),
+            'todayTotal'   => (int)($todayTotals['total'] ?? 0),
+            'pending'      => (int)($pendientes['n'] ?? 0),
+            'pingTime'     => $pingTime,
+            'pingHealth'   => $pingHealth,
+            'pingToday'    => (int)($cronJobPings['n'] ?? 0),
+            'nextRun'      => $pingTime ? date('Y-m-d 01:00:00', strtotime('+1 day')) : null,
+            'now'          => date('Y-m-d H:i:s'),
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'lastRun' => null, 'health' => 'gray', 'hoursAgo' => null,
+            'todayOk' => 0, 'todayErr' => 0, 'todayTotal' => 0,
+            'pending' => 0, 'pingTime' => null, 'pingHealth' => 'gray',
+            'pingToday' => 0, 'nextRun' => null, 'now' => date('Y-m-d H:i:s'),
+            'error' => $e->getMessage(),
+        ]);
     }
-
-    $pingTime = $lastPing['ultimo'] ?? null;
-    $pingHealth = 'gray';
-    if ($pingTime) {
-        $horasPing = (time() - strtotime($pingTime)) / 3600;
-        if ($horasPing < 26)      $pingHealth = 'ok';
-        elseif ($horasPing < 48)  $pingHealth = 'warning';
-        else                      $pingHealth = 'danger';
-    }
-
-    echo json_encode([
-        'lastRun'      => $ultimo,
-        'health'       => $health,
-        'hoursAgo'     => $ultimo ? round((time() - strtotime($ultimo)) / 3600, 1) : null,
-        'todayOk'      => (int)($todayTotals['ok'] ?? 0),
-        'todayErr'     => (int)($todayTotals['err'] ?? 0),
-        'todayTotal'   => (int)($todayTotals['total'] ?? 0),
-        'pending'      => (int)($pendientes['n'] ?? 0),
-        'pingTime'     => $pingTime,
-        'pingHealth'   => $pingHealth,
-        'pingToday'    => (int)($cronJobPings['n'] ?? 0),
-        'nextRun'      => $pingTime ? date('Y-m-d 01:00:00', strtotime('+1 day')) : null,
-        'now'          => date('Y-m-d H:i:s'),
-    ]);
     $conn->close();
     exit;
 }
+
+// ── Desde aquí se envía HTML (layout) ─────────────────────────────────────────
+require_once 'includes/layout_head.php';
+require_once 'includes/sidebar.php';
 
 // ── Verificar que haya sesión activa ───────────────────────────────────────────
 $rol_usuario = $_SESSION['rol'] ?? '';
