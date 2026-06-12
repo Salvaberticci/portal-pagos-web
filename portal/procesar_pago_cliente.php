@@ -166,10 +166,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($auto_aprobado) {
         log_security_event('PAYMENT_AUTO_APPROVED', "Pago verificado automáticamente por API. Ref: $referencia, Monto: $monto_bs Bs", $cedula);
         // Pago aprobado automáticamente: mensaje verde
-        $_SESSION['pago_msg'] = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! "
-            . "Tu servicio ha sido actualizado al instante. Referencia: <strong>$referencia</strong>.";
+        $_SESSION['pago_msg'] = "✅ ¡Tu pago fue verificado automáticamente con el Banco de Venezuela! " .
+            "Tu servicio ha sido actualizado al instante. Referencia: <strong>$referencia</strong>.";
         unset($_SESSION['pago_pendiente']);
-    } else {
+
+} else {
         // Pago quedó pendiente: mensaje amarillo con motivo específico
         $razon = $GLOBALS['bdv_falla_motivo'] ?? 'La referencia o el monto no coinciden con los registros del banco.';
         log_security_event('PAYMENT_PENDING', "Pago enviado a revisión manual. Ref: $referencia, Monto: $monto_bs Bs. Motivo: $razon", $cedula);

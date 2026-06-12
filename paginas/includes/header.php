@@ -109,6 +109,9 @@ $user_initial = strtoupper(substr($user_name, 0, 1));
                         <li><a class="dropdown-item"
                                 href="<?php echo $path_fix; ?>paginas/admin_wisphub.php#credenciales"><i
                                     class="fa-solid fa-key w-20 me-2" style="color:#f59e0b;"></i> Credenciales API</a></li>
+                        <li><a class="dropdown-item"
+                                href="<?php echo $path_fix; ?>paginas/test_wisphub.php"><i
+                                    class="fa-solid fa-vial w-20 me-2" style="color:#a855f7;"></i> Simulador de Corte/Pago</a></li>
                     </ul>
                 </li>
 

@@ -155,7 +155,22 @@ require_once 'includes/sidebar.php';
                     </div>
                 </a>
             </div>
+            <!-- WispHub -->
+            <div class="col-md-6 col-lg-3">
+                <a href="admin_wisphub.php" class="text-decoration-none">
+                    <div class="card h-100 hover-lift border-white border-opacity-5">
+                        <div class="card-body text-center p-4">
+                            <div class="mb-3 d-inline-flex align-items-center justify-content-center rounded-3 p-3 bg-white bg-opacity-5 shadow-sm">
+                                <i class="fa-solid fa-network-wired fa-2x" style="color:#8b5cf6;"></i>
+                            </div>
+                            <h5 class="card-title">WispHub</h5>
+                            <p class="card-text text-muted small">Integración API · Logs y credenciales</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
         </div>
+
 
         <footer class="mt-5 text-center text-muted small">
             &copy; <span id="current-year"></span> Wireless Supply, C.A. Todos los derechos reservados.

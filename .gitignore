@@ -13,3 +13,7 @@ paginas/principal/logs/
 
 # Cache Dinámica (IGNORAR)
 portal/tasa_cache.json
+
+# Configuración sensible (API keys, etc.) — crear manualmente en cada entorno
+config/wisphub_credentials.php
+!config/wisphub_credentials.sample.php

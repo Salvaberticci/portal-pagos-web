@@ -72,6 +72,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // ─── WispHub: registrar pago y activar servicio ─────────────
+            if ($id_contrato > 0) {
+                require_once __DIR__ . '/../../vendor/autoload.php';
+                require_once __DIR__ . '/../../src/Services/WispHubClient.php';
+                $wispConfig = include __DIR__ . '/../../config/wisp_hub.php';
+                $wispClient = new \Services\WispHubClient($wispConfig);
+
+                $wispAccountId = '';
+                $q_link = $conn->query("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = $id_contrato AND wisp_account_id != '' ORDER BY id DESC LIMIT 1");
+                if ($q_link && $link_row = $q_link->fetch_assoc()) {
+                    $wispAccountId = $link_row['wisp_account_id'];
+                }
+
+                if (!empty($wispAccountId)) {
+                    $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
+                    $wispResult = $wispClient->registerPaymentAndActivate(
+                        $wispAccountId,
+                        $monto_total,
+                        $referencia,
+                        $wispDate
+                    );
+
+                    $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
+                    $stmt_log = $conn->prepare($sql_log);
+                    if ($stmt_log) {
+                        $logPayload = json_encode([
+                            'service_id' => $wispAccountId,
+                            'amount' => $monto_total,
+                            'reference' => $referencia,
+                            'date' => $wispDate,
+                        ]);
+                        $logResponse = json_encode($wispResult);
+                        $stmt_log->bind_param("iss", $id_reporte, $logPayload, $logResponse);
+                        $stmt_log->execute();
+                        $stmt_log->close();
+                    }
+                }
+            }
+
             $message = "¡Pago aprobado y registrado exitosamente! El comprobante ha sido eliminado para ahorrar espacio.";
             $class = "success";
         } catch (Exception $e) {

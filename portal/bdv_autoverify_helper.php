@@ -209,10 +209,61 @@ function verificar_y_aprobar_pago_bdv(
 
         // 4. Eliminar el capture del disco (ya aprobado por la API, no es necesario conservarlo)
         if (!empty($capture_path)) {
-            // __DIR__ = portal/  →  dirname(__DIR__) = root del proyecto
             $full_path = dirname(__DIR__) . '/' . $capture_path;
             if (file_exists($full_path)) {
                 @unlink($full_path);
+            }
+        }
+
+        // ─── Registrar pago y activar servicio en WispHub ─────────────────
+        if ($id_contrato > 0) {
+            try {
+                require_once dirname(__DIR__) . '/vendor/autoload.php';
+                require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
+                $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
+                $wispClient = new \Services\WispHubClient($wispConfig);
+
+                // Buscar wisp_account_id para este contrato
+                $wispAccountId = '';
+                $q = $conn->query("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = " . intval($id_contrato) . " AND wisp_account_id != '' ORDER BY id DESC LIMIT 1");
+                if ($q && $row = $q->fetch_assoc()) {
+                    $wispAccountId = $row['wisp_account_id'];
+                }
+
+                if (!empty($wispAccountId)) {
+                    // Formatear fecha para WispHub (YYYY-MM-DD HH:MM)
+                    $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
+
+                    $wispResult = $wispClient->registerPaymentAndActivate(
+                        $wispAccountId,
+                        $monto_usd,
+                        $referencia,
+                        $wispDate
+                    );
+
+                    // Guardar log en wisp_hub_logs
+                    $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
+                    $stmt_log = $conn->prepare($sql_log);
+                    if ($stmt_log) {
+                        $logPayload = json_encode([
+                            'service_id' => $wispAccountId,
+                            'amount' => $monto_usd,
+                            'reference' => $referencia,
+                            'date' => $wispDate,
+                        ]);
+                        $logResponse = json_encode($wispResult);
+                        $stmt_log->bind_param("iss", $id_reporte, $logPayload, $logResponse);
+                        $stmt_log->execute();
+                        $stmt_log->close();
+                    }
+                    error_log('[BDV AutoVerify] WispHub registerPaymentAndActivate OK: '
+                        . count($wispResult['payments_registered'] ?? []) . ' pagos, '
+                        . ($wispResult['activation']['status'] ?? 'error') . ' activacion');
+                } else {
+                    error_log('[BDV AutoVerify] Sin wisp_account_id para contrato #' . $id_contrato . ' — se omite WispHub');
+                }
+            } catch (\Exception $e) {
+                error_log('[BDV AutoVerify] Error en WispHub: ' . $e->getMessage());
             }
         }
 
