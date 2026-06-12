@@ -37,12 +37,54 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $conn->query("ALTER TABLE `wisp_hub_links` MODIFY `contract_id` INT DEFAULT NULL");
 
-// ── Autoload para WispHubClient (usado en cron manual) ────────────────────────
+// ── Autoload para WispHubClient ───────────────────────────────────────────────
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 
-// ── Verificar que haya sesión activa (cualquier usuario del sistema puede ver) ─
-// El control de acceso por rol está manejado por layout_head.php
+// ── Endpoint JSON para heartbeat (AJAX) ───────────────────────────────────────
+if (isset($_GET['action']) && $_GET['action'] === 'cron_status' && isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+    
+    $lastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'")->fetch_assoc();
+    $todayTotals = $conn->query("
+        SELECT COUNT(*) AS total,
+               SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS ok,
+               SUM(CASE WHEN response_payload NOT LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS err
+        FROM wisp_hub_logs
+        WHERE request_payload LIKE '%cron_suspend%' AND DATE(created_at) = CURDATE()
+    ")->fetch_assoc();
+    $pendientes = $conn->query("
+        SELECT COUNT(DISTINCT c.id) AS n
+        FROM contratos c
+        INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
+        INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+        WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
+    ")->fetch_assoc();
+
+    $ultimo = $lastRun['ultimo'] ?? null;
+    $health = 'gray'; // sin datos
+    if ($ultimo) {
+        $horas = (time() - strtotime($ultimo)) / 3600;
+        if ($horas < 26)      $health = 'ok';
+        elseif ($horas < 48)  $health = 'warning';
+        else                  $health = 'danger';
+    }
+
+    echo json_encode([
+        'lastRun'    => $ultimo,
+        'health'     => $health,
+        'hoursAgo'   => $ultimo ? round((time() - strtotime($ultimo)) / 3600, 1) : null,
+        'todayOk'    => (int)($todayTotals['ok'] ?? 0),
+        'todayErr'   => (int)($todayTotals['err'] ?? 0),
+        'todayTotal' => (int)($todayTotals['total'] ?? 0),
+        'pending'    => (int)($pendientes['n'] ?? 0),
+        'now'        => date('Y-m-d H:i:s'),
+    ]);
+    $conn->close();
+    exit;
+}
+
+// ── Verificar que haya sesión activa ───────────────────────────────────────────
 $rol_usuario = $_SESSION['rol'] ?? '';
 
 // ── Manejo del formulario de credenciales ────────────────────────────────────
@@ -312,9 +354,12 @@ if ($stat_res) {
                 <h5 class="fw-bold mb-0">
                     <i class="fa-solid fa-clock me-2 text-warning"></i>
                     Corte automático (Cron)
+                    <span id="cronHealthDot" class="badge rounded-pill ms-2" style="font-size:.5rem;vertical-align:middle;">&bull;</span>
                 </h5>
+                <span id="cronLastRun" class="text-muted small">Consultando...</span>
+            </div>
 
-                <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_cron'): ?>
+            <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_cron'): ?>
                     <?php
                     $diasGracia = max(0, intval($_POST['dias_gracia'] ?? 5));
                     $batchSize  = max(1, min(200, intval($_POST['batch_size'] ?? 10)));
@@ -374,67 +419,34 @@ if ($stat_res) {
                 <?php endif; ?>
             </div>
 
-            <?php
-            // Últimas ejecuciones (solo agregadas, sin datos de usuarios reales)
-            $cronStats = $conn->query("
-                SELECT DATE(created_at) AS fecha, COUNT(*) AS total,
-                       SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS exitosos,
-                       SUM(CASE WHEN response_payload NOT LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS fallidos
-                FROM wisp_hub_logs
-                WHERE request_payload LIKE '%cron_suspend%'
-                GROUP BY DATE(created_at)
-                ORDER BY fecha DESC LIMIT 10
-            ");
-            $lastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'")->fetch_assoc()['ultimo'];
-            $pendientes = $conn->query("
-                SELECT COUNT(DISTINCT c.id) AS n
-                FROM contratos c
-                INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
-                INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
-                WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
-            ")->fetch_assoc()['n'];
-            ?>
-
             <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
-                        <div class="text-muted small">Última ejecución</div>
-                        <div class="fw-bold"><?= $lastRun ? htmlspecialchars($lastRun) : '<span class="text-muted">Nunca</span>' ?></div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Hoy</div>
+                        <div class="fw-bold"><span id="cronTodayOk">-</span> <span class="text-success">✓</span> · <span id="cronTodayErr">-</span> <span class="text-danger">✗</span></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
-                        <div class="text-muted small">Pendientes de corte hoy</div>
-                        <div class="fw-bold"><?= (int)$pendientes ?></div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Pendientes</div>
+                        <div class="fw-bold"><span id="cronPending">-</span></div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
-                        <div class="text-muted small">Días de gracia</div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Días gracia</div>
                         <div class="fw-bold">5</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Último heartbeat</div>
+                        <div class="fw-bold"><span id="cronHeartbeatTs">-</span></div>
                     </div>
                 </div>
             </div>
 
-            <?php if ($cronStats && $cronStats->num_rows > 0): ?>
-                <div class="table-responsive mb-3">
-                    <table class="table table-sm table-borderless mb-0" style="font-size:.85rem;">
-                        <thead><tr class="text-muted"><th>Fecha</th><th>Suspendidos</th><th>Errores</th><th>Total</th></tr></thead>
-                        <tbody>
-                        <?php while ($r = $cronStats->fetch_assoc()): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($r['fecha']) ?></td>
-                                <td><span class="text-success">+<?= (int)$r['exitosos'] ?></span></td>
-                                <td><span class="text-danger"><?= (int)$r['fallidos'] ?></span></td>
-                                <td><?= (int)$r['total'] ?></td>
-                            </tr>
-                        <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
-            <?php endif; ?>
-
-            <form method="POST" onsubmit="return confirm('¿Ejecutar corte ahora? Se procesarán hasta <?= $batchSize ?> contratos.');">
+            <form method="POST" onsubmit="return confirm('¿Ejecutar corte ahora? Se procesarán hasta 10 contratos.');">
                 <input type="hidden" name="action" value="run_cron">
                 <div class="d-flex align-items-end gap-3 flex-wrap mb-3">
                     <div>
@@ -452,26 +464,32 @@ if ($stat_res) {
             </form>
 
             <div class="border-top pt-3">
-                <label class="form-label small fw-semibold text-muted mb-1">Comando para configurar el cron en cPanel</label>
-                <div class="input-group">
-                    <span class="input-group-text" style="font-size:.8rem;"><i class="fa-solid fa-terminal"></i></span>
+                <h6 class="fw-semibold mb-2"><i class="fa-solid fa-robot me-1 text-info"></i> UptimeRobot — Monitoreo automático</h6>
+                <p class="text-muted small mb-2">Configurá un monitor HTTP en UptimeRobot para que ejecute el corte automáticamente cada 24h. Sin cPanel, sin SSH, sin servicios adicionales.</p>
+                <div class="input-group mb-2">
+                    <span class="input-group-text" style="font-size:.8rem;"><i class="fa-solid fa-link"></i></span>
                     <input type="text"
                            class="form-control form-control-sm font-monospace"
-                           value='wget -O /dev/null "https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY"'
+                           id="uptimeUrl"
+                           value='https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY'
                            readonly
                            onclick="this.select(); navigator.clipboard?.writeText(this.value)">
-                    <button class="btn btn-sm btn-outline-secondary" type="button"
-                            onclick="this.previousElementSibling.select(); navigator.clipboard?.writeText(this.previousElementSibling.value)">
+                    <button class="btn btn-sm btn-outline-info" type="button" title="Copiar URL"
+                            onclick="document.getElementById('uptimeUrl').select(); navigator.clipboard?.writeText(document.getElementById('uptimeUrl').value)">
                         <i class="fa-solid fa-copy"></i>
                     </button>
                 </div>
-                <small class="text-muted">Reemplazá <code>CRON_KEY</code> por la clave definida en <code>wisphub_cron_dashboard.php</code>. Ejemplo de horario: <code>0 6 * * *</code></small>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <a href="https://uptimerobot.com" target="_blank" class="btn btn-sm btn-outline-success">
+                        <i class="fa-solid fa-external-link-alt me-1"></i> Ir a UptimeRobot
+                    </a>
+                    <small class="text-muted">
+                        1. Creá monitor → tipo HTTP → pegá la URL de arriba (reemplazando CRON_KEY por la clave en <code>wisphub_cron_dashboard.php</code>)<br>
+                        2. Intervalo: cada <strong>60 minutos</strong> → el cron checkea si hay cortes pendientes y los ejecuta una sola vez al día<br>
+                        3. Si el monitor se pone rojo, UptimeRobot te avisa por email
+                    </small>
+                </div>
             </div>
-            <p class="text-muted small mt-2 mb-0">
-                <i class="fa-solid fa-info-circle me-1"></i>
-                Solo se muestran datos agregados — sin información de usuarios reales.
-                El cron real se configura en cPanel con el comando de arriba.
-            </p>
         </div>
 
         <!-- ── Log de notificaciones ─────────────────────────────────────── -->
@@ -629,6 +647,64 @@ function copyWebhookUrl() {
         setTimeout(() => btn.innerHTML = '<i class="fa-solid fa-copy"></i>', 2000);
     });
 }
+
+// ── Heartbeat: estado del cron en vivo (cada 30s) ────────────────────────────
+function updateCronStatus() {
+    const hb = document.getElementById('cronHeartbeatTs');
+    if (hb) hb.textContent = new Date().toLocaleTimeString();
+
+    fetch('admin_wisphub.php?action=cron_status&ajax=1&_=' + Date.now())
+        .then(r => r.json())
+        .then(d => {
+            // Dot de salud
+            const dot = document.getElementById('cronHealthDot');
+            if (dot) {
+                const colors = { ok: '#22c55e', warning: '#eab308', danger: '#ef4444', gray: '#6b7280' };
+                dot.style.color = colors[d.health] || colors.gray;
+                dot.title = d.health === 'ok' ? 'Funcionando normal'
+                          : d.health === 'warning' ? 'Sin ejecución reciente'
+                          : d.health === 'danger' ? '¡Sin ejecución por más de 48h!'
+                          : 'Sin datos';
+            }
+            // Última ejecución
+            const lr = document.getElementById('cronLastRun');
+            if (lr) lr.textContent = d.lastRun
+                ? 'Última ejecución: ' + d.lastRun + ' (hace ' + d.hoursAgo + 'h)'
+                : 'Sin ejecuciones registradas';
+
+            // Contadores
+            document.getElementById('cronTodayOk').textContent = d.todayOk;
+            document.getElementById('cronTodayErr').textContent = d.todayErr;
+            document.getElementById('cronPending').textContent = d.pending;
+        })
+        .catch(() => {
+            document.getElementById('cronLastRun').textContent = 'Error al consultar estado';
+        });
+}
+// Actualizar inmediatamente y cada 30s
+updateCronStatus();
+setInterval(updateCronStatus, 30000);
+
+// ── Auto-trigger: si pasaron >26h sin ejecución, ejecutar corte ──────────────
+function autoTriggerCron() {
+    fetch('admin_wisphub.php?action=cron_status&ajax=1&_=' + Date.now())
+        .then(r => r.json())
+        .then(d => {
+            if (d.health === 'danger' || d.health === 'gray') {
+                // Ejecutar corte vía AJAX
+                const form = new URLSearchParams();
+                form.append('action', 'run_cron');
+                form.append('dias_gracia', '5');
+                form.append('batch_size', '10');
+                fetch('admin_wisphub.php', { method: 'POST', body: form })
+                    .then(() => { setTimeout(updateCronStatus, 5000); })
+                    .catch(() => {});
+            }
+        })
+        .catch(() => {});
+}
+// Ejecutar auto-trigger 2 segundos después de cargar la página
+setTimeout(autoTriggerCron, 2000);
 
 // ── Año actual en footer si existe ────────────────────────────────────────────
 const yr = document.getElementById('current-year');
