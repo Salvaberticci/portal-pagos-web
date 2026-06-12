@@ -26,8 +26,20 @@ require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/Services/WispHubClient.php';
 
 header('Content-Type: text/plain; charset=utf-8');
+
+// Si es un test de conexión, responder rápido sin ejecutar nada
+if (isset($_GET['test'])) {
+    echo "OK:test\n";
+    echo "time=" . date('Y-m-d H:i:s') . "\n";
+    $conn->close();
+    exit;
+}
+
 echo "=== Cortar Servicios Vencidos ===\n";
 echo date('Y-m-d H:i:s') . "\n\n";
+
+// Siempre registrar un heartbeat para monitorizar que cron-job.org está llamando
+$conn->query("INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (NULL, '{\"action\":\"cron_job_ping\",\"source\":\"cron-job.org\"}', '{\"status\":\"ok\"}', NOW())");
 
 $diasGracia = isset($_GET['dias']) ? max(0, intval($_GET['dias'])) : 5;
 $batchSize  = isset($_GET['batch']) ? max(1, min(200, intval($_GET['batch']))) : 50;

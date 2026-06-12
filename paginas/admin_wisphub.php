@@ -46,6 +46,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'cron_status' && isset($_GET['
     header('Content-Type: application/json');
     
     $lastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'")->fetch_assoc();
+    $lastPing = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%'")->fetch_assoc();
     $todayTotals = $conn->query("
         SELECT COUNT(*) AS total,
                SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS ok,
@@ -60,9 +61,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'cron_status' && isset($_GET['
         INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
         WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
     ")->fetch_assoc();
+    $cronJobPings = $conn->query("SELECT COUNT(*) AS n FROM wisp_hub_logs WHERE request_payload LIKE '%cron_job_ping%' AND DATE(created_at) = CURDATE()")->fetch_assoc();
 
     $ultimo = $lastRun['ultimo'] ?? null;
-    $health = 'gray'; // sin datos
+    $health = 'gray';
     if ($ultimo) {
         $horas = (time() - strtotime($ultimo)) / 3600;
         if ($horas < 26)      $health = 'ok';
@@ -70,15 +72,28 @@ if (isset($_GET['action']) && $_GET['action'] === 'cron_status' && isset($_GET['
         else                  $health = 'danger';
     }
 
+    $pingTime = $lastPing['ultimo'] ?? null;
+    $pingHealth = 'gray';
+    if ($pingTime) {
+        $horasPing = (time() - strtotime($pingTime)) / 3600;
+        if ($horasPing < 26)      $pingHealth = 'ok';
+        elseif ($horasPing < 48)  $pingHealth = 'warning';
+        else                      $pingHealth = 'danger';
+    }
+
     echo json_encode([
-        'lastRun'    => $ultimo,
-        'health'     => $health,
-        'hoursAgo'   => $ultimo ? round((time() - strtotime($ultimo)) / 3600, 1) : null,
-        'todayOk'    => (int)($todayTotals['ok'] ?? 0),
-        'todayErr'   => (int)($todayTotals['err'] ?? 0),
-        'todayTotal' => (int)($todayTotals['total'] ?? 0),
-        'pending'    => (int)($pendientes['n'] ?? 0),
-        'now'        => date('Y-m-d H:i:s'),
+        'lastRun'      => $ultimo,
+        'health'       => $health,
+        'hoursAgo'     => $ultimo ? round((time() - strtotime($ultimo)) / 3600, 1) : null,
+        'todayOk'      => (int)($todayTotals['ok'] ?? 0),
+        'todayErr'     => (int)($todayTotals['err'] ?? 0),
+        'todayTotal'   => (int)($todayTotals['total'] ?? 0),
+        'pending'      => (int)($pendientes['n'] ?? 0),
+        'pingTime'     => $pingTime,
+        'pingHealth'   => $pingHealth,
+        'pingToday'    => (int)($cronJobPings['n'] ?? 0),
+        'nextRun'      => $pingTime ? date('Y-m-d 01:00:00', strtotime('+1 day')) : null,
+        'now'          => date('Y-m-d H:i:s'),
     ]);
     $conn->close();
     exit;
@@ -420,19 +435,19 @@ if ($stat_res) {
             </div>
 
             <div class="row g-3 mb-3">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
                         <div class="text-muted small">Hoy</div>
                         <div class="fw-bold"><span id="cronTodayOk">-</span> <span class="text-success">✓</span> · <span id="cronTodayErr">-</span> <span class="text-danger">✗</span></div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
                         <div class="text-muted small">Pendientes</div>
                         <div class="fw-bold"><span id="cronPending">-</span></div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
                         <div class="text-muted small">Días gracia</div>
                         <div class="fw-bold">5</div>
@@ -442,6 +457,15 @@ if ($stat_res) {
                     <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);">
                         <div class="text-muted small">Último heartbeat</div>
                         <div class="fw-bold"><span id="cronHeartbeatTs">-</span></div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background:rgba(255,255,255,.03);position:relative;">
+                        <div class="text-muted small">
+                            <i class="fa-solid fa-clock me-1"></i>cron-job.org
+                            <span id="pingDot" style="color:#6b7280;font-size:1.2rem;">●</span>
+                        </div>
+                        <div class="fw-bold small"><span id="cronJobStatus">Sincronizando...</span></div>
                     </div>
                 </div>
             </div>
@@ -469,7 +493,11 @@ if ($stat_res) {
                 $cronJobUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . $projectBase . '/wisphub_cron_dashboard.php?action=run&key=CRON_KEY';
                 ?>
                 <h6 class="fw-semibold mb-2"><i class="fa-solid fa-clock me-1 text-info"></i> cron-job.org — Programación automática</h6>
-                <p class="text-muted small mb-2">El cron ya está configurado en cron-job.org para ejecutarse todos los días a la 1:00 AM. Esta es la URL por si necesitás copiarla para otro monitor o verificar:</p>
+                <p class="text-muted small mb-2">
+                    Ejecuta todos los días a la <strong>1:00 AM</strong> (America/Caracas).
+                    Próxima ejecución estimada: <strong id="cronNextRun">hoy 1:00 AM</strong>.
+                    <a href="https://cron-job.org" target="_blank" class="text-info">Abrir panel de cron-job.org</a>
+                </p>
                 <div class="input-group mb-2">
                     <span class="input-group-text" style="font-size:.8rem;"><i class="fa-solid fa-link"></i></span>
                     <input type="text"
@@ -484,12 +512,9 @@ if ($stat_res) {
                     </button>
                 </div>
                 <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <a href="https://cron-job.org" target="_blank" class="btn btn-sm btn-outline-primary">
-                        <i class="fa-solid fa-external-link-alt me-1"></i> Ir a cron-job.org
-                    </a>
                     <small class="text-muted">
-                        Configuración actual: todos los días a la <strong>1:00 AM</strong> (America/Caracas).<br>
-                        Si querés cambiar horario o agregar notificaciones, entrá a tu panel en cron-job.org.
+                        <span id="cronJobPingCount">-</span> pings recibidos de cron-job.org hoy.
+                        <a href="#" id="testCronJobLink" class="text-warning">Probar conexión ahora</a>
                     </small>
                 </div>
             </div>
@@ -659,7 +684,7 @@ function updateCronStatus() {
     fetch('admin_wisphub.php?action=cron_status&ajax=1&_=' + Date.now())
         .then(r => r.json())
         .then(d => {
-            // Dot de salud
+            // Dot de salud (cortes)
             const dot = document.getElementById('cronHealthDot');
             if (dot) {
                 const colors = { ok: '#22c55e', warning: '#eab308', danger: '#ef4444', gray: '#6b7280' };
@@ -669,16 +694,46 @@ function updateCronStatus() {
                           : d.health === 'danger' ? '¡Sin ejecución por más de 48h!'
                           : 'Sin datos';
             }
-            // Última ejecución
+            // Última ejecución de corte
             const lr = document.getElementById('cronLastRun');
             if (lr) lr.textContent = d.lastRun
-                ? 'Última ejecución: ' + d.lastRun + ' (hace ' + d.hoursAgo + 'h)'
+                ? 'Último corte: ' + d.lastRun + ' (hace ' + d.hoursAgo + 'h)'
                 : 'Sin ejecuciones registradas';
 
             // Contadores
             document.getElementById('cronTodayOk').textContent = d.todayOk;
             document.getElementById('cronTodayErr').textContent = d.todayErr;
             document.getElementById('cronPending').textContent = d.pending;
+
+            // cron-job.org status
+            const pingDot = document.getElementById('pingDot');
+            if (pingDot) {
+                const pColors = { ok: '#22c55e', warning: '#eab308', danger: '#ef4444', gray: '#6b7280' };
+                pingDot.style.color = pColors[d.pingHealth] || pColors.gray;
+                pingDot.title = d.pingHealth === 'ok' ? 'cron-job.org activo'
+                              : d.pingHealth === 'warning' ? 'Sin ping reciente'
+                              : d.pingHealth === 'danger' ? '¡Sin ping por más de 48h!'
+                              : 'Esperando primer ping';
+            }
+            const statusEl = document.getElementById('cronJobStatus');
+            if (statusEl) {
+                if (d.pingTime) {
+                    const pingH = Math.round((Date.now() - new Date(d.pingTime).getTime()) / 3600000);
+                    statusEl.textContent = 'Último ping: ' + d.pingTime + ' (hace ' + pingH + 'h) · ' + d.pingToday + ' hoy';
+                } else {
+                    statusEl.textContent = 'Esperando primer ping de cron-job.org...';
+                }
+            }
+            // Ping count y próxima ejecución
+            document.getElementById('cronJobPingCount').textContent = d.pingToday;
+            const nextEl = document.getElementById('cronNextRun');
+            if (nextEl) {
+                const now = new Date();
+                const next = new Date(now);
+                next.setHours(1, 0, 0, 0);
+                if (now.getHours() >= 1) next.setDate(next.getDate() + 1);
+                nextEl.textContent = next.toLocaleDateString() + ' 1:00 AM';
+            }
         })
         .catch(() => {
             document.getElementById('cronLastRun').textContent = 'Error al consultar estado';
@@ -708,6 +763,33 @@ function autoTriggerCron() {
 }
 // Ejecutar auto-trigger 2 segundos después de cargar la página
 setTimeout(autoTriggerCron, 2000);
+
+// ── Probar conexión con cron-job.org ─────────────────────────────────────────
+const testLink = document.getElementById('testCronJobLink');
+if (testLink) {
+    testLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        const link = this;
+        const orig = link.textContent;
+        link.textContent = 'Probando...';
+        link.style.pointerEvents = 'none';
+        const url = document.getElementById('cronJobUrl').value.replace('CRON_KEY', 'cron_wisphub_2024_secret');
+        fetch(url + '&test=1&_=' + Date.now())
+            .then(r => {
+                link.textContent = r.ok ? '✅ Conexión exitosa' : '❌ Error HTTP ' + r.status;
+                setTimeout(updateCronStatus, 2000);
+            })
+            .catch(() => {
+                link.textContent = '❌ Error de conexión';
+            })
+            .finally(() => {
+                setTimeout(() => {
+                    link.textContent = orig;
+                    link.style.pointerEvents = 'auto';
+                }, 4000);
+            });
+    });
+}
 
 // ── Año actual en footer si existe ────────────────────────────────────────────
 const yr = document.getElementById('current-year');
