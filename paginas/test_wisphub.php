@@ -33,20 +33,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         if ($action === 'ping_connection') {
             try {
                 $res = $wispClient->listClients(['limit' => 1]);
-                    $status = $res['status'] ?? 0;
-                    if ($status === 200) {
-                        $total = $res['data']['count'] ?? 0;
-                        $response['success'] = true;
-                        $response['message'] = "✅ Conexión exitosa. Total clientes en WispHub: {$total}.";
-                    } else {
-                        $response['message'] = "WispHub respondió HTTP {$status}: " . json_encode($res['data'] ?? []);
-                    }
-                } catch (\Exception $e) {
-                    $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
+                $status = $res['status'] ?? 0;
+                if ($status === 200) {
+                    $total = $res['data']['count'] ?? 0;
+                    $response['success'] = true;
+                    $response['message'] = "✅ Conexión exitosa. Total clientes en WispHub: {$total}.";
+                } else {
+                    $response['message'] = "WispHub respondió HTTP {$status}: " . json_encode($res['data'] ?? []);
                 }
+            } catch (\Exception $e) {
+                $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
             }
+            echo json_encode($response);
+            exit;
+        }
         
-        elseif ($action === 'suspend_service') {
+        if ($action === 'suspend_service') {
             $accountId = trim($_POST['account_id'] ?? '');
             $reason = trim($_POST['reason'] ?? 'Corte administrativo por impago');
             
@@ -89,9 +91,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     $response['message'] = "Error al suspender servicio en WispHub Sandbox (Código HTTP: $status).";
                 }
             }
+            echo json_encode($response);
+            exit;
         }
         
-        elseif ($action === 'activate_service') {
+        if ($action === 'activate_service') {
             $accountId = trim($_POST['account_id'] ?? '');
             
             if (empty($accountId)) {
@@ -133,9 +137,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     $response['message'] = "Error al activar servicio en WispHub Sandbox (Código HTTP: $status).";
                 }
             }
+            echo json_encode($response);
+            exit;
         }
         
-        elseif ($action === 'notify_payment') {
+        if ($action === 'notify_payment') {
             $accountId = trim($_POST['account_id'] ?? '');
             $contractId = intval($_POST['contract_id'] ?? 0);
             $reference = trim($_POST['reference'] ?? '');
@@ -211,8 +217,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 }
             }
         }
+        echo json_encode($response);
+        exit;
         
-        elseif ($action === 'simulate_webhook') {
+        if ($action === 'simulate_webhook') {
             $accountId = trim($_POST['account_id'] ?? '');
             $eventType = trim($_POST['event_type'] ?? 'service.activated');
             
@@ -268,14 +276,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 }
             }
         }
+        echo json_encode($response);
+        exit;
         
-        elseif ($action === 'clear_test_logs') {
+        if ($action === 'clear_test_logs') {
             $conn->query("DELETE FROM wisp_hub_logs WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
             $conn->query("DELETE FROM wisp_hub_links WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
             $conn->query("DELETE FROM pagos_reportados WHERE cedula_titular = 'V99999999'");
             
             $response['success'] = true;
             $response['message'] = 'Logs y enlaces de pruebas limpiados con éxito.';
+            echo json_encode($response);
+            exit;
         }
         
     } catch (\Exception $e) {
