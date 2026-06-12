@@ -37,6 +37,10 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $conn->query("ALTER TABLE `wisp_hub_links` MODIFY `contract_id` INT DEFAULT NULL");
 
+// ── Autoload para WispHubClient (usado en cron manual) ────────────────────────
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/Services/WispHubClient.php';
+
 // ── Verificar que haya sesión activa (cualquier usuario del sistema puede ver) ─
 // El control de acceso por rol está manejado por layout_head.php
 $rol_usuario = $_SESSION['rol'] ?? '';
@@ -300,6 +304,170 @@ if ($stat_res) {
                     <i class="fa-solid fa-copy"></i>
                 </button>
             </div>
+        </div>
+
+        <!-- ── Corte automático (Cron) ─────────────────────────────────────── -->
+        <div class="glass-panel p-4 mb-4 animate-fade" style="animation-delay:.18s">
+            <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <h5 class="fw-bold mb-0">
+                    <i class="fa-solid fa-clock me-2 text-warning"></i>
+                    Corte automático (Cron)
+                </h5>
+
+                <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_cron'): ?>
+                    <?php
+                    $diasGracia = max(0, intval($_POST['dias_gracia'] ?? 5));
+                    $batchSize  = max(1, min(200, intval($_POST['batch_size'] ?? 10)));
+                    $fechaLimite = date('Y-m-d', strtotime("-{$diasGracia} days"));
+                    $procesados = 0; $errores = 0; $saltados = 0;
+
+                    $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+                    $wispClient = new \Services\WispHubClient($wispConfig);
+
+                    $sql = "
+                        SELECT DISTINCT c.id AS id_contrato, wl.wisp_account_id
+                        FROM contratos c
+                        INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
+                        INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+                        WHERE c.estado = 'ACTIVO'
+                          AND cxc.estado = 'PENDIENTE'
+                          AND cxc.fecha_vencimiento <= '$fechaLimite'
+                        GROUP BY c.id
+                        HAVING COUNT(cxc.id_cobro) > 0
+                        ORDER BY c.id
+                        LIMIT $batchSize
+                    ";
+                    $result = $conn->query($sql);
+                    ?>
+                    <div class="alert alert-info rounded-3 p-3 mb-0 w-100">
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <span><i class="fa-solid fa-list me-1"></i> <?= $result ? $result->num_rows : 0 ?> contratos a procesar</span>
+                            <span><i class="fa-solid fa-calendar me-1"></i> Días gracia: <?= $diasGracia ?></span>
+                            <span><i class="fa-solid fa-layer-group me-1"></i> Batch: <?= $batchSize ?></span>
+                        </div>
+                        <?php if ($result): while ($row = $result->fetch_assoc()):
+                            $idContrato = (int)$row['id_contrato'];
+                            $wispAccountId = $row['wisp_account_id'];
+
+                            $checkLog = $conn->query("SELECT id FROM wisp_hub_logs WHERE payment_id IS NULL AND request_payload LIKE '%cron_suspend%' AND request_payload LIKE '%$wispAccountId%' AND created_at >= NOW() - INTERVAL 1 DAY");
+                            if ($checkLog && $checkLog->num_rows > 0) { $saltados++; continue; }
+
+                            try {
+                                $response = $wispClient->suspendService($wispAccountId, "Corte por vencimiento - {$diasGracia} días de gracia");
+                                if ($response['status'] === 200 || $response['status'] === 201) {
+                                    $conn->query("UPDATE contratos SET estado = 'SUSPENDIDO' WHERE id = $idContrato AND estado = 'ACTIVO'");
+                                    $conn->query("UPDATE wisp_hub_links SET status = 'SUSPENDED', last_event = 'cron.suspend', updated_at = NOW() WHERE contract_id = $idContrato");
+                                    $logP = json_encode(['action'=>'cron_suspend','contract_id'=>$idContrato,'service_id'=>$wispAccountId,'dias_gracia'=>$diasGracia]);
+                                    $logR = json_encode($response);
+                                    $stmtL = $conn->prepare("INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (NULL, ?, ?, NOW())");
+                                    if ($stmtL) { $stmtL->bind_param("ss", $logP, $logR); $stmtL->execute(); $stmtL->close(); }
+                                    $procesados++;
+                                } else { $errores++; }
+                            } catch (Exception $e) { $errores++; }
+                        endwhile; endif; ?>
+                        <hr class="my-2">
+                        <strong>Resultado:</strong>
+                        <span class="text-success"><?= $procesados ?> suspendidos</span> ·
+                        <span class="text-danger"><?= $errores ?> errores</span> ·
+                        <span class="text-muted"><?= $saltados ?> ya procesados hoy</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <?php
+            // Últimas ejecuciones (solo agregadas, sin datos de usuarios reales)
+            $cronStats = $conn->query("
+                SELECT DATE(created_at) AS fecha, COUNT(*) AS total,
+                       SUM(CASE WHEN response_payload LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS exitosos,
+                       SUM(CASE WHEN response_payload NOT LIKE '%\"status\":20%' THEN 1 ELSE 0 END) AS fallidos
+                FROM wisp_hub_logs
+                WHERE request_payload LIKE '%cron_suspend%'
+                GROUP BY DATE(created_at)
+                ORDER BY fecha DESC LIMIT 10
+            ");
+            $lastRun = $conn->query("SELECT MAX(created_at) AS ultimo FROM wisp_hub_logs WHERE request_payload LIKE '%cron_suspend%'")->fetch_assoc()['ultimo'];
+            $pendientes = $conn->query("
+                SELECT COUNT(DISTINCT c.id) AS n
+                FROM contratos c
+                INNER JOIN wisp_hub_links wl ON wl.contract_id = c.id AND wl.wisp_account_id != ''
+                INNER JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
+                WHERE c.estado = 'ACTIVO' AND cxc.estado = 'PENDIENTE' AND cxc.fecha_vencimiento <= CURDATE()
+            ")->fetch_assoc()['n'];
+            ?>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Última ejecución</div>
+                        <div class="fw-bold"><?= $lastRun ? htmlspecialchars($lastRun) : '<span class="text-muted">Nunca</span>' ?></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Pendientes de corte hoy</div>
+                        <div class="fw-bold"><?= (int)$pendientes ?></div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,.03);">
+                        <div class="text-muted small">Días de gracia</div>
+                        <div class="fw-bold">5</div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($cronStats && $cronStats->num_rows > 0): ?>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-borderless mb-0" style="font-size:.85rem;">
+                        <thead><tr class="text-muted"><th>Fecha</th><th>Suspendidos</th><th>Errores</th><th>Total</th></tr></thead>
+                        <tbody>
+                        <?php while ($r = $cronStats->fetch_assoc()): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($r['fecha']) ?></td>
+                                <td><span class="text-success">+<?= (int)$r['exitosos'] ?></span></td>
+                                <td><span class="text-danger"><?= (int)$r['fallidos'] ?></span></td>
+                                <td><?= (int)$r['total'] ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
+            <form method="POST" class="row g-2 align-items-end" onsubmit="return confirm('¿Ejecutar corte ahora? Se procesarán hasta <?= $batchSize ?> contratos.');">
+                <input type="hidden" name="action" value="run_cron">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Días de gracia</label>
+                    <input type="number" name="dias_gracia" class="form-control form-control-sm" value="5" min="0" max="60">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Batch</label>
+                    <input type="number" name="batch_size" class="form-control form-control-sm" value="10" min="1" max="200">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Comando para cPanel</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" class="form-control form-control-sm font-monospace"
+                               value='wget -O /dev/null "https://<?= $_SERVER['HTTP_HOST'] ?>/wisphub_cron_dashboard.php?action=run&key=CRON_KEY"'
+                               readonly onclick="this.select(); navigator.clipboard?.writeText(this.value)">
+                        <button class="btn btn-outline-secondary" type="button"
+                                onclick="this.previousElementSibling.select(); navigator.clipboard?.writeText(this.previousElementSibling.value)">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                    <span class="text-muted small">Reemplazá CRON_KEY por la clave en <code>wisphub_cron_dashboard.php</code></span>
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button type="submit" class="btn btn-sm btn-warning fw-semibold">
+                        <i class="fa-solid fa-play me-1"></i> Ejecutar corte ahora
+                    </button>
+                </div>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                <i class="fa-solid fa-info-circle me-1"></i>
+                Solo se muestran datos agregados — sin información de usuarios reales.
+                El cron real se configura en cPanel con el comando de arriba.
+            </p>
         </div>
 
         <!-- ── Log de notificaciones ─────────────────────────────────────── -->
