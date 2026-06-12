@@ -461,7 +461,7 @@ if ($resLogs) {
                                 <?php else: ?>
                                     <?php foreach ($activeLinks as $link): ?>
                                         <tr>
-                                            <td><span class="badge bg-secondary bg-opacity-20 text-secondary">#<?= $link['payment_id'] ?></span></td>
+                                            <td><span class="badge bg-secondary bg-opacity-25 text-white">#<?= $link['payment_id'] ?></span></td>
                                             <td>
                                                 <div class="fw-semibold text-truncate" style="max-width:120px;"><?= htmlspecialchars($link['nombre_completo'] ?? 'Prueba/Manual') ?></div>
                                                 <small class="text-muted"><?= htmlspecialchars($link['cedula'] ?? 'V99999999') ?></small>
@@ -509,7 +509,7 @@ if ($resLogs) {
                                 <?php else: ?>
                                     <?php foreach ($recentLogs as $log): ?>
                                         <tr class="log-header-row" style="cursor:pointer;" onclick="toggleLogDetail(<?= $log['id'] ?>)">
-                                            <td><span class="text-muted"><?= $log['id'] ?></span></td>
+                                            <td><span class="text-white"><?= $log['id'] ?></span></td>
                                             <td class="text-muted text-nowrap"><?= substr($log['created_at'], 11, 8) ?></td>
                                             <td>
                                                 <div class="text-truncate text-main" style="max-width:250px;">
