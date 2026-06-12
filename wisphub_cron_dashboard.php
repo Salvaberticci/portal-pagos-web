@@ -1,22 +1,23 @@
 <?php
 /**
- * wisphub_cron_dashboard.php - Endpoint URL para cron de cPanel.
+ * wisphub_cron_dashboard.php - Endpoint URL para cron.
  *
  * Este archivo NO muestra interfaz — solo procesa la acción "run".
  * El dashboard está en paginas/admin_wisphub.php.
  *
- * Para configurar en cPanel:
- *   wget -O /dev/null "https://tudominio.com/wisphub_cron_dashboard.php?action=run&key=TU_CLAVE_SECRETA"
+ * Para configurar en cron-job.org o UptimeRobot:
+ *   https://tudominio.com/wisphub_cron_dashboard.php?action=run&key=TU_CLAVE_SECRETA
  *
- * Cambiá CRON_SECRET_KEY abajo por una clave real.
+ * La clave secreta se define en config/wisphub_credentials.php como WISP_HUB_CRON_SECRET.
  */
-
-define('CRON_SECRET_KEY', 'cron_wisphub_2024_secret');
 
 $action = $_GET['action'] ?? '';
 $key    = $_GET['key']    ?? '';
 
-if ($action !== 'run' || $key !== CRON_SECRET_KEY) {
+$wispConfig = @include __DIR__ . '/config/wisp_hub.php';
+$cronSecret = is_array($wispConfig) && !empty($wispConfig['cron_secret']) ? $wispConfig['cron_secret'] : '';
+
+if ($action !== 'run' || $key !== $cronSecret || empty($cronSecret)) {
     header('HTTP/1.0 403 Forbidden');
     die("Acceso denegado");
 }
@@ -46,7 +47,6 @@ $batchSize  = isset($_GET['batch']) ? max(1, min(200, intval($_GET['batch']))) :
 $fechaLimite = date('Y-m-d', strtotime("-{$diasGracia} days"));
 $procesados = 0; $errores = 0; $saltados = 0;
 
-$wispConfig = include __DIR__ . '/config/wisp_hub.php';
 $wispClient = new \Services\WispHubClient($wispConfig);
 
 $result = $conn->query("

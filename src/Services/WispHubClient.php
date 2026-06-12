@@ -207,31 +207,43 @@ class WispHubClient
             'status'              => 200,
         ];
 
-        // 1. Obtener facturas pendientes
+        // 1. Obtener facturas pendientes (ordenadas por vencimiento, más antigua primero)
         $invoices = $this->getPendingInvoices($serviceId);
         $results['invoices_found'] = count($invoices);
 
-        // 2. Registrar pago contra cada factura pendiente
+        // 2. Distribuir el monto entre las facturas, pagando la más antigua primero
+        $remaining = $amount;
         foreach ($invoices as $invoice) {
-            if (empty($invoice['id'])) continue;
+            if (empty($invoice['id']) || $remaining <= 0) continue;
+
+            $invoiceAmount = (float)($invoice['total'] ?? $invoice['monto'] ?? $invoice['monto_pendiente'] ?? $remaining);
+            $toPay = min($remaining, $invoiceAmount);
 
             $payResult = $this->request('POST', "facturas/{$invoice['id']}/registrar-pago/", [
                 'forma_pago'    => $formaPagoId,
                 'accion'        => self::ACCION_PAGAR,
                 'fecha_pago'    => $paymentDate,
                 'referencia'    => $reference,
-                'total_cobrado' => $amount,
+                'total_cobrado' => $toPay,
             ]);
 
             $results['payments_registered'][] = [
-                'invoice_id' => $invoice['id'],
-                'status'     => $payResult['status'],
+                'invoice_id'      => $invoice['id'],
+                'invoice_amount'  => $invoiceAmount,
+                'payment_applied' => $toPay,
+                'status'          => $payResult['status'],
             ];
 
             if ($payResult['status'] !== 200 && $payResult['status'] !== 201) {
                 $results['status'] = $payResult['status'];
             }
+
+            $remaining -= $toPay;
         }
+
+        $results['amount_total']  = $amount;
+        $results['amount_applied'] = $amount - $remaining;
+        $results['amount_unused']  = $remaining;
 
         // 3. Activar servicio si es necesario
         if ($forceActivate) {

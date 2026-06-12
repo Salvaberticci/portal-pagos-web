@@ -2,30 +2,18 @@
 // procesar_aprobacion_admin.php - Procesa la decisión del administrador sobre un reporte de pago
 require_once '../conexion.php';
 
-// ── Crear tablas de integración WispHub si no existen ───────────────────────
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `request_payload` TEXT,
-    `response_payload` TEXT,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_payment_id` (`payment_id`),
-    INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+// ── Verificar sesión y rol ───────────────────────────────────────────────────
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] ?? '') !== 'admin') {
+    header('HTTP/1.0 403 Forbidden');
+    die("Acceso denegado");
+}
 
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `contract_id` INT DEFAULT NULL,
-    `wisp_account_id` VARCHAR(50) NOT NULL,
-    `status` VARCHAR(20) DEFAULT 'PENDING',
-    `last_event` VARCHAR(100) DEFAULT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_contract_id` (`contract_id`),
-    INDEX `idx_wisp_account_id` (`wisp_account_id`),
-    INDEX `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+// ── Verificar CSRF ───────────────────────────────────────────────────────────
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
+    header('HTTP/1.0 403 Forbidden');
+    die("CSRF inválido");
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_reporte = intval($_POST['id_reporte']);
@@ -157,44 +145,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $class = "danger";
         }
     } elseif ($accion === 'RECHAZAR') {
-        $motivo = isset($_POST['motivo']) ? $conn->real_escape_string($_POST['motivo']) : 'Sin motivo especificado.';
+        $motivo = $_POST['motivo'] ?? 'Sin motivo especificado.';
         
-        // Obtener ruta del archivo antes de actualizar (para borrarlo)
-        $sql_f = "SELECT capture_path FROM pagos_reportados WHERE id_reporte = $id_reporte";
-        $res_f = $conn->query($sql_f);
-        if ($res_f && $res_f->num_rows > 0) {
-            $reporte = $res_f->fetch_assoc();
-            $file_path = "../../" . $reporte['capture_path'];
-            if (!empty($reporte['capture_path']) && file_exists($file_path)) {
-                unlink($file_path);
+        $sql_f = "SELECT capture_path FROM pagos_reportados WHERE id_reporte = ?";
+        $stmt_f = $conn->prepare($sql_f);
+        if ($stmt_f) {
+            $stmt_f->bind_param("i", $id_reporte);
+            $stmt_f->execute();
+            $res_f = $stmt_f->get_result();
+            if ($res_f && $res_f->num_rows > 0) {
+                $reporte = $res_f->fetch_assoc();
+                $file_path = "../../" . $reporte['capture_path'];
+                if (!empty($reporte['capture_path']) && file_exists($file_path)) {
+                    unlink($file_path);
+                }
             }
+            $stmt_f->close();
         }
 
-        $sql_rej = "UPDATE pagos_reportados SET estado = 'RECHAZADO', motivo_rechazo = '$motivo' WHERE id_reporte = $id_reporte";
-
-        if ($conn->query($sql_rej)) {
-            $message = "El reporte ha sido rechazado correctamente y la imagen eliminada.";
-            $class = "warning";
+        $stmt_rej = $conn->prepare("UPDATE pagos_reportados SET estado = 'RECHAZADO', motivo_rechazo = ? WHERE id_reporte = ?");
+        if ($stmt_rej) {
+            $stmt_rej->bind_param("si", $motivo, $id_reporte);
+            if ($stmt_rej->execute()) {
+                $message = "El reporte ha sido rechazado correctamente y la imagen eliminada.";
+                $class = "warning";
+            } else {
+                $message = "Error al rechazar el reporte: " . $stmt_rej->error;
+                $class = "danger";
+            }
+            $stmt_rej->close();
         } else {
             $message = "Error al rechazar el reporte: " . $conn->error;
             $class = "danger";
         }
     } elseif ($accion === 'ELIMINAR') {
-        // Obtener ruta del archivo antes de borrar el registro
-        $sql_f = "SELECT capture_path FROM pagos_reportados WHERE id_reporte = $id_reporte";
-        $res_f = $conn->query($sql_f);
-        if ($res_f && $res_f->num_rows > 0) {
-            $reporte = $res_f->fetch_assoc();
-            $file_path = "../../" . $reporte['capture_path'];
-            if (!empty($reporte['capture_path']) && file_exists($file_path)) {
-                unlink($file_path);
+        $sql_f = "SELECT capture_path FROM pagos_reportados WHERE id_reporte = ?";
+        $stmt_f = $conn->prepare($sql_f);
+        if ($stmt_f) {
+            $stmt_f->bind_param("i", $id_reporte);
+            $stmt_f->execute();
+            $res_f = $stmt_f->get_result();
+            if ($res_f && $res_f->num_rows > 0) {
+                $reporte = $res_f->fetch_assoc();
+                $file_path = "../../" . $reporte['capture_path'];
+                if (!empty($reporte['capture_path']) && file_exists($file_path)) {
+                    unlink($file_path);
+                }
             }
+            $stmt_f->close();
         }
 
-        $sql_del = "DELETE FROM pagos_reportados WHERE id_reporte = $id_reporte";
-        if ($conn->query($sql_del)) {
-            $message = "Reporte e imagen eliminados permanentemente.";
-            $class = "info";
+        $stmt_del = $conn->prepare("DELETE FROM pagos_reportados WHERE id_reporte = ?");
+        if ($stmt_del) {
+            $stmt_del->bind_param("i", $id_reporte);
+            if ($stmt_del->execute()) {
+                $message = "Reporte e imagen eliminados permanentemente.";
+                $class = "info";
+            } else {
+                $message = "Error al eliminar el reporte: " . $stmt_del->error;
+                $class = "danger";
+            }
+            $stmt_del->close();
         } else {
             $message = "Error al eliminar el reporte: " . $conn->error;
             $class = "danger";

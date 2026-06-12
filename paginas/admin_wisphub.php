@@ -9,6 +9,9 @@
 $page_title = "WispHub — Panel de Integración";
 require_once 'conexion.php';
 
+$wispConfig = @include __DIR__ . '/../config/wisp_hub.php';
+$cronSecret = is_array($wispConfig) && !empty($wispConfig['cron_secret']) ? $wispConfig['cron_secret'] : '';
+
 // ── Crear tablas de integración si no existen ─────────────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -534,9 +537,9 @@ if ($stat_res) {
                 </div>
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <small class="text-muted">
-                        <span id="cronJobPingCount">-</span> pings recibidos de cron-job.org hoy.
-                        <a href="#" id="testCronJobLink" class="text-warning">Probar conexión ahora</a>
-                    </small>
+                         <span id="cronJobPingCount">-</span> pings recibidos de cron-job.org hoy.
+                         <a href="#" id="testCronJobLink" class="text-warning" data-cron-secret="<?= htmlspecialchars($cronSecret) ?>">Probar conexión ahora</a>
+                     </small>
                 </div>
             </div>
         </div>
@@ -794,7 +797,8 @@ if (testLink) {
         const orig = link.textContent;
         link.textContent = 'Probando...';
         link.style.pointerEvents = 'none';
-        const url = document.getElementById('cronJobUrl').value.replace('CRON_KEY', 'cron_wisphub_2024_secret');
+        const secret = this.dataset.cronSecret || '';
+        const url = document.getElementById('cronJobUrl').value.replace('CRON_KEY', secret);
         fetch(url + '&test=1&_=' + Date.now())
             .then(r => {
                 link.textContent = r.ok ? '✅ Conexión exitosa' : '❌ Error HTTP ' + r.status;

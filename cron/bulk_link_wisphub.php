@@ -163,16 +163,34 @@ function cmdImportCsv(mysqli $conn, string $path): void
             }
 
             // Verificar que el contrato existe
-            $check = $conn->query("SELECT id FROM contratos WHERE id = $contractId");
-            if (!$check || $check->num_rows === 0) {
+            $stmtCheck = $conn->prepare("SELECT id FROM contratos WHERE id = ?");
+            if ($stmtCheck) {
+                $stmtCheck->bind_param("i", $contractId);
+                $stmtCheck->execute();
+                $stmtCheck->store_result();
+                $exists = $stmtCheck->num_rows > 0;
+                $stmtCheck->close();
+            } else {
+                $exists = false;
+            }
+            if (!$exists) {
                 echo "  [SKIP] Contrato #$contractId no existe\n";
                 $errores++;
                 continue;
             }
 
             // Verificar duplicado
-            $dup = $conn->query("SELECT id FROM wisp_hub_links WHERE wisp_account_id = '$accountId'");
-            if ($dup && $dup->num_rows > 0) {
+            $stmtDup = $conn->prepare("SELECT id FROM wisp_hub_links WHERE wisp_account_id = ?");
+            if ($stmtDup) {
+                $stmtDup->bind_param("s", $accountId);
+                $stmtDup->execute();
+                $stmtDup->store_result();
+                $isDup = $stmtDup->num_rows > 0;
+                $stmtDup->close();
+            } else {
+                $isDup = false;
+            }
+            if ($isDup) {
                 echo "  [SKIP] wisp_account_id '$accountId' ya existe\n";
                 $errores++;
                 continue;
