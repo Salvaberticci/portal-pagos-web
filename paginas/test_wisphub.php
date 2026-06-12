@@ -36,11 +36,21 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
     INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Cargar cliente WispHub
-require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/../src/Services/WispHubClient.php';
-$wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-$wispClient = new \Services\WispHubClient($wispConfig);
+// Cargar cliente WispHub (tolerante a errores de configuración)
+$wispConfigLoaded = false;
+$wispConfig = ['api_key' => '', 'base_url' => 'https://api.wisphub.net/api'];
+$wispClient = null;
+try {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    require_once __DIR__ . '/../src/Services/WispHubClient.php';
+    $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+    if (!empty($wispConfig['api_key'])) {
+        $wispClient = new \Services\WispHubClient($wispConfig);
+        $wispConfigLoaded = true;
+    }
+} catch (\Throwable $e) {
+    // Configuración no disponible — se usará $wispConfigLoaded=false
+}
 
 // --- AJAX Actions Handler ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
@@ -50,29 +60,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
 
     try {
         if ($action === 'ping_connection') {
-            if (empty($wispConfig['api_key'])) {
-                $response['message'] = 'API Key no configurada. Por favor, configúrala en el panel.';
+            if (!$wispConfigLoaded) {
+                $response['message'] = 'API Key no configurada. Crea config/wisphub_credentials.php o configúrala desde el panel.';
             } else {
-                $client = new \GuzzleHttp\Client([
-                    'base_uri' => $wispConfig['base_url'],
-                    'timeout'  => 6,
-                    'headers'  => [
-                        'Authorization' => "Api-Key {$wispConfig['api_key']}",
-                    ]
-                ]);
                 try {
-                    $res = $client->request('GET', 'clientes/');
-                    $status = $res->getStatusCode();
+                    $res = $wispClient->listClients(['limit' => 1]);
+                    $status = $res['status'] ?? 0;
                     if ($status === 200) {
+                        $total = $res['data']['count'] ?? 0;
                         $response['success'] = true;
-                        $response['message'] = "✅ ¡Conexión establecida con éxito! WispHub respondió HTTP $status.";
+                        $response['message'] = "✅ Conexión exitosa. Total clientes en WispHub: {$total}.";
                     } else {
-                        $response['message'] = "WispHub respondió HTTP $status (inesperado).";
+                        $response['message'] = "WispHub respondió HTTP {$status}: " . json_encode($res['data'] ?? []);
                     }
                 } catch (\Exception $e) {
                     $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
                 }
             }
+        }
+        
+        elseif (!$wispConfigLoaded) {
+            $response['message'] = 'API Key no configurada. Crea config/wisphub_credentials.php primero.';
         }
         
         elseif ($action === 'suspend_service') {
