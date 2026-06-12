@@ -57,22 +57,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     'base_uri' => $wispConfig['base_url'],
                     'timeout'  => 6,
                     'headers'  => [
-                        'Authorization' => "Bearer {$wispConfig['api_key']}",
+                        'Authorization' => "Api-Key {$wispConfig['api_key']}",
                     ]
                 ]);
                 try {
                     $res = $client->request('GET', 'clientes/');
                     $status = $res->getStatusCode();
-                    $response['success'] = true;
-                    $response['message'] = "¡Conexión establecida con éxito! WispHub Sandbox respondió HTTP $status.";
-                } catch (\Exception $e) {
-                    $code = $e->getCode();
-                    if ($code > 0) {
+                    if ($status === 200) {
                         $response['success'] = true;
-                        $response['message'] = "El Sandbox WispHub respondió con código HTTP $code (conectividad verificada).";
+                        $response['message'] = "✅ ¡Conexión establecida con éxito! WispHub respondió HTTP $status.";
                     } else {
-                        $response['message'] = "Fallo de conexión al Sandbox WispHub: " . $e->getMessage();
+                        $response['message'] = "WispHub respondió HTTP $status (inesperado).";
                     }
+                } catch (\Exception $e) {
+                    $response['message'] = "Fallo de conexión a WispHub: " . $e->getMessage();
                 }
             }
         }
