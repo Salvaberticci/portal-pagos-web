@@ -126,7 +126,7 @@ function consultar_movimientos_bdv(
     if ($nroMovimiento !== '') {
         $payload_arr['nroMovimiento'] = $nroMovimiento;
     }
-    $payload = json_encode($payload_arr);
+    $payload = json_encode($payload_arr, JSON_UNESCAPED_SLASHES);
 
     $ch = curl_init($endpoint);
     curl_setopt_array($ch, [
