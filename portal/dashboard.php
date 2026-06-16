@@ -65,7 +65,9 @@ if ($stmt) {
     while ($row = $res->fetch_assoc()) {
         $row['deuda_mensualidades'] = floatval($row['deuda_mensualidades'] ?? 0);
         if ($cedula === 'V20788775') {
-            $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+            if ($row['deuda_mensualidades'] > 0) {
+                $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+            }
             $row['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
         }
         $row['nombre_plan'] = $row['nombre_plan'] ?: 'Plan Básico';
