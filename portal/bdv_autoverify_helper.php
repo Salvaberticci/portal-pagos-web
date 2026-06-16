@@ -280,6 +280,14 @@ function verificar_y_aprobar_pago_bdv(
             $id_cobro_nuevo = $conn->insert_id;
             $stmt_cxc->close();
 
+            // Marcar deudas PENDIENTE/VENCIDO previas como PAGADO
+            $stmt_saldar = $conn->prepare("UPDATE cuentas_por_cobrar SET estado = 'PAGADO', fecha_pago = ?, referencia_pago = ?, id_banco = ? WHERE id_contrato = ? AND estado IN ('PENDIENTE', 'VENCIDO') AND id_cobro != ?");
+            if ($stmt_saldar) {
+                $stmt_saldar->bind_param('ssiii', $fecha_pago, $ref_banco, $id_banco, $id_contrato, $id_cobro_nuevo);
+                $stmt_saldar->execute();
+                $stmt_saldar->close();
+            }
+
             // 3. Historial de cobros manuales
             $sql_hist = "INSERT INTO cobros_manuales_historial
                 (id_cobro_cxc, autorizado_por, justificacion, monto_cargado)

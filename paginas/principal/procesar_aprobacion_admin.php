@@ -134,6 +134,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $id_cobro_nuevo = $conn->insert_id;
 
+            // Saldar deudas PENDIENTE/VENCIDO previas del mismo contrato
+            $stmt_saldar = $conn->prepare("UPDATE cuentas_por_cobrar SET estado = 'PAGADO', fecha_pago = ?, referencia_pago = ?, id_banco = ? WHERE id_contrato = ? AND estado IN ('PENDIENTE', 'VENCIDO') AND id_cobro != ?");
+            if ($stmt_saldar) {
+                $stmt_saldar->bind_param('ssiii', $fecha_pago, $referencia, $id_banco, $id_contrato, $id_cobro_nuevo);
+                $stmt_saldar->execute();
+                $stmt_saldar->close();
+            }
+
             // 3. Insertar en historial de cobros manuales
             $sql_hist = "INSERT INTO cobros_manuales_historial 
                 (id_cobro_cxc, autorizado_por, justificacion, monto_cargado)
