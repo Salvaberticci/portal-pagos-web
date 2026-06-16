@@ -34,7 +34,7 @@ if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
  * @param float  $monto_usd          Monto en dólares
  * @param float  $tasa_dolar         Tasa BCV usada en el momento del reporte
  * @param string $fecha_pago         Fecha del pago Y-m-d
- * @param int    $id_contrato        ID del contrato (0 si no aplica)
+ * @param string $id_contrato        ID del contrato (WispHub service ID)
  * @param int    $id_reporte         ID en pagos_reportados recién insertado
  * @param string $capture_path       Ruta relativa del comprobante (puede ser '')
  * @param string $meses_pagados      String descriptivo de meses (para historial)
@@ -49,7 +49,7 @@ function verificar_y_aprobar_pago_bdv(
     float  $monto_usd,
     float  $tasa_dolar,
     string $fecha_pago,
-    int    $id_contrato,
+    string $id_contrato,
     int    $id_reporte,
     string $capture_path,
     string $metodo_pago   = '',
@@ -190,111 +190,27 @@ function verificar_y_aprobar_pago_bdv(
         if (!$stmt_upd->execute()) throw new Exception('Execute update reporte: ' . $stmt_upd->error);
         $stmt_upd->close();
 
-        // 2. Registrar en cuentas_por_cobrar solo si hay contrato
-        if ($id_contrato > 0) {
-            $sql_cxc = "INSERT INTO cuentas_por_cobrar
-                (id_contrato, fecha_emision, fecha_vencimiento, monto_total, estado,
-                 fecha_pago, referencia_pago, id_banco, origen, capture_pago)
-                VALUES (?, CURRENT_DATE, CURRENT_DATE, ?, 'PAGADO', ?, ?, ?, 'API_BDV', ?)";
-
-            $stmt_cxc = $conn->prepare($sql_cxc);
-            if (!$stmt_cxc) throw new Exception('Prepare cxc: ' . $conn->error);
-
-            $ref_banco   = $movimiento['referencia'] ?? $referencia;
-            $stmt_cxc->bind_param('idssss', $id_contrato, $monto_usd, $fecha_pago, $ref_banco, $id_banco, $capture_path);
-            if (!$stmt_cxc->execute()) throw new Exception('Execute cxc: ' . $stmt_cxc->error);
-
-            $id_cobro_nuevo = $conn->insert_id;
-            $stmt_cxc->close();
-
-            // Marcar deudas PENDIENTE/VENCIDO previas como PAGADO
-            $stmt_saldar = $conn->prepare("UPDATE cuentas_por_cobrar SET estado = 'PAGADO', fecha_pago = ?, referencia_pago = ?, id_banco = ? WHERE id_contrato = ? AND estado IN ('PENDIENTE', 'VENCIDO') AND id_cobro != ?");
-            if ($stmt_saldar) {
-                $stmt_saldar->bind_param('ssiii', $fecha_pago, $ref_banco, $id_banco, $id_contrato, $id_cobro_nuevo);
-                $stmt_saldar->execute();
-                $stmt_saldar->close();
-            }
-
-            // 3. Historial de cobros manuales
-            $sql_hist = "INSERT INTO cobros_manuales_historial
-                (id_cobro_cxc, autorizado_por, justificacion, monto_cargado)
-                VALUES (?, 'SISTEMA (API BDV)', ?, ?)";
-
-            $stmt_hist = $conn->prepare($sql_hist);
-            if (!$stmt_hist) throw new Exception('Prepare historial: ' . $conn->error);
-            $stmt_hist->bind_param('isd', $id_cobro_nuevo, $justificacion, $monto_usd);
-            if (!$stmt_hist->execute()) throw new Exception('Execute historial: ' . $stmt_hist->error);
-            $stmt_hist->close();
-        }
+        // 2. Ya no insertamos en cuentas_por_cobrar ni cobros_manuales_historial
 
         $conn->commit();
 
         // SEGUNDO: registrar en WispHub (después del commit local)
-        if ($id_contrato > 0) {
+        if (!empty($id_contrato)) {
             try {
                 require_once dirname(__DIR__) . '/vendor/autoload.php';
                 require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
                 $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
                 $wispClient = new \Services\WispHubClient($wispConfig);
 
-                // Obtener el wisp_account_id desde wisp_hub_links
-                $q_link = $conn->prepare("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = ? LIMIT 1");
-                if ($q_link) {
-                    $q_link->bind_param("i", $id_contrato);
-                    $q_link->execute();
-                    $r_link = $q_link->get_result();
-                    if ($r_link && $row_link = $r_link->fetch_assoc()) {
-                        $wispServiceId = $row_link['wisp_account_id'];
-                    }
-                    $q_link->close();
-                }
+                $wispServiceId = $id_contrato;
 
-                if (!empty($wispServiceId)) {
-                    $wispResult = $wispClient->registerPaymentAndActivate(
-                        $wispServiceId, $monto_usd, $referencia, $wispDate,
-                        \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, ''
-                    );
-                } else {
-                    $q_cedula = $conn->prepare("SELECT cedula FROM contratos WHERE id = ?");
-                    $cedula = '';
-                    if ($q_cedula) {
-                        $q_cedula->bind_param("i", $id_contrato);
-                        $q_cedula->execute();
-                        $r_cedula = $q_cedula->get_result();
-                        if ($r_cedula && $row_c = $r_cedula->fetch_assoc()) {
-                            $cedula = $row_c['cedula'];
-                        }
-                        $q_cedula->close();
-                    }
-                    if (!empty($cedula)) {
-                        $wispResult = $wispClient->registerPaymentAndActivate(
-                            '', $monto_usd, $referencia, $wispDate,
-                            \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, $cedula
-                        );
-                    }
-                }
+                $wispResult = $wispClient->registerPaymentAndActivate(
+                    $wispServiceId, $monto_usd, $referencia, $wispDate,
+                    \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, ''
+                );
 
                 if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
                     $wispAccountId = $wispResult['service_id'] ?? '';
-                    if (!empty($wispAccountId) && empty($wispServiceId)) {
-                        $stmt_cache = $conn->prepare(
-                            "INSERT INTO wisp_hub_links (contract_id, wisp_account_id, status, created_at)
-                             VALUES (?, ?, 'ACTIVE', NOW())
-                             ON DUPLICATE KEY UPDATE wisp_account_id = VALUES(wisp_account_id), status = 'ACTIVE', updated_at = NOW()"
-                        );
-                        if ($stmt_cache) {
-                            $stmt_cache->bind_param("is", $id_contrato, $wispAccountId);
-                            $stmt_cache->execute();
-                            $stmt_cache->close();
-                        }
-                    }
-                    // Sincronizar estado del contrato local con WispHub
-                    $stmt_act = $conn->prepare("UPDATE contratos SET estado = 'ACTIVO' WHERE id = ? AND estado != 'ACTIVO'");
-                    if ($stmt_act) {
-                        $stmt_act->bind_param("i", $id_contrato);
-                        $stmt_act->execute();
-                        $stmt_act->close();
-                    }
                     // Log WispHub exitoso
                     $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
                     $stmt_log = $conn->prepare($sql_log);

@@ -10,35 +10,41 @@ require '../paginas/conexion.php';
 @include_once '../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
-$id_contrato = isset($_GET['id_contrato']) ? intval($_GET['id_contrato']) : 0;
+$wisp_service_id = isset($_GET['id_contrato']) ? $_GET['id_contrato'] : '';
 $cedula = $_SESSION['cliente_cedula'];
 
-if ($id_contrato <= 0) {
+if (empty($wisp_service_id)) {
     header('Location: dashboard.php');
     exit;
 }
 
-// Obtener detalles del contrato (Optimizado con JOIN)
-$sql = "SELECT c.*, p.nombre_plan,
-               SUM(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.monto_total ELSE 0 END) as deuda_mensualidades
-        FROM contratos c
-        LEFT JOIN planes p ON c.id_plan = p.id_plan
-        LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
-        WHERE c.id = ? AND c.cedula = ? AND c.estado != 'ELIMINADO'
-        GROUP BY c.id, c.cedula, c.direccion, c.estado, c.monto_plan, p.nombre_plan";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("is", $id_contrato, $cedula);
-$stmt->execute();
-$res = $stmt->get_result();
-$contrato = $res->fetch_assoc();
+// Conectar a WispHub
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/Services/WispHubClient.php';
+$wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+$wispClient = new \Services\WispHubClient($wispConfig);
 
-if (!$contrato) {
+$profileRes = $wispClient->getServiceProfile($wisp_service_id);
+if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
     header('Location: dashboard.php');
     exit;
 }
+$c_perfil = $profileRes['data'];
 
-$deuda = floatval($contrato['deuda_mensualidades'] ?? 0);
-$monto_plan = floatval($contrato['monto_plan']);
+$invoices = $wispClient->getPendingInvoices($wisp_service_id);
+$deuda = 0;
+foreach ($invoices as $inv) {
+    $deuda += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+}
+
+$monto_plan = floatval($c_perfil['plan_internet_precio'] ?? 0);
+if ($monto_plan <= 0 && count($invoices) > 0) {
+    $monto_plan = floatval($invoices[0]['monto'] ?? 0);
+}
+if ($monto_plan <= 0) $monto_plan = 15.0; // Default fallback
+
+// Para los inputs
+$id_contrato = $wisp_service_id;
 
 // Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;

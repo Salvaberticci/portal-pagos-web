@@ -2,6 +2,12 @@
 require_once 'security_helper.php';
 require '../paginas/conexion.php';
 
+// Cargar cliente WispHub
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/Services/WispHubClient.php';
+$wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+$wispClient = new \Services\WispHubClient($wispConfig);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cedula = isset($_POST['cedula']) ? trim($_POST['cedula']) : '';
 
@@ -27,37 +33,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Buscar si existe al menos un contrato con esta cédula
-    $sql = "SELECT nombre_completo, telefono FROM contratos WHERE cedula = ? AND estado != 'ELIMINADO' LIMIT 1";
-    $stmt = $conn->prepare($sql);
-    
-    if ($stmt) {
-        $stmt->bind_param("s", $cedula);
-        $stmt->execute();
-        $res = $stmt->get_result();
+    // Buscar en la API de WispHub por cédula
+    $clientInfo = $wispClient->getClientByDocument($cedula);
+    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
+        $clientInfo = $wispClient->findClientByDocument($cedula);
+    }
 
-        if ($res->num_rows > 0) {
-            $cliente = $res->fetch_assoc();
-            
-            // Login exitoso
-            session_regenerate_id(true);
-            $_SESSION['cliente_cedula'] = $cedula;
-            $_SESSION['cliente_nombre'] = $cliente['nombre_completo'];
-            $_SESSION['cliente_telefono'] = $cliente['telefono'];
-            
-            log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso', $cedula);
-            
-            header('Location: dashboard.php');
-            exit;
-        } else {
-            // No existe
-            log_security_event('LOGIN_FAILED', 'Intento de inicio de sesión fallido: cédula no registrada', $cedula);
-            $_SESSION['login_error'] = "No se encontraron contratos activos con esta cédula.";
-            header('Location: index.php');
-            exit;
-        }
+    if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
+        $cliente = $clientInfo['data']['data'];
+        
+        // Login exitoso
+        session_regenerate_id(true);
+        $_SESSION['cliente_cedula'] = $cedula;
+        // WispHub usualmente tiene 'nombre' o 'nombre_completo'
+        $_SESSION['cliente_nombre'] = $cliente['nombre'] ?? 'Cliente';
+        $_SESSION['cliente_telefono'] = $cliente['telefono'] ?? '';
+        $_SESSION['wisp_service_id'] = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
+        
+        log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso (WispHub)', $cedula);
+        
+        header('Location: dashboard.php');
+        exit;
     } else {
-        $_SESSION['login_error'] = "Error en el sistema. Intenta más tarde.";
+        log_security_event('LOGIN_FAILED', "Cédula no encontrada en WispHub: $cedula", $cedula);
+        $_SESSION['login_error'] = "No se encontró ningún contrato con esta cédula.";
         header('Location: index.php');
         exit;
     }

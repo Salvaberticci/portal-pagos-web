@@ -47,55 +47,54 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     curl_close($ch);
 }
 
-// Obtener contratos del cliente y su plan (Optimizado con JOIN)
-$contratos = [];
-$sql_contratos = "
-    SELECT c.id, c.estado as estado_contrato, c.direccion, c.monto_plan, p.nombre_plan,
-           SUM(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.monto_total ELSE 0 END) as deuda_mensualidades,
-           MIN(CASE WHEN cxc.estado IN ('PENDIENTE', 'VENCIDO') THEN cxc.fecha_vencimiento ELSE NULL END) as vencimiento_pendiente
-    FROM contratos c
-    LEFT JOIN planes p ON c.id_plan = p.id_plan
-    LEFT JOIN cuentas_por_cobrar cxc ON cxc.id_contrato = c.id
-    WHERE c.cedula = ? AND c.estado != 'ELIMINADO'
-    GROUP BY c.id, c.estado, c.direccion, c.monto_plan, p.nombre_plan
-";
-$stmt = $conn->prepare($sql_contratos);
-if ($stmt) {
-    $stmt->bind_param("s", $cedula);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $contratoIds = [];
-    while ($row = $res->fetch_assoc()) {
-        $row['deuda_mensualidades'] = floatval($row['deuda_mensualidades'] ?? 0);
-        if ($cedula === TEST_USER_CEDULA) {
-            if ($row['deuda_mensualidades'] > 0) {
-                $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-            }
-            $row['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-        }
-        $row['nombre_plan'] = $row['nombre_plan'] ?: 'Plan Básico';
-        $row['historial'] = [];
-        $contratoIds[] = $row['id'];
-        $contratos[$row['id']] = $row;
-    }
+// Conectar a WispHub
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../src/Services/WispHubClient.php';
+$wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+$wispClient = new \Services\WispHubClient($wispConfig);
 
-    // Batch fetch historial para todos los contratos (N+1 → 1 query)
-    if (!empty($contratoIds)) {
-        $in = implode(',', array_map('intval', $contratoIds));
-        $histBatch = $conn->query("SELECT id_contrato, fecha_pago, monto_total, estado, referencia_pago
-            FROM cuentas_por_cobrar
-            WHERE id_contrato IN ($in) AND estado IN ('PAGADO', 'PENDIENTE')
-            ORDER BY fecha_emision DESC");
-        if ($histBatch) {
-            while ($h = $histBatch->fetch_assoc()) {
-                $cid = $h['id_contrato'];
-                if (isset($contratos[$cid]) && count($contratos[$cid]['historial']) < 5) {
-                    $contratos[$cid]['historial'][] = $h;
-                }
-            }
-        }
+$wisp_service_id = $_SESSION['wisp_service_id'] ?? null;
+if (!$wisp_service_id) {
+    header('Location: auth.php?logout=1');
+    exit;
+}
+
+// Obtener perfil del cliente
+$profileRes = $wispClient->getServiceProfile($wisp_service_id);
+$c_perfil = $profileRes['data'] ?? [];
+
+// Obtener facturas pendientes (deuda)
+$invoices = $wispClient->getPendingInvoices($wisp_service_id);
+$deuda_mensualidades = 0;
+foreach ($invoices as $inv) {
+    $deuda_mensualidades += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+}
+
+$monto_plan = floatval($c_perfil['plan_internet_precio'] ?? 0);
+if ($monto_plan <= 0 && count($invoices) > 0) {
+    // Fallback: usar el monto de la factura más reciente si no hay info del plan
+    $monto_plan = floatval($invoices[0]['monto'] ?? 0);
+}
+
+$contratos = [];
+$estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
+if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
+if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
+
+$contratos[] = [
+    'id' => $wisp_service_id,
+    'estado_contrato' => $estado_ws,
+    'direccion' => $c_perfil['direccion'] ?? 'No especificada',
+    'monto_plan' => $monto_plan,
+    'nombre_plan' => $c_perfil['plan_internet_nombre'] ?? 'Servicio de Internet',
+    'deuda_mensualidades' => $deuda_mensualidades
+];
+
+if ($cedula === TEST_USER_CEDULA) {
+    if ($contratos[0]['deuda_mensualidades'] > 0) {
+        $contratos[0]['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
     }
-    $contratos = array_values($contratos); // back to indexed array
+    $contratos[0]['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
 
 // NUEVO: Obtener estados de pagos reportados
@@ -121,57 +120,8 @@ if ($stmt_pagos) {
 
 // Obtener el último pago de mensualidad realizado por el cliente
 $ultimo_pago = null;
-$sql_ultimo_pago = "
-    SELECT cxc.fecha_pago, cxc.fecha_emision, cxc.monto_total, h.justificacion, c.id AS id_contrato, p.nombre_plan
-    FROM cuentas_por_cobrar cxc
-    LEFT JOIN cobros_manuales_historial h ON cxc.id_cobro = h.id_cobro_cxc
-    JOIN contratos c ON cxc.id_contrato = c.id
-    LEFT JOIN planes p ON c.id_plan = p.id_plan
-    WHERE c.cedula = ? 
-      AND cxc.estado = 'PAGADO' 
-      AND (
-          h.justificacion LIKE '%[MENSUALIDAD]%' 
-          OR h.justificacion IS NULL 
-          OR h.justificacion = ''
-          OR (
-              h.justificacion NOT LIKE '%[INSTALACION]%' 
-              AND h.justificacion NOT LIKE '%[EQUIPOS]%' 
-              AND h.justificacion NOT LIKE '%[PRORRATEO]%'
-          )
-      )
-    ORDER BY cxc.fecha_pago DESC, cxc.id_cobro DESC
-    LIMIT 1
-";
-$stmt_last = $conn->prepare($sql_ultimo_pago);
-if ($stmt_last) {
-    $stmt_last->bind_param("s", $cedula);
-    $stmt_last->execute();
-    $res_last = $stmt_last->get_result();
-    if ($res_last->num_rows > 0) {
-        $ultimo_pago = $res_last->fetch_assoc();
-        
-        $meses_es = [
-            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio',
-            7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
-        ];
-        
-        $ultimo_pago['mes'] = 'N/A';
-        $justif = $ultimo_pago['justificacion'] ?? '';
-        
-        if (preg_match('/\[(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\]/i', $justif, $matches)) {
-            $ultimo_pago['mes'] = $matches[1];
-        } else if (preg_match('/(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)/i', $justif, $matches)) {
-            $ultimo_pago['mes'] = $matches[1];
-        } else {
-            $date_to_use = !empty($ultimo_pago['fecha_emision']) ? $ultimo_pago['fecha_emision'] : $ultimo_pago['fecha_pago'];
-            if ($date_to_use) {
-                $month_num = intval(date('n', strtotime($date_to_use)));
-                $ultimo_pago['mes'] = $meses_es[$month_num] ?? 'N/A';
-            }
-        }
-    }
-    $stmt_last->close();
-}
+// No consultamos la DB local porque no tenemos contratos locales.
+// Se podría integrar con GET /facturas/ si WispHub lo permite.
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">

@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_banco_destino = isset($_POST['id_banco_destino']) ? intval($_POST['id_banco_destino']) : null;
     $referencia       = isset($_POST['referencia']) ? trim($_POST['referencia']) : '';
     $concepto         = "Pago de mensualidad por portal";
-    $id_contrato_asociado = isset($_POST['id_contrato']) ? intval($_POST['id_contrato']) : null;
+    $id_contrato_asociado = isset($_POST['id_contrato']) ? trim($_POST['id_contrato']) : null;
 
     // 1. Rate Limiting (5 reportes por 10 minutos)
     if (!check_rate_limit('payment_submit', 5, 600)) {
@@ -75,19 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $referencia = $conn->real_escape_string($referencia_clean);
 
-    // 3b. Contrato ownership check
-    if ($id_contrato_asociado) {
-        $own_check = $conn->prepare("SELECT id FROM contratos WHERE id = ? AND cedula = ?");
-        $own_check->bind_param("is", $id_contrato_asociado, $cedula);
-        $own_check->execute();
-        if ($own_check->get_result()->num_rows === 0) {
-            log_security_event('SECURITY_VIOLATION', "Intento de pago en contrato ajeno #$id_contrato_asociado por $cedula", $cedula);
-            $_SESSION['pago_err'] = "El contrato seleccionado no te pertenece.";
-            header('Location: dashboard.php');
-            exit;
-        }
-        $own_check->close();
-    }
+    // 3b. Propiedad del contrato ahora se delega a la sesión
+    // Eliminamos la validación local de `contratos` porque usamos el service_id validado en dashboard.
 
     // 3c. Duplicate reference check (evitar doble pago con misma referencia)
     $dup_check = $conn->prepare("SELECT id_reporte FROM pagos_reportados WHERE referencia = ? AND id_banco_destino = ? AND estado = 'APROBADO' LIMIT 1");
@@ -172,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_reporte_nuevo = 0;
 
     if ($stmt) {
-        $stmt->bind_param("sssssisdddsssi",
+        $stmt->bind_param("sssssisdddssss",
             $cedula, $nombre, $telefono, $fecha_pago, $metodo_pago,
             $id_banco_destino, $referencia, $monto_bs, $monto_usd, $tasa_dolar,
             $meses_str, $concepto, $capture_path, $id_contrato_asociado
