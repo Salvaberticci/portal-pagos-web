@@ -208,6 +208,9 @@ class WispHubClient
         if (!empty($cedula)) {
             $clientInfo = $this->getClientByDocument($cedula);
             if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
+                $clientInfo = $this->findClientByDocument($cedula);
+            }
+            if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
                 $msg = $clientInfo['data']['message'] ?? 'Cliente no encontrado en WispHub';
                 return [
                     'service_id' => '',
