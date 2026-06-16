@@ -52,6 +52,7 @@ if (!$resultado['success']) {
         'success' => false,
         'message' => $resultado['message'],
         'movs'    => [],
+        'raw'     => $resultado['raw'] ?? null,
     ]);
     exit;
 }

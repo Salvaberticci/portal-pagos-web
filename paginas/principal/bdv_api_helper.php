@@ -166,9 +166,10 @@ function consultar_movimientos_bdv(
 
     $code = $data['code'] ?? $data['status'] ?? null;
     if ($code != '1000' && $code != 200) {
+        $raw_preview = mb_substr(json_encode($data), 0, 2000);
         return [
             'success' => false,
-            'message' => 'API BDV respondió con código: ' . ($data['message'] ?? $code),
+            'message' => 'API BDV respondió con código: ' . ($data['message'] ?? $code) . '. Respuesta: ' . $raw_preview,
             'movs'    => [],
             'raw'     => $data,
         ];
