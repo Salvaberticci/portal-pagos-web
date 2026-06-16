@@ -1,6 +1,5 @@
 <?php
 require_once 'security_helper.php';
-require '../paginas/conexion.php';
 
 // Cargar cliente WispHub
 require_once __DIR__ . '/../vendor/autoload.php';

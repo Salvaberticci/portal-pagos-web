@@ -5,7 +5,6 @@ if (!isset($_SESSION['cliente_cedula'])) {
     exit;
 }
 
-require '../paginas/conexion.php';
 @include_once '../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 

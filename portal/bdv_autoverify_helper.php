@@ -3,11 +3,7 @@
  * bdv_autoverify_helper.php
  *
  * Orquestador de auto-verificación y aprobación de pagos BDV.
- * Se incluye desde procesar_pago_cliente.php y procesar_reporte_pago.php.
- *
- * Requisitos previos al include:
- *   - $conn  (mysqli) ya conectado
- *   - bdv_api_helper.php cargado (define consultar_movimientos_bdv y buscar_movimiento_bdv)
+ * Se incluye desde procesar_pago_cliente.php
  */
 
 require_once __DIR__ . '/../paginas/principal/banco_api_router.php'; // incluye bdv_api_helper
@@ -15,42 +11,31 @@ require_once __DIR__ . '/../paginas/principal/banco_api_router.php'; // incluye 
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 /**
- * Intenta verificar y aprobar automáticamente un pago cuyo banco sea BDV.
+ * Intenta verificar y aprobar automáticamente un pago cuyo banco sea BDV y registrar en WispHub.
  *
- * Si la API confirma el movimiento:
- *   - Actualiza pagos_reportados -> APROBADO
- *   - Inserta en cuentas_por_cobrar -> PAGADO
- *   - Registra en cobros_manuales_historial
- *   - Elimina el capture del disco (ya no es necesario)
- *   - Devuelve true
+ * Si falla:
+ *   - Devuelve false y setea el motivo en $GLOBALS['bdv_falla_motivo']
  *
- * Si no hay match (demora bancaria, API caída, etc.):
- *   - No modifica nada en la BD (el registro ya está PENDIENTE)
- *   - Devuelve false  → flujo manual de administración
- *
- * @param mysqli $conn
  * @param int    $id_banco           ID del banco (9 o 12 para BDV)
  * @param string $referencia         Número de referencia reportado por el cliente
  * @param float  $monto_usd          Monto en dólares
  * @param float  $tasa_dolar         Tasa BCV usada en el momento del reporte
  * @param string $fecha_pago         Fecha del pago Y-m-d
- * @param string $id_contrato        ID del contrato (WispHub service ID)
- * @param int    $id_reporte         ID en pagos_reportados recién insertado
+ * @param string $wisp_service_id    ID del servicio en WispHub
  * @param string $capture_path       Ruta relativa del comprobante (puede ser '')
+ * @param string $metodo_pago        Metodo de pago
  * @param string $meses_pagados      String descriptivo de meses (para historial)
  * @param string $concepto           Concepto del pago
  *
- * @return bool  true = aprobado automáticamente | false = queda pendiente
+ * @return bool  true = aprobado | false = error/cancelado
  */
 function verificar_y_aprobar_pago_bdv(
-    mysqli $conn,
     int    $id_banco,
     string $referencia,
     float  $monto_usd,
     float  $tasa_dolar,
     string $fecha_pago,
-    string $id_contrato,
-    int    $id_reporte,
+    string $wisp_service_id,
     string $capture_path,
     string $metodo_pago   = '',
     string $meses_pagados = '',
@@ -62,6 +47,7 @@ function verificar_y_aprobar_pago_bdv(
     // Solo proceder si el banco tiene una API habilitada configurada
     $api_cfg = obtener_config_api_banco($id_banco);
     if ($api_cfg === null) {
+        $GLOBALS['bdv_falla_motivo'] = "El banco seleccionado no tiene validación automática activa.";
         return false;
     }
 
@@ -70,16 +56,8 @@ function verificar_y_aprobar_pago_bdv(
         ? round($monto_usd * $tasa_dolar, 2)
         : 0.00;
 
-    // Si es el usuario de prueba V20788775, forzar el monto en Bs al entero más cercano
-    $es_prueba = false;
-    if ($id_reporte > 0) {
-        $res_rep = $conn->query("SELECT cedula_titular FROM pagos_reportados WHERE id_reporte = " . intval($id_reporte));
-        if ($res_rep && $row_rep = $res_rep->fetch_assoc()) {
-            if ($row_rep['cedula_titular'] === TEST_USER_CEDULA) {
-                $es_prueba = true;
-            }
-        }
-    }
+    // Si es el usuario de prueba, forzar el monto en Bs al entero más cercano
+    $es_prueba = (isset($_SESSION['cliente_cedula']) && $_SESSION['cliente_cedula'] === TEST_USER_CEDULA);
     if ($es_prueba) {
         $monto_bs_int = round($monto_bs);
         if (abs($monto_bs - $monto_bs_int) < 0.2) {
@@ -91,6 +69,7 @@ function verificar_y_aprobar_pago_bdv(
     }
 
     if ($monto_bs <= 0) {
+        $GLOBALS['bdv_falla_motivo'] = "El monto en Bolívares es inválido.";
         return false;
     }
 
@@ -108,8 +87,9 @@ function verificar_y_aprobar_pago_bdv(
     $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
 
     if (!$resultado['success'] || empty($resultado['movs'])) {
-        // API caída o sin movimientos → dejar como PENDIENTE
+        // API caída o sin movimientos
         error_log('[BDV AutoVerify] No se pudo consultar o sin movimientos: ' . $resultado['message']);
+        $GLOBALS['bdv_falla_motivo'] = "No pudimos conectar con el banco para verificar tu pago. Inténtalo más tarde.";
         return false;
     }
 
@@ -157,101 +137,60 @@ function verificar_y_aprobar_pago_bdv(
     }
 
     if (!$mov_ref) {
-        $GLOBALS['bdv_falla_motivo'] = "La referencia no coincide con los registros del banco.";
+        $GLOBALS['bdv_falla_motivo'] = "La referencia ingresada no aparece en los movimientos recientes del banco.";
         return false;
     }
+    
     // Verificar monto (puede venir en 'importe' o 'monto' y contener formato con comas)
     $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
     $monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
     if (abs($monto_mov - $monto_bs) > 10) { // tolerancia 10 Bs
-        $GLOBALS['bdv_falla_motivo'] = "El monto ingresado no coincide con el registrado en el banco.";
+        $GLOBALS['bdv_falla_motivo'] = "El monto de la referencia no coincide con el monto calculado a pagar ($monto_bs Bs).";
         return false;
     }
-    // Si llegamos aquí, usar la referencia encontrada como movimiento
-    $movimiento = $mov_ref;
+    
+    // ─── Match encontrado → aprobar automáticamente en WispHub ───────────────────────────
+    if (!empty($wisp_service_id)) {
+        try {
+            require_once dirname(__DIR__) . '/vendor/autoload.php';
+            require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
+            $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
+            $wispClient = new \Services\WispHubClient($wispConfig);
 
-    // ─── Match encontrado → aprobar automáticamente ───────────────────────────
-    $wispResult = null;
-    $wispAccountId = '';
-    $wispServiceId = '';
-    $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
+            $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
 
-    $justificacion = "[MENSUALIDAD] Auto-aprobado por API BDV. "
-        . "Ref banco: " . ($movimiento['referencia'] ?? '') . ". "
-        . "Meses: $meses_pagados. Notas: $concepto";
+            $wispResult = $wispClient->registerPaymentAndActivate(
+                $wisp_service_id, 
+                $monto_usd, 
+                $referencia, 
+                $wispDate,
+                \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, 
+                false, 
+                ''
+            );
 
-    // PRIMERO: transacción local (commiteamos antes de tocar WispHub)
-    $conn->begin_transaction();
-    try {
-        // 1. Marcar reporte como APROBADO
-        $stmt_upd = $conn->prepare("UPDATE pagos_reportados SET estado = 'APROBADO' WHERE id_reporte = ?");
-        if (!$stmt_upd) throw new Exception('Prepare update reporte: ' . $conn->error);
-        $stmt_upd->bind_param('i', $id_reporte);
-        if (!$stmt_upd->execute()) throw new Exception('Execute update reporte: ' . $stmt_upd->error);
-        $stmt_upd->close();
+            if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
+                // Éxito WispHub
+                
+                // Si se configuró guardar local logs, lo haríamos en un archivo
+                $log_dir = __DIR__ . '/../logs';
+                if (!is_dir($log_dir)) @mkdir($log_dir, 0777, true);
+                @file_put_contents($log_dir . '/wisphub_payments.log', "[" . date('Y-m-d H:i:s') . "] SUCCESS Ref: $referencia Monto: $monto_usd \n", FILE_APPEND);
 
-        // 2. Ya no insertamos en cuentas_por_cobrar ni cobros_manuales_historial
-
-        $conn->commit();
-
-        // SEGUNDO: registrar en WispHub (después del commit local)
-        if (!empty($id_contrato)) {
-            try {
-                require_once dirname(__DIR__) . '/vendor/autoload.php';
-                require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
-                $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
-                $wispClient = new \Services\WispHubClient($wispConfig);
-
-                $wispServiceId = $id_contrato;
-
-                $wispResult = $wispClient->registerPaymentAndActivate(
-                    $wispServiceId, $monto_usd, $referencia, $wispDate,
-                    \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, ''
-                );
-
-                if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
-                    $wispAccountId = $wispResult['service_id'] ?? '';
-                    // Log WispHub exitoso
-                    $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
-                    $stmt_log = $conn->prepare($sql_log);
-                    if ($stmt_log) {
-                        $logPayload = json_encode([
-                            'service_id' => $wispAccountId, 'amount' => $monto_usd,
-                            'reference' => $referencia, 'date' => $wispDate,
-                        ]);
-                        $logResponse = json_encode($wispResult);
-                        $stmt_log->bind_param("iss", $id_reporte, $logPayload, $logResponse);
-                        $stmt_log->execute();
-                        $stmt_log->close();
-                    }
-                } elseif ($wispResult && $wispResult['status'] !== 404) {
-                    error_log("[BDV AutoVerify] WispHub rechazó el pago local #$id_reporte: " . ($wispResult['error'] ?? json_encode($wispResult['data'] ?? '')));
-                }
-            } catch (\Exception $e) {
-                error_log('[BDV AutoVerify] Excepción en WispHub tras pago local #' . $id_reporte . ': ' . $e->getMessage());
+                return true;
+            } else {
+                $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? 'Error desconocido');
+                error_log("[BDV AutoVerify] WispHub rechazó el pago: " . $errorMsg);
+                $GLOBALS['bdv_falla_motivo'] = "El pago fue verificado por el banco, pero hubo un problema al aplicarlo a tu factura en WispHub.";
+                return false;
             }
+        } catch (\Exception $e) {
+            error_log('[BDV AutoVerify] Excepción en WispHub: ' . $e->getMessage());
+            $GLOBALS['bdv_falla_motivo'] = "Error de comunicación con el sistema de facturación. Intenta de nuevo.";
+            return false;
         }
-
-        if (function_exists('log_security_event')) {
-            $cedula_log = $row_rep['cedula_titular'] ?? null;
-            log_security_event('PAYMENT_AUTO_APPROVED', "Pago verificado y aprobado automáticamente por API. Reporte #$id_reporte, Ref: $referencia, Monto: $monto_bs Bs", $cedula_log);
-        }
-
-        // 5. Eliminar el capture del disco
-        if (!empty($capture_path)) {
-            $full_path = dirname(__DIR__) . '/' . $capture_path;
-            if (file_exists($full_path)) {
-                @unlink($full_path);
-            }
-        }
-
-        error_log('[BDV AutoVerify] Pago APROBADO automáticamente. Reporte #' . $id_reporte . ' | Ref=' . $referencia
-            . ($wispAccountId ? " | WispHub OK service=$wispAccountId" : ' | sin WispHub'));
-        return true;
-
-    } catch (Exception $e) {
-        $conn->rollback();
-        error_log('[BDV AutoVerify] ERROR en transacción DB: ' . $e->getMessage());
+    } else {
+        $GLOBALS['bdv_falla_motivo'] = "No se proporcionó un ID de servicio válido para aplicar el pago.";
         return false;
     }
 }

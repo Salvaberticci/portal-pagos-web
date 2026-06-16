@@ -1,5 +1,9 @@
 <?php
-require_once __DIR__ . '/../paginas/conexion.php';
+/**
+ * portal/test_by_document.php
+ * Herramienta de prueba para verificar la búsqueda de clientes en WispHub por cédula.
+ * Solo para entornos de desarrollo / diagnóstico.
+ */
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 

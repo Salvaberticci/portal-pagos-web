@@ -9,35 +9,8 @@
  *   - Verifica la firma HMAC‑SHA256 enviada en X‑WispHub‑Signature.
  *   - Solo acepta POST.
  *   - Responde 200 OK siempre para no revelar información interna.
+ *   - No usa base de datos local. Eventos registrados en archivo de log.
  */
-
-// ── 0. Asegurar que existan las tablas ────────────────────────────────────────
-require_once __DIR__ . '/../paginas/conexion.php';
-
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `request_payload` TEXT,
-    `response_payload` TEXT,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_payment_id` (`payment_id`),
-    INDEX `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-
-$conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_links` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `payment_id` INT DEFAULT NULL,
-    `contract_id` INT DEFAULT NULL,
-    `wisp_account_id` VARCHAR(50) NOT NULL,
-    `status` VARCHAR(20) DEFAULT 'PENDING',
-    `last_event` VARCHAR(100) DEFAULT NULL,
-    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` DATETIME DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_contract_id` (`contract_id`),
-    INDEX `idx_wisp_account_id` (`wisp_account_id`),
-    INDEX `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-$conn->query("ALTER TABLE `wisp_hub_links` MODIFY `contract_id` INT DEFAULT NULL");
 
 // ── 1. Solo aceptar POST ──────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -49,21 +22,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $rawBody = file_get_contents('php://input');
 
 // ── 3. Cargar config y verificar firma HMAC ──────────────────────────────────
-require_once __DIR__ . '/../config/wisp_hub.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
 $apiSecret  = $wispConfig['api_secret'] ?? '';
+
+$logDir  = __DIR__ . '/../logs';
+if (!is_dir($logDir)) {
+    mkdir($logDir, 0750, true);
+}
+$logFile = $logDir . '/wisphub_webhook.log';
 
 $receivedSig  = $_SERVER['HTTP_X_WISPHUB_SIGNATURE'] ?? '';
 $expectedSig  = hash_hmac('sha256', $rawBody, $apiSecret);
 
-if (!hash_equals($expectedSig, $receivedSig)) {
-    // Log del intento fallido
-    $logDir = __DIR__ . '/../logs';
-    if (!is_dir($logDir)) {
-        mkdir($logDir, 0750, true);
-    }
+if ($apiSecret !== '' && !hash_equals($expectedSig, $receivedSig)) {
     file_put_contents(
-        $logDir . '/wisphub_webhook.log',
+        $logFile,
         '[' . date('Y-m-d H:i:s') . '] HMAC MISMATCH - IP: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . "\n",
         FILE_APPEND | LOCK_EX
     );
@@ -78,19 +51,11 @@ if (!is_array($event)) {
     exit;
 }
 
-$eventType   = $event['event']       ?? '';
+$eventType   = $event['event']       ?? 'unknown';
 $accountId   = $event['account_id']  ?? '';
 $contractRef = $event['contract_id'] ?? null;
 
-// ── 5. Conectar a la BD y procesar el evento ─────────────────────────────────
-require_once __DIR__ . '/../paginas/conexion.php';
-
-$logDir = __DIR__ . '/../logs';
-if (!is_dir($logDir)) {
-    mkdir($logDir, 0750, true);
-}
-$logFile = $logDir . '/wisphub_webhook.log';
-
+// ── 5. Procesar el evento (solo log, sin BD) ──────────────────────────────────
 $newStatus = null;
 switch ($eventType) {
     case 'service.activated':
@@ -108,41 +73,20 @@ switch ($eventType) {
             FILE_APPEND | LOCK_EX
         );
         http_response_code(200);
+        echo json_encode(['received' => true]);
         exit;
 }
 
-// Actualizar wisp_hub_links si tenemos un account_id
-if ($accountId && $newStatus) {
-    $stmt = $conn->prepare(
-        "UPDATE wisp_hub_links SET status = ?, last_event = ?, updated_at = NOW() WHERE wisp_account_id = ?"
-    );
-    if ($stmt) {
-        $stmt->bind_param('sss', $newStatus, $eventType, $accountId);
-        $stmt->execute();
-        $stmt->close();
-    }
-}
-
-// ── 6. Insertar en wisp_hub_logs ─────────────────────────────────────────────
-$stmt_log = $conn->prepare(
-    "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at)
-     VALUES (NULL, ?, 'webhook_inbound', NOW())"
-);
-if ($stmt_log) {
-    $stmt_log->bind_param('s', $rawBody);
-    $stmt_log->execute();
-    $stmt_log->close();
-}
-
-// ── 7. Log en archivo ─────────────────────────────────────────────────────────
+// ── 6. Registrar evento en log de archivo ─────────────────────────────────────
 file_put_contents(
     $logFile,
-    '[' . date('Y-m-d H:i:s') . '] EVENT: ' . $eventType . ' | account=' . $accountId . ' | status_set=' . ($newStatus ?? 'n/a') . "\n",
+    '[' . date('Y-m-d H:i:s') . '] EVENT: ' . $eventType
+        . ' | account=' . htmlspecialchars($accountId)
+        . ' | contract=' . htmlspecialchars((string)$contractRef)
+        . ' | status=' . ($newStatus ?? 'n/a') . "\n",
     FILE_APPEND | LOCK_EX
 );
 
-$conn->close();
-
-// ── 8. Responder 200 OK ───────────────────────────────────────────────────────
+// ── 7. Responder 200 OK ───────────────────────────────────────────────────────
 http_response_code(200);
 echo json_encode(['received' => true]);

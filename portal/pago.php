@@ -6,9 +6,11 @@ if (!isset($_SESSION['cliente_cedula'])) {
     exit;
 }
 
-require '../paginas/conexion.php';
 @include_once '../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+
+$pago_err = $_SESSION['pago_err'] ?? '';
+unset($_SESSION['pago_err']);
 
 $wisp_service_id = isset($_GET['id_contrato']) ? $_GET['id_contrato'] : '';
 $cedula = $_SESSION['cliente_cedula'];
@@ -118,6 +120,14 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
                         Usuario de prueba: Se muestran montos demo de Bs. 1.00, Bs. 2.00 y Bs. 4.00.
                     </div>
                 <?php endif; ?>
+                
+                <?php if (!empty($pago_err)): ?>
+                    <div class="alert alert-danger glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444 !important; border-radius: 12px; font-size: 0.95rem;">
+                        <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
+                        <?php echo $pago_err; ?>
+                    </div>
+                <?php endif; ?>
+
                 <h3 class="mb-4">¿Cuánto quieres pagar hoy?</h3>
                 <div class="selection-card" onclick="selectAmount(<?php echo $deuda; ?>, 0, this)">
                     <div class="d-flex align-items-center">
