@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cliente = $res->fetch_assoc();
             
             // Login exitoso
+            session_regenerate_id(true);
             $_SESSION['cliente_cedula'] = $cedula;
             $_SESSION['cliente_nombre'] = $cliente['nombre_completo'];
             $_SESSION['cliente_telefono'] = $cliente['telefono'];

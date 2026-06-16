@@ -74,7 +74,8 @@
             "api_key": "650D973744E70DFD936382F9B734405A",
             "cuenta": "01020589150000001371",
             "titular": "SITELCO C.A.",
-            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos"
+            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos",
+            "verify_ssl": true
         }
     },
     {
@@ -93,7 +94,8 @@
             "api_key": "650D973744E70DFD936382F9B734405A",
             "cuenta": "01020589150000001371",
             "titular": "SITELCO C.A.",
-            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos"
+            "endpoint": "https:\/\/bdvconciliacion.banvenez.com:443\/apis\/bdv\/consulta\/movimientos",
+            "verify_ssl": true
         }
     },
     {

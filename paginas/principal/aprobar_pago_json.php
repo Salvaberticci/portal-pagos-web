@@ -2,6 +2,14 @@
 // aprobar_pago_json.php - Procesa la aprobación de un reporte de pago y retorna JSON
 require_once '../conexion.php';
 
+if (session_status() === PHP_SESSION_NONE) session_start();
+if (!isset($_SESSION['usuario_id']) || !in_array(strtolower($_SESSION['rol'] ?? ''), ['admin', 'administrador'])) {
+    header('Content-Type: application/json');
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Acceso denegado']);
+    exit;
+}
+
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -34,8 +42,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // 1. Obtener detalles del reporte original para el historial
-        $sql_orig = "SELECT meses_pagados, concepto, capture_path FROM pagos_reportados WHERE id_reporte = $id_reporte";
-        $res_orig = $conn->query($sql_orig);
+        $sql_orig = "SELECT meses_pagados, concepto, capture_path FROM pagos_reportados WHERE id_reporte = ?";
+        $stmt_orig = $conn->prepare($sql_orig);
+        $stmt_orig->bind_param("i", $id_reporte);
+        $stmt_orig->execute();
+        $res_orig = $stmt_orig->get_result();
         if (!$res_orig || $res_orig->num_rows === 0) {
             echo json_encode(['success' => false, 'message' => 'No se encontró el reporte original.']);
             exit;
@@ -77,10 +88,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // 4. Actualizar reporte original siempre (marcar como aprobado)
-            $sql_upd = "UPDATE pagos_reportados SET estado = 'APROBADO' WHERE id_reporte = $id_reporte";
-            if (!$conn->query($sql_upd)) {
-                throw new Exception("Error actualizando estado del reporte: " . $conn->error);
+            $stmt_upd = $conn->prepare("UPDATE pagos_reportados SET estado = 'APROBADO' WHERE id_reporte = ?");
+            if (!$stmt_upd) throw new Exception("Error preparando update: " . $conn->error);
+            $stmt_upd->bind_param("i", $id_reporte);
+            if (!$stmt_upd->execute()) {
+                throw new Exception("Error actualizando estado del reporte: " . $stmt_upd->error);
             }
+            $stmt_upd->close();
 
             $conn->commit();
             $msg = ($id_contrato > 0) ? '¡Pago aprobado y registrado exitosamente!' : '¡Reporte aprobado! (Sin registro en CxC al no tener contrato)';

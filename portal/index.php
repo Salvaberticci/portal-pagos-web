@@ -39,7 +39,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 
             <?php if (isset($_SESSION['login_error'])): ?>
                 <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border-radius: 12px; font-size: 0.9rem;">
-                    <i class="fas fa-exclamation-circle me-2"></i> <?php echo $_SESSION['login_error']; unset($_SESSION['login_error']); ?>
+                    <i class="fas fa-exclamation-circle me-2"></i> <?php echo htmlspecialchars($_SESSION['login_error'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['login_error']); ?>
                 </div>
             <?php endif; ?>
 

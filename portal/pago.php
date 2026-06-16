@@ -7,6 +7,8 @@ if (!isset($_SESSION['cliente_cedula'])) {
 }
 
 require '../paginas/conexion.php';
+@include_once '../config/test_mode.php';
+if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 $id_contrato = isset($_GET['id_contrato']) ? intval($_GET['id_contrato']) : 0;
 $cedula = $_SESSION['cliente_cedula'];
@@ -50,7 +52,7 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     $url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
     $ch = curl_init($url_bcv);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     $resp_bcv = curl_exec($ch);
     if (!curl_errno($ch)) {
@@ -63,7 +65,7 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     curl_close($ch);
 }
 
-if ($cedula === 'V20788775') {
+if ($cedula === TEST_USER_CEDULA) {
     $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
     $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
@@ -104,7 +106,7 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
             <!-- PASO 1: Selección de Monto -->
             <div class="wizard-step active" id="step-1">
-                <?php if ($cedula === 'V20788775'): ?>
+                <?php if ($cedula === TEST_USER_CEDULA): ?>
                     <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px; font-size: 0.9rem;">
                         <i class="fas fa-info-circle me-2 text-info"></i>
                         Usuario de prueba: Se muestran montos demo de Bs. 1.00, Bs. 2.00 y Bs. 4.00.

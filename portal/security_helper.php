@@ -2,8 +2,27 @@
 // portal/security_helper.php
 
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 3600,
+        'path' => '/',
+        'domain' => '',
+        'secure' => !empty($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
     session_start();
 }
+
+// Session idle timeout (30 min)
+if (isset($_SESSION['_last_activity']) && (time() - $_SESSION['_last_activity'] > 1800)) {
+    session_unset();
+    session_destroy();
+    if (isset($_SERVER['HTTP_HOST'])) {
+        header('Location: index.php');
+        exit;
+    }
+}
+$_SESSION['_last_activity'] = time();
 
 /**
  * Obtiene o establece la conexión a la base de datos si la variable global $conn no está definida.

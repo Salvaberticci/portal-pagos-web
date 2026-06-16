@@ -80,14 +80,15 @@ function consultar_movimientos_bdv(
     string $api_key = '',
     string $endpoint = ''
 ): array {
-    // Valores por defecto si no se pasan (compatibilidad hacia atrás)
+    $verifySsl = true;
     if (empty($api_key)) {
         // Buscar en el primer banco BDV habilitado
         $ids = obtener_ids_banco_con_api('bdv');
         if (!empty($ids)) {
             $cfg = obtener_config_api_banco($ids[0]);
-            $api_key  = $cfg['api_key']  ?? '';
-            $endpoint = $cfg['endpoint'] ?? '';
+            $api_key   = $cfg['api_key']   ?? '';
+            $endpoint  = $cfg['endpoint']  ?? '';
+            $verifySsl = $cfg['verify_ssl'] ?? true;
         }
     }
     if (empty($endpoint)) {
@@ -130,8 +131,8 @@ function consultar_movimientos_bdv(
         CURLOPT_POST           => true,
         CURLOPT_POSTFIELDS     => $payload,
         CURLOPT_TIMEOUT        => 15,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_SSL_VERIFYPEER => $verifySsl,
+        CURLOPT_SSL_VERIFYHOST => $verifySsl ? 2 : 0,
         CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
             'X-API-KEY: ' . $api_key,

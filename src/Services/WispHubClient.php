@@ -59,22 +59,42 @@ class WispHubClient
         if (!empty($data)) {
             $opts['body'] = json_encode($data);
         }
-        try {
-            $response = $this->http->request($method, $uri, $opts);
-            $status = $response->getStatusCode();
-            $body   = (string) $response->getBody();
-            $json   = json_decode($body, true);
-            return ['status' => $status, 'data' => $json];
-        } catch (RequestException $e) {
-            if ($e->hasResponse()) {
-                $status = $e->getResponse()->getStatusCode();
-                $body   = (string) $e->getResponse()->getBody();
+
+        $maxAttempts = 3;
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $response = $this->http->request($method, $uri, $opts);
+                $status = $response->getStatusCode();
+                $body   = (string) $response->getBody();
                 $json   = json_decode($body, true);
-                return ['status' => $status, 'data' => $json, 'error' => $body];
+                return ['status' => $status, 'data' => $json];
+            } catch (RequestException $e) {
+                if ($e->hasResponse()) {
+                    $status = $e->getResponse()->getStatusCode();
+                    $body   = (string) $e->getResponse()->getBody();
+                    $json   = json_decode($body, true);
+                    // Reintentar solo en 5xx o timeout (sin respuesta)
+                    if ($status >= 500 && $status <= 599 && $attempt < $maxAttempts) {
+                        $delay = $attempt * 1000000; // 1s, 2s
+                        error_log("[WispHubClient] Reintento $attempt/$maxAttempts tras HTTP $status, esperando " . ($delay/1000000) . "s");
+                        usleep($delay);
+                        continue;
+                    }
+                    return ['status' => $status, 'data' => $json, 'error' => $body];
+                }
+                // Sin respuesta (timeout/red): reintentar
+                if ($attempt < $maxAttempts) {
+                    $delay = $attempt * 1000000;
+                    error_log("[WispHubClient] Reintento $attempt/$maxAttempts sin respuesta: " . $e->getMessage() . ", esperando " . ($delay/1000000) . "s");
+                    usleep($delay);
+                    continue;
+                }
+                error_log('[WispHubClient] RequestException sin respuesta: ' . $e->getMessage());
+                return ['status' => 0, 'error' => $e->getMessage()];
             }
-            error_log('[WispHubClient] RequestException sin respuesta: ' . $e->getMessage());
-            return ['status' => 0, 'error' => $e->getMessage()];
         }
+        // Never reached
+        return ['status' => 0, 'error' => 'Max retries exceeded'];
     }
 
     // -----------------------------------------------------------------

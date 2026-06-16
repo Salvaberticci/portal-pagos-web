@@ -6,6 +6,8 @@ if (!isset($_SESSION['cliente_cedula'])) {
 }
 
 require '../paginas/conexion.php';
+@include_once '../config/test_mode.php';
+if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 $cedula = $_SESSION['cliente_cedula'];
 $nombre = $_SESSION['cliente_nombre'];
@@ -31,7 +33,7 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     $url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
     $ch = curl_init($url_bcv);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     $resp_bcv = curl_exec($ch);
     if (!curl_errno($ch)) {
@@ -62,34 +64,38 @@ if ($stmt) {
     $stmt->bind_param("s", $cedula);
     $stmt->execute();
     $res = $stmt->get_result();
+    $contratoIds = [];
     while ($row = $res->fetch_assoc()) {
         $row['deuda_mensualidades'] = floatval($row['deuda_mensualidades'] ?? 0);
-        if ($cedula === 'V20788775') {
+        if ($cedula === TEST_USER_CEDULA) {
             if ($row['deuda_mensualidades'] > 0) {
                 $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
             }
             $row['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
         }
         $row['nombre_plan'] = $row['nombre_plan'] ?: 'Plan Básico';
-        
-        // Cargar últimos 5 pagos para este contrato
         $row['historial'] = [];
-        $sql_hist = "SELECT fecha_pago, monto_total, estado, referencia_pago 
-                     FROM cuentas_por_cobrar 
-                     WHERE id_contrato = ? AND estado IN ('PAGADO', 'PENDIENTE')
-                     ORDER BY fecha_emision DESC LIMIT 5";
-        $stmt_hist = $conn->prepare($sql_hist);
-        if ($stmt_hist) {
-            $stmt_hist->bind_param("i", $row['id']);
-            $stmt_hist->execute();
-            $res_hist = $stmt_hist->get_result();
-            while ($h = $res_hist->fetch_assoc()) {
-                $row['historial'][] = $h;
-            }
-            $stmt_hist->close();
-        }
-        $contratos[] = $row;
+        $contratoIds[] = $row['id'];
+        $contratos[$row['id']] = $row;
     }
+
+    // Batch fetch historial para todos los contratos (N+1 → 1 query)
+    if (!empty($contratoIds)) {
+        $in = implode(',', array_map('intval', $contratoIds));
+        $histBatch = $conn->query("SELECT id_contrato, fecha_pago, monto_total, estado, referencia_pago
+            FROM cuentas_por_cobrar
+            WHERE id_contrato IN ($in) AND estado IN ('PAGADO', 'PENDIENTE')
+            ORDER BY fecha_emision DESC");
+        if ($histBatch) {
+            while ($h = $histBatch->fetch_assoc()) {
+                $cid = $h['id_contrato'];
+                if (isset($contratos[$cid]) && count($contratos[$cid]['historial']) < 5) {
+                    $contratos[$cid]['historial'][] = $h;
+                }
+            }
+        }
+    }
+    $contratos = array_values($contratos); // back to indexed array
 }
 
 // NUEVO: Obtener estados de pagos reportados
@@ -204,7 +210,7 @@ if ($stmt_last) {
     </header>
 
     <div class="container main-container animate-fade">
-        <?php if ($cedula === 'V20788775'): ?>
+        <?php if ($cedula === TEST_USER_CEDULA): ?>
             <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px;">
                 <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px; color: #bae6fd;">
                     <i class="fas fa-info-circle me-2 text-info"></i> 
@@ -242,7 +248,7 @@ if ($stmt_last) {
         <?php if (isset($_SESSION['pago_msg'])): ?>
             <div class="alert alert-success glass-panel mb-4" id="alert-pago-ok">
                 <i class="fas fa-check-circle me-2"></i>
-                <?php echo $_SESSION['pago_msg']; unset($_SESSION['pago_msg']); ?>
+                <?php echo htmlspecialchars($_SESSION['pago_msg'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['pago_msg']); ?>
             </div>
             <script>
                 setTimeout(() => {
@@ -254,7 +260,7 @@ if ($stmt_last) {
         <?php if (isset($_SESSION['pago_pendiente'])) { unset($_SESSION['pago_pendiente']); } ?>
         <?php if (isset($_SESSION['pago_err'])): ?>
             <div class="alert alert-danger glass-panel mb-4">
-                <i class="fas fa-times-circle me-2"></i> <?php echo $_SESSION['pago_err']; unset($_SESSION['pago_err']); ?>
+                <i class="fas fa-times-circle me-2"></i> <?php echo htmlspecialchars($_SESSION['pago_err'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['pago_err']); ?>
             </div>
         <?php endif; ?>
 

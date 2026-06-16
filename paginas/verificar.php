@@ -29,6 +29,7 @@ if ($resultado->num_rows === 1) {
     if (password_verify($clave, $user_db['clave'])) {
         
         // --- ÉXITO: GUARDAR DATOS DE SESIÓN ---
+        session_regenerate_id(true);
         $_SESSION['usuario_id'] = $user_db['id_usuario'];
         $_SESSION['usuario'] = $user_db['usuario'];
         $_SESSION['nombre_completo'] = $user_db['nombre_completo'];

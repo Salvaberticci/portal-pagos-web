@@ -1,6 +1,26 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 3600,
+        'path' => '/',
+        'domain' => '',
+        'secure' => !empty($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
     session_start();
+}
+
+// Session idle timeout (30 min)
+if (isset($_SESSION['usuario_id']) && isset($_SESSION['_last_activity']) && (time() - $_SESSION['_last_activity'] > 1800)) {
+    session_unset();
+    session_destroy();
+    $path_fix_auth = isset($path_to_root) ? $path_to_root : '../';
+    header("Location: " . $path_fix_auth . "index.html");
+    exit;
+}
+if (isset($_SESSION['usuario_id'])) {
+    $_SESSION['_last_activity'] = time();
 }
 
 $path_fix_auth = isset($path_to_root) ? $path_to_root : '../';

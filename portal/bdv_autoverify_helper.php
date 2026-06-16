@@ -11,6 +11,8 @@
  */
 
 require_once __DIR__ . '/../paginas/principal/banco_api_router.php'; // incluye bdv_api_helper
+@include_once __DIR__ . '/../config/test_mode.php';
+if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 /**
  * Intenta verificar y aprobar automáticamente un pago cuyo banco sea BDV.
@@ -72,7 +74,7 @@ function verificar_y_aprobar_pago_bdv(
     if ($id_reporte > 0) {
         $res_rep = $conn->query("SELECT cedula_titular FROM pagos_reportados WHERE id_reporte = " . intval($id_reporte));
         if ($res_rep && $row_rep = $res_rep->fetch_assoc()) {
-            if ($row_rep['cedula_titular'] === 'V20788775') {
+            if ($row_rep['cedula_titular'] === TEST_USER_CEDULA) {
                 $es_prueba = true;
             }
         }
@@ -158,102 +160,16 @@ function verificar_y_aprobar_pago_bdv(
     $movimiento = $mov_ref;
 
     // ─── Match encontrado → aprobar automáticamente ───────────────────────────
-    // PRIMERO: registrar en WispHub (antes del commit local)
     $wispResult = null;
     $wispAccountId = '';
-    if ($id_contrato > 0) {
-        try {
-            require_once dirname(__DIR__) . '/vendor/autoload.php';
-            require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
-            $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
-            $wispClient = new \Services\WispHubClient($wispConfig);
-
-            // Obtener el wisp_account_id desde la tabla wisp_hub_links (rápido, sin API)
-            $q_link = $conn->prepare("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = ? LIMIT 1");
-            $wispServiceId = '';
-            if ($q_link) {
-                $q_link->bind_param("i", $id_contrato);
-                $q_link->execute();
-                $r_link = $q_link->get_result();
-                if ($r_link && $row_link = $r_link->fetch_assoc()) {
-                    $wispServiceId = $row_link['wisp_account_id'];
-                }
-                $q_link->close();
-            }
-
-            $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
-
-            if (!empty($wispServiceId)) {
-                // Usar service_id directamente (sin cédula) → no llama a getClientByDocument
-                $wispResult = $wispClient->registerPaymentAndActivate(
-                    $wispServiceId,
-                    $monto_usd,
-                    $referencia,
-                    $wispDate,
-                    \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
-                    false,
-                    ''
-                );
-            } else {
-                // Fallback: buscar por cédula
-                $q_cedula = $conn->prepare("SELECT cedula FROM contratos WHERE id = ?");
-                $cedula = '';
-                if ($q_cedula) {
-                    $q_cedula->bind_param("i", $id_contrato);
-                    $q_cedula->execute();
-                    $r_cedula = $q_cedula->get_result();
-                    if ($r_cedula && $row_c = $r_cedula->fetch_assoc()) {
-                        $cedula = $row_c['cedula'];
-                    }
-                    $q_cedula->close();
-                }
-                if (!empty($cedula)) {
-                    $wispResult = $wispClient->registerPaymentAndActivate(
-                        '',
-                        $monto_usd,
-                        $referencia,
-                        $wispDate,
-                        \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
-                        false,
-                        $cedula
-                    );
-                }
-            }
-
-            if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
-                $wispAccountId = $wispResult['service_id'] ?? '';
-                if (!empty($wispAccountId) && empty($wispServiceId)) {
-                    $stmt_cache = $conn->prepare(
-                        "INSERT INTO wisp_hub_links (contract_id, wisp_account_id, status, created_at)
-                         VALUES (?, ?, 'ACTIVE', NOW())
-                         ON DUPLICATE KEY UPDATE wisp_account_id = VALUES(wisp_account_id), status = 'ACTIVE', updated_at = NOW()"
-                    );
-                    if ($stmt_cache) {
-                        $stmt_cache->bind_param("is", $id_contrato, $wispAccountId);
-                        $stmt_cache->execute();
-                        $stmt_cache->close();
-                    }
-                }
-            } elseif ($wispResult) {
-                $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? '');
-                if ($wispResult['status'] === 404) {
-                    error_log("[BDV AutoVerify] Cliente no encontrado en WispHub, se procesa solo local");
-                } else {
-                    error_log("[BDV AutoVerify] WispHub rechazó el pago: $errorMsg");
-                    return false;
-                }
-            }
-        } catch (\Exception $e) {
-            error_log('[BDV AutoVerify] Excepción en WispHub (no se aprueba): ' . $e->getMessage());
-            return false;
-        }
-    }
+    $wispServiceId = '';
+    $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
 
     $justificacion = "[MENSUALIDAD] Auto-aprobado por API BDV. "
         . "Ref banco: " . ($movimiento['referencia'] ?? '') . ". "
         . "Meses: $meses_pagados. Notas: $concepto";
 
-    // SEGUNDO: transacción local
+    // PRIMERO: transacción local (commiteamos antes de tocar WispHub)
     $conn->begin_transaction();
     try {
         // 1. Marcar reporte como APROBADO
@@ -300,25 +216,87 @@ function verificar_y_aprobar_pago_bdv(
             $stmt_hist->close();
         }
 
-        // 4. Log WispHub (dentro de la transacción para consistencia)
-        if ($wispResult !== null) {
-            $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
-            $stmt_log = $conn->prepare($sql_log);
-            if ($stmt_log) {
-                $logPayload = json_encode([
-                    'service_id' => $wispAccountId,
-                    'amount' => $monto_usd,
-                    'reference' => $referencia,
-                    'date' => $wispDate ?? date('Y-m-d H:i', strtotime($fecha_pago)),
-                ]);
-                $logResponse = json_encode($wispResult);
-                $stmt_log->bind_param("iss", $id_reporte, $logPayload, $logResponse);
-                $stmt_log->execute();
-                $stmt_log->close();
+        $conn->commit();
+
+        // SEGUNDO: registrar en WispHub (después del commit local)
+        if ($id_contrato > 0) {
+            try {
+                require_once dirname(__DIR__) . '/vendor/autoload.php';
+                require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
+                $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
+                $wispClient = new \Services\WispHubClient($wispConfig);
+
+                // Obtener el wisp_account_id desde wisp_hub_links
+                $q_link = $conn->prepare("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = ? LIMIT 1");
+                if ($q_link) {
+                    $q_link->bind_param("i", $id_contrato);
+                    $q_link->execute();
+                    $r_link = $q_link->get_result();
+                    if ($r_link && $row_link = $r_link->fetch_assoc()) {
+                        $wispServiceId = $row_link['wisp_account_id'];
+                    }
+                    $q_link->close();
+                }
+
+                if (!empty($wispServiceId)) {
+                    $wispResult = $wispClient->registerPaymentAndActivate(
+                        $wispServiceId, $monto_usd, $referencia, $wispDate,
+                        \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, ''
+                    );
+                } else {
+                    $q_cedula = $conn->prepare("SELECT cedula FROM contratos WHERE id = ?");
+                    $cedula = '';
+                    if ($q_cedula) {
+                        $q_cedula->bind_param("i", $id_contrato);
+                        $q_cedula->execute();
+                        $r_cedula = $q_cedula->get_result();
+                        if ($r_cedula && $row_c = $r_cedula->fetch_assoc()) {
+                            $cedula = $row_c['cedula'];
+                        }
+                        $q_cedula->close();
+                    }
+                    if (!empty($cedula)) {
+                        $wispResult = $wispClient->registerPaymentAndActivate(
+                            '', $monto_usd, $referencia, $wispDate,
+                            \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, false, $cedula
+                        );
+                    }
+                }
+
+                if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
+                    $wispAccountId = $wispResult['service_id'] ?? '';
+                    if (!empty($wispAccountId) && empty($wispServiceId)) {
+                        $stmt_cache = $conn->prepare(
+                            "INSERT INTO wisp_hub_links (contract_id, wisp_account_id, status, created_at)
+                             VALUES (?, ?, 'ACTIVE', NOW())
+                             ON DUPLICATE KEY UPDATE wisp_account_id = VALUES(wisp_account_id), status = 'ACTIVE', updated_at = NOW()"
+                        );
+                        if ($stmt_cache) {
+                            $stmt_cache->bind_param("is", $id_contrato, $wispAccountId);
+                            $stmt_cache->execute();
+                            $stmt_cache->close();
+                        }
+                    }
+                    // Log WispHub exitoso
+                    $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
+                    $stmt_log = $conn->prepare($sql_log);
+                    if ($stmt_log) {
+                        $logPayload = json_encode([
+                            'service_id' => $wispAccountId, 'amount' => $monto_usd,
+                            'reference' => $referencia, 'date' => $wispDate,
+                        ]);
+                        $logResponse = json_encode($wispResult);
+                        $stmt_log->bind_param("iss", $id_reporte, $logPayload, $logResponse);
+                        $stmt_log->execute();
+                        $stmt_log->close();
+                    }
+                } elseif ($wispResult && $wispResult['status'] !== 404) {
+                    error_log("[BDV AutoVerify] WispHub rechazó el pago local #$id_reporte: " . ($wispResult['error'] ?? json_encode($wispResult['data'] ?? '')));
+                }
+            } catch (\Exception $e) {
+                error_log('[BDV AutoVerify] Excepción en WispHub tras pago local #' . $id_reporte . ': ' . $e->getMessage());
             }
         }
-
-        $conn->commit();
 
         if (function_exists('log_security_event')) {
             $cedula_log = $row_rep['cedula_titular'] ?? null;
@@ -339,9 +317,7 @@ function verificar_y_aprobar_pago_bdv(
 
     } catch (Exception $e) {
         $conn->rollback();
-        error_log('[BDV AutoVerify] ERROR en transacción DB'
-            . ($wispAccountId ? " ATENCIÓN: WispHub ya registró pago para service $wispAccountId. Revisión manual requerida." : '')
-            . ' ' . $e->getMessage());
+        error_log('[BDV AutoVerify] ERROR en transacción DB: ' . $e->getMessage());
         return false;
     }
 }

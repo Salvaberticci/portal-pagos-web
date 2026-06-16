@@ -7,6 +7,8 @@ if (!isset($_SESSION['cliente_cedula'])) {
 }
 
 require '../paginas/conexion.php';
+@include_once '../config/test_mode.php';
+if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 // ── Crear tablas de integración WispHub si no existen ───────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS `wisp_hub_logs` (
@@ -73,6 +75,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $referencia = $conn->real_escape_string($referencia_clean);
 
+    // 3b. Contrato ownership check
+    if ($id_contrato_asociado) {
+        $own_check = $conn->prepare("SELECT id FROM contratos WHERE id = ? AND cedula = ?");
+        $own_check->bind_param("is", $id_contrato_asociado, $cedula);
+        $own_check->execute();
+        if ($own_check->get_result()->num_rows === 0) {
+            log_security_event('SECURITY_VIOLATION', "Intento de pago en contrato ajeno #$id_contrato_asociado por $cedula", $cedula);
+            $_SESSION['pago_err'] = "El contrato seleccionado no te pertenece.";
+            header('Location: dashboard.php');
+            exit;
+        }
+        $own_check->close();
+    }
+
+    // 3c. Duplicate reference check (evitar doble pago con misma referencia)
+    $dup_check = $conn->prepare("SELECT id_reporte FROM pagos_reportados WHERE referencia = ? AND id_banco_destino = ? AND estado = 'APROBADO' LIMIT 1");
+    $dup_check->bind_param("si", $referencia, $id_banco_destino);
+    $dup_check->execute();
+    if ($dup_check->get_result()->num_rows > 0) {
+        log_security_event('DUPLICATE_PAYMENT', "Intento de pago duplicado ref=$referencia banco=$id_banco_destino", $cedula);
+        $_SESSION['pago_err'] = "Esta referencia de pago ya fue registrada anteriormente.";
+        header('Location: dashboard.php');
+        exit;
+    }
+    $dup_check->close();
+
     // Meses a pagar
     $meses_adelanto = isset($_POST['meses_adelanto']) ? intval($_POST['meses_adelanto']) : 0;
 
@@ -81,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $tasa_dolar = isset($_POST['tasa_dolar']) ? floatval($_POST['tasa_dolar']) : 0.00;
     $monto_bs   = ($monto_usd > 0 && $tasa_dolar > 0) ? round($monto_usd * $tasa_dolar, 2) : 0.00;
 
-    if ($cedula === 'V20788775') {
+    if ($cedula === TEST_USER_CEDULA) {
         $monto_bs_int = round($monto_bs);
         if (abs($monto_bs - $monto_bs_int) < 0.2) {
             $monto_bs = $monto_bs_int;
