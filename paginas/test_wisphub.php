@@ -244,23 +244,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         
         if ($action === 'create_test_debt') {
             $cedula = trim($_POST['cedula'] ?? '');
-            $monto = floatval($_POST['monto'] ?? 17.50);
             if (empty($cedula)) {
                 $response['message'] = 'Cédula requerida.';
             } else {
-                $q = $conn->query("SELECT id FROM contratos WHERE cedula = '$cedula' AND estado != 'ELIMINADO' LIMIT 1");
+                $q = $conn->query("SELECT id, monto_plan, id_plan FROM contratos WHERE cedula = '$cedula' AND estado != 'ELIMINADO' LIMIT 1");
                 if ($q && $row = $q->fetch_assoc()) {
                     $idc = $row['id'];
+                    $monto = 1.00;
                     $sql = "INSERT INTO cuentas_por_cobrar (id_contrato, fecha_emision, fecha_vencimiento, monto_total, estado, origen) VALUES (?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY), ?, 'PENDIENTE', 'PRUEBA')";
                     $stmt = $conn->prepare($sql);
                     $stmt->bind_param("id", $idc, $monto);
-                    if ($stmt->execute()) {
+                    $debtOk = $stmt->execute();
+                    $stmt->close();
+
+                    if ($debtOk) {
+                        $suspendOk = false;
+                        $suspendMsg = '';
+                        $suspendRes = $wispClient->suspendService('902', 'Simulacion de impago');
+                        $sStatus = $suspendRes['status'] ?? 0;
+                        if ($sStatus === 200 || $sStatus === 201 || ($sStatus === 400 && strpos(json_encode($suspendRes), 'suspendido') !== false)) {
+                            $suspendOk = true;
+                            $suspendMsg = 'Servicio suspendido en WispHub.';
+                            $stmt_upd = $conn->prepare("UPDATE wisp_hub_links SET status = 'SUSPENDED', last_event = 'test.impago', updated_at = NOW() WHERE wisp_account_id = '902'");
+                            if ($stmt_upd) {
+                                $stmt_upd->execute();
+                                if ($stmt_upd->affected_rows === 0) {
+                                    $stmt_ins = $conn->prepare("INSERT INTO wisp_hub_links (payment_id, contract_id, wisp_account_id, status, last_event, created_at) VALUES (NULL, ?, '902', 'SUSPENDED', 'test.impago', NOW())");
+                                    $stmt_ins->bind_param("i", $idc);
+                                    $stmt_ins->execute();
+                                    $stmt_ins->close();
+                                }
+                                $stmt_upd->close();
+                            }
+                        } else {
+                            $suspendMsg = "Error al suspender (HTTP $sStatus).";
+                        }
                         $response['success'] = true;
-                        $response['message'] = "Deuda de prueba creada: $$monto USD para contrato #$idc.";
+                        $response['message'] = "Deuda de 1 BS creada para contrato #$idc. $suspendMsg";
+                        $response['debt_amount'] = 1.00;
+                        $response['contract_id'] = $idc;
+                        $response['suspend_ok'] = $suspendOk;
                     } else {
                         $response['message'] = 'Error al crear deuda: ' . $conn->error;
                     }
-                    $stmt->close();
                 } else {
                     $response['message'] = "No hay contrato activo para cédula $cedula.";
                 }
@@ -474,21 +500,14 @@ if ($resLogs) {
                         </button>
                     </div>
 
-                    <!-- SECCIÓN C: CREAR DEUDA DE PRUEBA -->
+                    <!-- SECCIÓN C: SIMULAR IMPAGO -->
                     <div class="p-3 rounded-3" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);">
-                        <h6 class="fw-bold small mb-2"><i class="fa-solid fa-file-invoice-dollar me-1 text-danger"></i> Crear Deuda de Prueba</h6>
-                        <p class="text-muted small mb-2">Genera una cuenta por cobrar <code>PENDIENTE</code> para que el cliente aparezca como deudor.</p>
-                        <div class="row g-2 align-items-end">
-                            <div class="col-6">
-                                <label class="form-label text-muted small mb-1">Monto (USD)</label>
-                                <input type="number" id="debt_amount" class="form-control form-control-sm" value="17.50" step="0.01">
-                            </div>
-                            <div class="col-6">
-                                <button type="button" class="btn btn-sm btn-danger w-100 rounded-3" onclick="createTestDebt(this)">
-                                    <i class="fa-solid fa-plus-circle me-1"></i> Crear Deuda
-                                </button>
-                            </div>
-                        </div>
+                        <h6 class="fw-bold small mb-2"><i class="fa-solid fa-file-invoice-dollar me-1 text-danger"></i> Simular Impago</h6>
+                        <p class="text-muted small mb-2">Crea una deuda de <strong>1 BS</strong> en <code>cuentas_por_cobrar</code> y suspende el servicio <code>#902</code> en WispHub.</p>
+                        <button type="button" class="btn btn-sm btn-danger w-100 rounded-3" onclick="createTestDebt(this)">
+                            <i class="fa-solid fa-circle-pause me-1"></i> Simular impago (deuda 1 BS + suspender)
+                        </button>
+                        <div id="debtResult" class="mt-2 small"></div>
                     </div>
 
                 </div>
@@ -700,35 +719,35 @@ function lookupClient() {
         });
 }
 
-// Crear deuda de prueba
+// Simular impago (crea deuda 1 BS + suspende)
 function createTestDebt(btn) {
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Creando...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Procesando...';
 
     const formData = new FormData();
     formData.append('ajax_action', 'create_test_debt');
     formData.append('cedula', 'V20788775');
-    formData.append('monto', document.getElementById('debt_amount').value);
 
     fetch('test_wisphub.php', { method: 'POST', body: formData })
         .then(r => r.json())
         .then(data => {
-            const modal = new bootstrap.Modal(document.getElementById('responseModal'));
-            document.getElementById('modalTitle').textContent = 'Crear Deuda de Prueba';
-            const modalAlert = document.getElementById('modalAlert');
+            const el = document.getElementById('debtResult');
             if (data.success) {
-                modalAlert.className = 'alert alert-success py-2 rounded-3';
-                modalAlert.innerHTML = '<i class="fa-solid fa-check-double me-2"></i>' + data.message;
+                const suspendIcon = data.suspend_ok ? 'fa-circle-check text-success' : 'fa-circle-xmark text-danger';
+                const suspendText = data.suspend_ok ? 'Suspendido' : 'Error al suspender';
+                el.innerHTML = `<div class="alert alert-success small py-2 rounded-3 mb-0">
+                    <i class="fa-solid fa-check-double me-1"></i> Deuda creada: <strong>1 BS</strong> (contrato #${data.contract_id})
+                    <br><i class="fa-solid ${suspendIcon} me-1"></i> ${suspendText}
+                </div>`;
             } else {
-                modalAlert.className = 'alert alert-danger py-2 rounded-3';
-                modalAlert.innerHTML = '<i class="fa-solid fa-circle-exmark me-2"></i>' + data.message;
+                el.innerHTML = `<div class="alert alert-danger small py-2 rounded-3 mb-0">
+                    <i class="fa-solid fa-circle-exclamation me-1"></i> ${data.message}
+                </div>`;
             }
-            document.getElementById('modalResponseText').textContent = JSON.stringify(data, null, 2);
-            modal.show();
         })
         .catch(err => {
-            alert('Error: ' + err.message);
+            document.getElementById('debtResult').innerHTML = `<div class="alert alert-danger small py-2 rounded-3 mb-0">Error: ${err.message}</div>`;
         })
         .finally(() => {
             btn.disabled = false;
