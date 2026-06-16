@@ -52,6 +52,7 @@ function verificar_y_aprobar_pago_bdv(
     int    $id_contrato,
     int    $id_reporte,
     string $capture_path,
+    string $metodo_pago   = '',
     string $meses_pagados = '',
     string $concepto      = 'Pago de mensualidad'
 ): bool {
@@ -112,24 +113,34 @@ function verificar_y_aprobar_pago_bdv(
         return false;
     }
 
-    // Buscar movimiento por referencia de manera flexible
+    // Buscar movimiento por referencia
     $mov_ref = null;
     $ref_user_clean = preg_replace('/\D/', '', $referencia);
-    // Si la referencia del cliente tiene más de 8 dígitos, tomar únicamente los últimos 8 dígitos
-    if (strlen($ref_user_clean) > 8) {
-        $ref_user_clean = substr($ref_user_clean, -8);
-    }
-    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
-    $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
 
-    foreach ($resultado['movs'] as $mov) {
-        // Asegurar que solo consideramos transacciones tipo CRÉDITO (abonos de pago)
-        $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-        if ($tipo !== 'CREDITO') {
-            continue;
+    if ($metodo_pago === 'Transferencia') {
+        // Transferencia: match exacto con la referencia completa
+        foreach ($resultado['movs'] as $mov) {
+            $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
+            if ($tipo !== 'CREDITO') continue;
+            if (!isset($mov['referencia'])) continue;
+            if (preg_replace('/\D/', '', $mov['referencia']) === $ref_user_clean) {
+                $mov_ref = $mov;
+                break;
+            }
         }
+    } else {
+        // Pago Móvil: match flexible por últimos dígitos
+        if (strlen($ref_user_clean) > 8) {
+            $ref_user_clean = substr($ref_user_clean, -8);
+        }
+        $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
+        $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
 
-        if (isset($mov['referencia'])) {
+        foreach ($resultado['movs'] as $mov) {
+            $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
+            if ($tipo !== 'CREDITO') continue;
+            if (!isset($mov['referencia'])) continue;
+
             $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
             $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
             $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
@@ -144,8 +155,8 @@ function verificar_y_aprobar_pago_bdv(
             }
         }
     }
+
     if (!$mov_ref) {
-        // No match by reference
         $GLOBALS['bdv_falla_motivo'] = "La referencia no coincide con los registros del banco.";
         return false;
     }

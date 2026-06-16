@@ -117,6 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id_contrato_para_bdv,
             $id_reporte_nuevo,
             $capture_path,
+            $metodo_pago,
             $meses,
             $concepto
         );
