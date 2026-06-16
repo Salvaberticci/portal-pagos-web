@@ -239,8 +239,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                     $response['message'] = 'Cliente encontrado.';
                     $response['data'] = $res['data']['data'];
                 } else {
-                    $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
-                    $response['data'] = $res['data'];
+                    // Fallback: buscar en listClients página por página
+                    $found = null;
+                    $page = 1;
+                    while ($page <= 20) { // máx 20 páginas
+                        $list = $wispClient->listClients(['page' => $page, 'limit' => 50]);
+                        if (!empty($list['data']['data'])) {
+                            foreach ($list['data']['data'] as $c) {
+                                $doc = $c['cedula'] ?? $c['documento'] ?? '';
+                                if (str_replace(['V', 'v', 'E', 'e', 'J', 'j', 'P', 'p'], '', $doc) === str_replace(['V', 'v', 'E', 'e', 'J', 'j', 'P', 'p'], '', $cedula) || $doc === $cedula) {
+                                    $found = $c;
+                                    break 2;
+                                }
+                            }
+                        }
+                        if (empty($list['data']['data']) || $list['data']['current_page'] >= $list['data']['last_page']) {
+                            break;
+                        }
+                        $page++;
+                    }
+                    if ($found) {
+                        $response['success'] = true;
+                        $response['message'] = 'Cliente encontrado (fallback listClients).';
+                        $response['data'] = $found;
+                    } else {
+                        $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
+                        $response['data'] = $res['data'];
+                    }
                 }
             }
             echo json_encode($response);
