@@ -10,9 +10,6 @@ if (isset($_SESSION['flash_message'])) {
     unset($_SESSION['flash_message'], $_SESSION['flash_class']);
 }
 
-// Ya no necesitamos las consultas SQL manuales aquí, se harán vía AJAX.
-$conn->close();
-
 $path_to_root = "../";
 $page_title = "Gestión de Ubicaciones";
 $breadcrumb = ["Técnica"];

@@ -150,8 +150,6 @@ if (isset($_GET['message'])) {
     $message_class = $_GET['class'];
 }
 
-$conn->close();
-
 ?>
 <?php
 $page_title = "Gestión de Usuarios";
