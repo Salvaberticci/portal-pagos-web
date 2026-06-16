@@ -219,28 +219,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         }
         
         if ($action === 'lookup_client') {
-            $cedula = trim($_POST['cedula'] ?? '');
-            if (empty($cedula)) {
-                $response['message'] = 'Cédula requerida.';
+            $serviceId = trim($_POST['service_id'] ?? '');
+            if (empty($serviceId)) {
+                $response['message'] = 'ID de servicio requerido.';
             } else {
-                // 1) Intentar getClientByDocument
-                $res = $wispClient->getClientByDocument($cedula);
-                $found = ($res['status'] === 200 && !empty($res['data']['data']['service_id']));
-                if ($found) {
+                $res = $wispClient->getServiceProfile($serviceId);
+                if ($res['status'] === 200 && !empty($res['data'])) {
                     $response['success'] = true;
                     $response['message'] = 'Cliente encontrado.';
-                    $response['data'] = $res['data']['data'];
+                    $response['data'] = $res['data'];
                 } else {
-                    // 2) Fallback: buscar en listClients página por página
-                    $fb = $wispClient->findClientByDocument($cedula);
-                    if ($fb['status'] === 200 && !empty($fb['data']['data'])) {
-                        $response['success'] = true;
-                        $response['message'] = 'Cliente encontrado (fallback listClients).';
-                        $response['data'] = $fb['data']['data'];
-                    } else {
-                        $response['message'] = 'Cliente no encontrado.';
-                        $response['data'] = $res['data'];
-                    }
+                    $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
+                    $response['data'] = $res['data'] ?? null;
                 }
             }
             echo json_encode($response);
@@ -663,9 +653,11 @@ function lookupClient() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Buscando...';
 
+    const serviceId = document.getElementById('sim_account_id').value;
+
     const formData = new FormData();
     formData.append('ajax_action', 'lookup_client');
-    formData.append('cedula', 'V20788775');
+    formData.append('service_id', serviceId);
 
     fetch('test_wisphub.php', { method: 'POST', body: formData })
         .then(r => r.json())
@@ -676,7 +668,8 @@ function lookupClient() {
                 el.innerHTML = `<div class="alert alert-success small py-2 rounded-3 mb-0">
                     <i class="fa-solid fa-circle-check me-1"></i> Cliente encontrado:
                     <strong>${d.nombre || ''} ${d.apellidos || ''}</strong>
-                    &nbsp;·&nbsp; Service ID: <strong>#${d.service_id}</strong>
+                    &nbsp;·&nbsp; Cédula: <strong>${d.cedula || '?'}</strong>
+                    &nbsp;·&nbsp; Service ID: <strong>#${d.id_servicio || d.id || '?'}</strong>
                     &nbsp;·&nbsp; Estado: ${d.estado || '?'}
                 </div>`;
             } else {
