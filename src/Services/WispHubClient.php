@@ -27,10 +27,12 @@ class WispHubClient
         $this->baseUrl = rtrim($config['base_url'] ?? 'https://api.wisphub.net/api', '/') . '/';
         $this->apiKey  = $config['api_key'] ?? '';
 
+        $verifySsl = $config['verify_ssl'] ?? true;
+
         $this->http = new Client([
             'base_uri' => $this->baseUrl,
             'timeout'  => 15,
-            'verify'   => true,
+            'verify'   => $verifySsl,
             'headers'  => [
                 'Authorization' => "Api-Key {$this->apiKey}",
                 'Content-Type'  => 'application/json',

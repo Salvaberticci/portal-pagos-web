@@ -5,4 +5,5 @@ return [
     'api_secret'  => defined('WISP_HUB_API_SECRET') ? WISP_HUB_API_SECRET : WISP_HUB_API_KEY,
     'base_url'    => defined('WISP_HUB_BASE_URL')   ? WISP_HUB_BASE_URL   : 'https://sandbox-api.wisphub.net/api',
     'cron_secret' => defined('WISP_HUB_CRON_SECRET') ? WISP_HUB_CRON_SECRET : '',
+    'verify_ssl'  => defined('WISP_HUB_VERIFY_SSL') ? WISP_HUB_VERIFY_SSL : (strpos(WISP_HUB_BASE_URL, 'sandbox') !== false ? false : true),
 ];
