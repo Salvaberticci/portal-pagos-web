@@ -75,6 +75,79 @@ if ($monto_plan <= 0 && count($invoices) > 0) {
     $monto_plan = floatval($invoices[0]['monto'] ?? 0);
 }
 
+// Configurar el mensaje dinámico de vencimiento
+$mensaje_vencimiento = [
+    'texto' => 'RECUERDA CANCELAR LOS PRIMEROS <span class="text-primary fs-5">5</span> DE CADA MES',
+    'icono' => 'fas fa-bell text-primary',
+    'bg' => 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.1))',
+    'border' => 'var(--primary)',
+    'text_class' => 'text-primary'
+];
+
+if (count($invoices) > 0) {
+    // Buscar la fecha de vencimiento más antigua
+    $fecha_vencimiento = null;
+    foreach ($invoices as $inv) {
+        if (!empty($inv['fecha_vencimiento'])) {
+            $fv = strtotime($inv['fecha_vencimiento']);
+            if ($fecha_vencimiento === null || $fv < $fecha_vencimiento) {
+                $fecha_vencimiento = $fv;
+            }
+        }
+    }
+    
+    if ($fecha_vencimiento) {
+        $hoy = strtotime(date('Y-m-d'));
+        $fv_date = strtotime(date('Y-m-d', $fecha_vencimiento));
+        $diferencia_dias = round(($fv_date - $hoy) / 86400);
+        $fecha_str = date('d/m/Y', $fecha_vencimiento);
+        
+        if ($diferencia_dias < 0) {
+            $dias_abs = abs($diferencia_dias);
+            $mensaje_vencimiento = [
+                'texto' => "¡ATENCIÓN! TU FACTURA ESTÁ VENCIDA DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . " (Venció el $fecha_str)",
+                'icono' => 'fas fa-exclamation-triangle text-danger',
+                'bg' => 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))',
+                'border' => 'var(--danger)',
+                'text_class' => 'text-danger'
+            ];
+        } elseif ($diferencia_dias == 0) {
+            $mensaje_vencimiento = [
+                'texto' => "¡ATENCIÓN! TU MENSUALIDAD VENCE <span class='text-warning fs-5'>HOY</span> ($fecha_str)",
+                'icono' => 'fas fa-clock text-warning',
+                'bg' => 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1))',
+                'border' => 'var(--warning)',
+                'text_class' => 'text-warning'
+            ];
+        } elseif ($diferencia_dias <= 5) {
+            $mensaje_vencimiento = [
+                'texto' => "FALTAN <span class='text-warning fs-5'>$diferencia_dias</span> DÍAS PARA QUE VENZA TU MENSUALIDAD (Vence el $fecha_str)",
+                'icono' => 'fas fa-calendar-day text-warning',
+                'bg' => 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1))',
+                'border' => 'var(--warning)',
+                'text_class' => 'text-warning'
+            ];
+        } else {
+            $mensaje_vencimiento = [
+                'texto' => "PRÓXIMO VENCIMIENTO EN <span class='text-info fs-5'>$diferencia_dias</span> DÍAS (Vence el $fecha_str)",
+                'icono' => 'fas fa-calendar-check text-info',
+                'bg' => 'linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.1))',
+                'border' => 'var(--info)',
+                'text_class' => 'text-info'
+            ];
+        }
+    }
+} else {
+    // Si no tiene deuda
+    $mensaje_vencimiento = [
+        'texto' => "¡ESTÁS AL DÍA! NO TIENES FACTURAS PENDIENTES.",
+        'icono' => 'fas fa-check-circle text-success',
+        'bg' => 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1))',
+        'border' => 'var(--success)',
+        'text_class' => 'text-success'
+    ];
+}
+
 $contratos = [];
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
 if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
@@ -186,11 +259,11 @@ $ultimo_pago = null;
             </div>
         <?php endif; ?>
 
-        <!-- Mensaje Recordatorio Premium -->
-        <div class="glass-panel p-3 mb-4 text-center border-0 shadow-sm animate-pulse-slow" style="background: linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.1)); border-left: 4px solid var(--primary) !important;">
+        <!-- Mensaje Recordatorio Dinámico -->
+        <div class="glass-panel p-3 mb-4 text-center border-0 shadow-sm animate-pulse-slow" style="background: <?php echo $mensaje_vencimiento['bg']; ?>; border-left: 4px solid <?php echo $mensaje_vencimiento['border']; ?> !important;">
             <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px;">
-                <i class="fas fa-bell me-2 text-primary"></i> 
-                RECUERDA CANCELAR LOS PRIMEROS <span class="text-primary fs-5">5</span> DE CADA MES
+                <i class="<?php echo $mensaje_vencimiento['icono']; ?> me-2"></i> 
+                <?php echo $mensaje_vencimiento['texto']; ?>
             </p>
         </div>
 
