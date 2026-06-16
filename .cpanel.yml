@@ -1,5 +1,5 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/salvxkld/servicios.wireless-aplications.space/
+    - export DEPLOYPATH=/home/salvxkld/demo.salvanovasolutions.online/portal-de-pagos-web/
     - /bin/cp -R * $DEPLOYPATH
