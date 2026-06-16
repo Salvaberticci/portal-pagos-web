@@ -9,12 +9,6 @@ if (!isset($_SESSION['usuario_id']) || !in_array(strtolower($_SESSION['rol'] ?? 
     die("Acceso denegado");
 }
 
-// ── Verificar CSRF ───────────────────────────────────────────────────────────
-if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== ($_SESSION['csrf_token'] ?? '')) {
-    header('HTTP/1.0 403 Forbidden');
-    die("CSRF inválido");
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_reporte = intval($_POST['id_reporte']);
     $accion = isset($_POST['accion']) ? $_POST['accion'] : 'APROBAR';
