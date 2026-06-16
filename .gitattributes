@@ -1,0 +1,21 @@
+# Normaliza finales de línea a LF en el servidor (Linux)
+* text=auto eol=lf
+
+# PHP siempre con LF y sin BOM
+*.php text eol=lf
+
+# JSON y YAML con LF
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# Archivos binarios — no tocar
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
