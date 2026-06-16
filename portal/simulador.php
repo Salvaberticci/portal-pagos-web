@@ -36,12 +36,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $estado = ($saldo > 0) ? 'Con Deuda (Posible Suspensión)' : 'Al Día';
                 // Aunque WispHub no retorna 'estado' directamente, el saldo nos da una idea.
                 
-                $html = "<div class='text-start'>
-                            <strong>Nombre:</strong> {$data['nombre']} {$data['apellidos']}<br>
-                            <strong>Cédula:</strong> {$data['cedula']}<br>
-                            <strong>Saldo Total:</strong> $" . number_format($saldo, 2) . "<br>
-                            <strong>Facturas Pendientes:</strong> " . count($invoices) . "<br>
-                            <strong>Estado Estimado:</strong> <span class='badge bg-info'>{$estado}</span>
+                // Construir una lista más completa con los datos útiles del perfil
+                $html = "<div class='row text-light small g-3'>
+                            <div class='col-md-6'>
+                                <div class='p-2 rounded' style='background: rgba(0,0,0,0.2);'>
+                                    <h6 class='text-info mb-2 border-bottom border-secondary pb-1'>Datos Personales</h6>
+                                    <strong>Nombre:</strong> {$data['nombre']} {$data['apellidos']}<br>
+                                    <strong>Cédula:</strong> " . ($data['cedula'] ?: 'N/A') . "<br>
+                                    <strong>Email:</strong> " . ($data['email'] ?: 'N/A') . "<br>
+                                    <strong>Teléfono:</strong> " . ($data['telefono'] ?: 'N/A') . "<br>
+                                    <strong>Dirección:</strong> " . ($data['direccion'] ?: 'N/A') . "<br>
+                                    <strong>Ciudad:</strong> " . ($data['ciudad'] ?: 'N/A') . "<br>
+                                </div>
+                            </div>
+                            <div class='col-md-6'>
+                                <div class='p-2 rounded' style='background: rgba(0,0,0,0.2);'>
+                                    <h6 class='text-info mb-2 border-bottom border-secondary pb-1'>Servicio y Facturación</h6>
+                                    <strong>Usuario WispHub:</strong> " . ($data['usuario'] ?: 'N/A') . "<br>
+                                    <strong>ID Servicio:</strong> {$data['id_servicio']}<br>
+                                    <strong>Saldo Total (Deuda):</strong> <span class='" . ($saldo > 0 ? "text-danger fw-bold" : "text-success fw-bold") . "'>$" . number_format($saldo, 2) . "</span><br>
+                                    <strong>Facturas Pendientes:</strong> " . count($invoices) . "<br>
+                                    <strong>Aplicar Mora:</strong> " . (empty($data['aplicar_mora']) ? 'No' : 'Sí') . "<br>
+                                    <strong>Aviso en Pantalla:</strong> " . (empty($data['aviso_pantalla']) ? 'No' : 'Sí') . "<br>
+                                </div>
+                            </div>
+                            <div class='col-12 mt-3'>
+                                <strong>Estado Estimado:</strong> <span class='badge " . ($saldo > 0 ? "bg-danger" : "bg-success") . " fs-6'>{$estado}</span>
+                            </div>
                          </div>";
                 $response = ['status' => 'ok', 'html' => $html];
             } else {
