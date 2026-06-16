@@ -6,7 +6,7 @@ require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
 $client = new \Services\WispHubClient($wispConfig);
 
-$cedula = $_GET['cedula'] ?? 'V99999999';
+$cedula = $_GET['cedula'] ?? 'V20788775';
 echo "<h2>Prueba: getClientByDocument('$cedula')</h2>";
 echo "<pre>";
 $result = $client->getClientByDocument($cedula);

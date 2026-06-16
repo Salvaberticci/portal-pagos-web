@@ -63,7 +63,7 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     curl_close($ch);
 }
 
-if ($cedula === 'V99999999') {
+if ($cedula === 'V20788775') {
     $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
     $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
@@ -104,7 +104,7 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
 
             <!-- PASO 1: Selección de Monto -->
             <div class="wizard-step active" id="step-1">
-                <?php if ($cedula === 'V99999999'): ?>
+                <?php if ($cedula === 'V20788775'): ?>
                     <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px; font-size: 0.9rem;">
                         <i class="fas fa-info-circle me-2 text-info"></i>
                         Usuario de prueba: Se muestran montos demo de Bs. 1.00, Bs. 2.00 y Bs. 4.00.

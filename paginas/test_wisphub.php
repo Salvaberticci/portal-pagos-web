@@ -152,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             } elseif ($accountId !== '902') {
                 $response['message'] = 'Solo se permite operar con el servicio de prueba #902 en este simulador.';
             } else {
-                $cedula = 'V99999999';
+                $cedula = 'V20788775';
                 
                 // Registrar pago simulado
                 $tasa = 40.00;
@@ -221,9 +221,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
         exit;
         
         if ($action === 'clear_test_logs') {
-            $conn->query("DELETE FROM wisp_hub_logs WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
-            $conn->query("DELETE FROM wisp_hub_links WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V99999999')");
-            $conn->query("DELETE FROM pagos_reportados WHERE cedula_titular = 'V99999999'");
+            $conn->query("DELETE FROM wisp_hub_logs WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V20788775')");
+            $conn->query("DELETE FROM wisp_hub_links WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V20788775')");
+            $conn->query("DELETE FROM pagos_reportados WHERE cedula_titular = 'V20788775'");
             
             $response['success'] = true;
             $response['message'] = 'Logs y enlaces de pruebas limpiados con éxito.';
@@ -365,7 +365,7 @@ if ($resLogs) {
                     <div class="mb-4">
                         <label class="form-label small fw-semibold">1. Cliente de Prueba</label>
                         <div class="d-flex align-items-center gap-2 p-2 rounded-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
-                            <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill">V99999999</span>
+                            <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill">V20788775</span>
                             <span class="small text-muted">Cliente OFICINA Prueba</span>
                         </div>
                         <input type="hidden" id="sim_contract_id" value="0">
@@ -464,7 +464,7 @@ if ($resLogs) {
                                             <td><span class="badge bg-secondary bg-opacity-25 text-white">#<?= $link['payment_id'] ?></span></td>
                                             <td>
                                                 <div class="fw-semibold text-truncate" style="max-width:120px;"><?= htmlspecialchars($link['nombre_completo'] ?? 'Prueba/Manual') ?></div>
-                                                <small class="text-muted"><?= htmlspecialchars($link['cedula'] ?? 'V99999999') ?></small>
+                                                <small class="text-muted"><?= htmlspecialchars($link['cedula'] ?? 'V20788775') ?></small>
                                             </td>
                                             <td class="font-monospace text-info"><?= htmlspecialchars($link['wisp_account_id']) ?></td>
                                             <td>

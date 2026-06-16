@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // monto_bs es solo referencial — calculado a partir de USD x tasa
     $monto_bs   = ($monto_usd > 0 && $tasa_dolar > 0) ? round($monto_usd * $tasa_dolar, 2) : 0.00;
 
-    if ($cedula === 'V99999999') {
+    if ($cedula === 'V20788775') {
         $monto_bs_int = round($monto_bs);
         if (abs($monto_bs - $monto_bs_int) < 0.2) {
             $monto_bs = $monto_bs_int;

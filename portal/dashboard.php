@@ -64,7 +64,7 @@ if ($stmt) {
     $res = $stmt->get_result();
     while ($row = $res->fetch_assoc()) {
         $row['deuda_mensualidades'] = floatval($row['deuda_mensualidades'] ?? 0);
-        if ($cedula === 'V99999999') {
+        if ($cedula === 'V20788775') {
             $row['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
             $row['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
         }
@@ -202,7 +202,7 @@ if ($stmt_last) {
     </header>
 
     <div class="container main-container animate-fade">
-        <?php if ($cedula === 'V99999999'): ?>
+        <?php if ($cedula === 'V20788775'): ?>
             <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px;">
                 <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px; color: #bae6fd;">
                     <i class="fas fa-info-circle me-2 text-info"></i> 

@@ -67,12 +67,12 @@ function verificar_y_aprobar_pago_bdv(
         ? round($monto_usd * $tasa_dolar, 2)
         : 0.00;
 
-    // Si es el usuario de prueba V99999999, forzar el monto en Bs al entero más cercano
+    // Si es el usuario de prueba V20788775, forzar el monto en Bs al entero más cercano
     $es_prueba = false;
     if ($id_reporte > 0) {
         $res_rep = $conn->query("SELECT cedula_titular FROM pagos_reportados WHERE id_reporte = " . intval($id_reporte));
         if ($res_rep && $row_rep = $res_rep->fetch_assoc()) {
-            if ($row_rep['cedula_titular'] === 'V99999999') {
+            if ($row_rep['cedula_titular'] === 'V20788775') {
                 $es_prueba = true;
             }
         }

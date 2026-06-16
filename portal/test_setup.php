@@ -53,7 +53,7 @@ echo "API Key: " . substr($wispConfig['api_key'] ?? '', 0, 15) . "...\n\n";
 $wispClient = new \Services\WispHubClient($wispConfig);
 
 $accion = $_GET['accion'] ?? 'setup';
-$cedula_test = 'V99999999';
+$cedula_test = 'V20788775';
 $wisp_service_id = '902';
 $wisp_username = 'ONU_PRUEBA_OFICINA';
 
@@ -73,7 +73,7 @@ switch ($accion) {
             $conn->query("DELETE FROM clientes_deudores WHERE id_contrato = $cid");
             $conn->query("DELETE FROM contratos WHERE id = $cid");
         }
-        echo "Datos previos de V99999999 eliminados.\n";
+        echo "Datos previos de V20788775 eliminados.\n";
 
         // Crear contrato
         $sql = "INSERT INTO contratos (
@@ -139,7 +139,7 @@ switch ($accion) {
                 }
             }
         } else {
-            echo "No hay contratos para V99999999. Ejecuta ?accion=setup primero.\n";
+            echo "No hay contratos para V20788775. Ejecuta ?accion=setup primero.\n";
         }
         break;
 
@@ -156,7 +156,7 @@ switch ($accion) {
             echo "  php cron/cortar_servicios_vencidos.php 0\n";
             echo "\nO desde el navegador, usa ?accion=cron para ejecutarlo directamente.\n";
         } else {
-            echo "No hay contratos ACTIVOS para V99999999.\n";
+            echo "No hay contratos ACTIVOS para V20788775.\n";
         }
         break;
 
@@ -305,7 +305,7 @@ switch ($accion) {
             $conn->query("DELETE FROM pagos_reportados WHERE cedula_titular = '$cedula_test'");
             $conn->query("DELETE FROM contratos WHERE id = $cid");
         }
-        echo "Todos los datos de V99999999 eliminados.\n";
+        echo "Todos los datos de V20788775 eliminados.\n";
         break;
 
     case 'test_corte':

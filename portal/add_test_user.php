@@ -1,5 +1,5 @@
 <?php
-// add_test_user.php - Endpoint web para crear el usuario de prueba V99999999
+// add_test_user.php - Endpoint web para crear el usuario de prueba V20788775
 // Acceso mediante: http://your-domain/portal/add_test_user.php
 
 require_once dirname(__DIR__) . '/paginas/conexion.php';
@@ -9,21 +9,21 @@ require_once dirname(__DIR__) . '/paginas/conexion.php';
 
 echo "Iniciando creación de usuario de prueba...\n";
 
-// 1. Verificar si existe el contrato con la cédula V99999999
-$sql_check = "SELECT id FROM contratos WHERE cedula = 'V99999999'";
+// 1. Verificar si existe el contrato con la cédula V20788775
+$sql_check = "SELECT id FROM contratos WHERE cedula = 'V20788775'";
 $res_check = $conn->query($sql_check);
 
 if ($res_check && $res_check->num_rows > 0) {
     $row = $res_check->fetch_assoc();
     $id_contrato = $row['id'];
-    echo "El contrato de prueba con Cédula V99999999 ya existe (ID: $id_contrato).\n";
+    echo "El contrato de prueba con Cédula V20788775 ya existe (ID: $id_contrato).\n";
 } else {
     // Insertar contrato de prueba
     $sql_insert = "INSERT INTO contratos (
         cedula, nombre_completo, id_plan, monto_plan, 
         direccion, telefono, estado, fecha_instalacion
     ) VALUES (
-        'V99999999', 'USUARIO DE PRUEBA (1 BS)', 4, 17.50, 
+        'V20788775', 'USUARIO DE PRUEBA (1 BS)', 4, 17.50, 
         'DIRECCION DE PRUEBA - SOLO PARA TEST DE API', '04120000000', 'ACTIVO', CURRENT_DATE
     )";
     if ($conn->query($sql_insert)) {
