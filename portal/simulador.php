@@ -26,22 +26,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $response = ['status' => 'error', 'message' => 'Error de conexión HTTP ' . $res['status']];
             }
         } elseif ($action === 'get_data') {
-            $perfilRes = $wispClient->getServiceProfile($service_id);
+            $clientData = $wispClient->findClientByDocument($cedula_test);
             $invoices = $wispClient->getPendingInvoices($service_id);
             
-            if ($perfilRes['status'] === 200) {
-                $data = $perfilRes['data'];
-                // Determinar estado basado en facturas/saldo WispHub
+            if ($clientData['status'] === 200 && isset($clientData['data']['data'])) {
+                $data = $clientData['data']['data'];
                 $saldo = floatval($data['saldo'] ?? 0);
-                $estado = ($saldo > 0) ? 'Con Deuda (Posible Suspensión)' : 'Al Día';
-                // Aunque WispHub no retorna 'estado' directamente, el saldo nos da una idea.
+                
+                // Usar el estado real de WispHub
+                $estado_real = $data['estado'] ?? 'Desconocido';
+                $badge_class = (strtolower($estado_real) === 'activo') ? 'bg-success' : 'bg-danger';
+                
+                $plan_nombre = $data['plan_internet']['nombre'] ?? 'N/A';
+                $ip = $data['ip'] ?? 'N/A';
+                $router = $data['router']['nombre'] ?? 'N/A';
                 
                 // Construir una lista más completa con los datos útiles del perfil
                 $html = "<div class='row text-light small g-3'>
                             <div class='col-md-6'>
-                                <div class='p-2 rounded' style='background: rgba(0,0,0,0.2);'>
+                                <div class='p-2 rounded h-100' style='background: rgba(0,0,0,0.2);'>
                                     <h6 class='text-info mb-2 border-bottom border-secondary pb-1'>Datos Personales</h6>
-                                    <strong>Nombre:</strong> {$data['nombre']} {$data['apellidos']}<br>
+                                    <strong>Nombre:</strong> {$data['nombre']}<br>
                                     <strong>Cédula:</strong> " . ($data['cedula'] ?: 'N/A') . "<br>
                                     <strong>Email:</strong> " . ($data['email'] ?: 'N/A') . "<br>
                                     <strong>Teléfono:</strong> " . ($data['telefono'] ?: 'N/A') . "<br>
@@ -50,23 +55,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </div>
                             </div>
                             <div class='col-md-6'>
-                                <div class='p-2 rounded' style='background: rgba(0,0,0,0.2);'>
-                                    <h6 class='text-info mb-2 border-bottom border-secondary pb-1'>Servicio y Facturación</h6>
-                                    <strong>Usuario WispHub:</strong> " . ($data['usuario'] ?: 'N/A') . "<br>
-                                    <strong>ID Servicio:</strong> {$data['id_servicio']}<br>
-                                    <strong>Saldo Total (Deuda):</strong> <span class='" . ($saldo > 0 ? "text-danger fw-bold" : "text-success fw-bold") . "'>$" . number_format($saldo, 2) . "</span><br>
-                                    <strong>Facturas Pendientes:</strong> " . count($invoices) . "<br>
-                                    <strong>Aplicar Mora:</strong> " . (empty($data['aplicar_mora']) ? 'No' : 'Sí') . "<br>
-                                    <strong>Aviso en Pantalla:</strong> " . (empty($data['aviso_pantalla']) ? 'No' : 'Sí') . "<br>
+                                <div class='p-2 rounded h-100' style='background: rgba(0,0,0,0.2);'>
+                                    <h6 class='text-info mb-2 border-bottom border-secondary pb-1'>Servicio y WispHub</h6>
+                                    <strong>ID / Usuario:</strong> {$data['id_servicio']} / " . ($data['usuario'] ?: 'N/A') . "<br>
+                                    <strong>Plan:</strong> {$plan_nombre}<br>
+                                    <strong>IP / Router:</strong> {$ip} / {$router}<br>
+                                    <strong>Saldo / Facturas:</strong> <span class='" . ($saldo > 0 ? "text-danger fw-bold" : "text-success fw-bold") . "'>$" . number_format($saldo, 2) . "</span> / " . count($invoices) . " ptes.<br>
+                                    <strong>Auto-Activar:</strong> " . (empty($data['auto_activar_servicio']) ? 'No' : 'Sí') . "<br>
+                                    <strong>Corte el:</strong> " . ($data['fecha_corte'] ?: 'N/A') . "<br>
                                 </div>
                             </div>
-                            <div class='col-12 mt-3'>
-                                <strong>Estado Estimado:</strong> <span class='badge " . ($saldo > 0 ? "bg-danger" : "bg-success") . " fs-6'>{$estado}</span>
+                            <div class='col-12 mt-2'>
+                                <strong>Estado Real en WispHub:</strong> <span class='badge {$badge_class} fs-6 px-3 py-2'>{$estado_real}</span>
                             </div>
                          </div>";
                 $response = ['status' => 'ok', 'html' => $html];
             } else {
-                $response = ['status' => 'error', 'message' => 'No se pudo obtener datos'];
+                $response = ['status' => 'error', 'message' => 'No se pudo obtener datos o cliente no encontrado'];
             }
         } elseif ($action === 'suspend') {
             $res = $wispClient->suspendService($service_id, 'Corte simulado desde el Panel de Pruebas');
@@ -307,6 +312,15 @@ function runAction(action) {
                 const cb = document.getElementById('client-data-box');
                 cb.style.display = 'block';
                 cb.innerHTML = data.html;
+            }
+            
+            // Si la acción modificó algo, esperamos 3 segundos y recargamos los datos
+            if (['suspend', 'activate', 'pay'].includes(action)) {
+                logMsg('Esperando a que WispHub procese la tarea...');
+                setTimeout(() => {
+                    logMsg('Recargando estado actual del cliente...');
+                    runAction('get_data');
+                }, 3000);
             }
         } else {
             logMsg('ERROR: ' + data.message, true);
