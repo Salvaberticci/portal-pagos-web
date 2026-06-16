@@ -45,22 +45,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $wispConfig = include __DIR__ . '/../../config/wisp_hub.php';
             $wispClient = new \Services\WispHubClient($wispConfig);
 
-            $q_link = $conn->query("SELECT wisp_account_id FROM wisp_hub_links WHERE contract_id = $id_contrato AND wisp_account_id != '' ORDER BY id DESC LIMIT 1");
-            if ($q_link && $link_row = $q_link->fetch_assoc()) {
-                $wispAccountId = $link_row['wisp_account_id'];
+            // Obtener la cédula del contrato para buscar en WispHub en tiempo real
+            $q_cedula = $conn->prepare("SELECT cedula FROM contratos WHERE id = ?");
+            $cedula = '';
+            if ($q_cedula) {
+                $q_cedula->bind_param("i", $id_contrato);
+                $q_cedula->execute();
+                $r_cedula = $q_cedula->get_result();
+                if ($r_cedula && $row = $r_cedula->fetch_assoc()) {
+                    $cedula = $row['cedula'];
+                }
+                $q_cedula->close();
             }
 
-            if (!empty($wispAccountId)) {
+            if (!empty($cedula)) {
                 $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
                 $wispResult = $wispClient->registerPaymentAndActivate(
-                    $wispAccountId,
+                    '',
                     $monto_total,
                     $referencia,
-                    $wispDate
+                    $wispDate,
+                    \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
+                    false,
+                    $cedula
                 );
-                if (!in_array($wispResult['status'] ?? 0, [200, 201])) {
-                    throw new Exception("WispHub rechazó el pago: "
-                        . ($wispResult['error'] ?? json_encode($wispResult['data'] ?? '')));
+                if (in_array($wispResult['status'] ?? 0, [200, 201])) {
+                    $wispAccountId = $wispResult['service_id'] ?? '';
+                    // Auto-poblar wisp_hub_links como caché para futuras operaciones batch
+                    if (!empty($wispAccountId)) {
+                        $stmt_cache = $conn->prepare(
+                            "INSERT INTO wisp_hub_links (contract_id, wisp_account_id, status, created_at)
+                             VALUES (?, ?, 'ACTIVE', NOW())
+                             ON DUPLICATE KEY UPDATE wisp_account_id = VALUES(wisp_account_id), status = 'ACTIVE', updated_at = NOW()"
+                        );
+                        if ($stmt_cache) {
+                            $stmt_cache->bind_param("is", $id_contrato, $wispAccountId);
+                            $stmt_cache->execute();
+                            $stmt_cache->close();
+                        }
+                    }
+                } else {
+                    $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? '');
+                    if ($wispResult['status'] === 404) {
+                        error_log("[AdminAprobacion] Cliente con cédula $cedula no encontrado en WispHub, se procesa solo local");
+                    } else {
+                        throw new Exception("WispHub rechazó el pago para cédula $cedula: $errorMsg");
+                    }
                 }
             }
         }

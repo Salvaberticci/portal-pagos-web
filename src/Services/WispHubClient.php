@@ -179,16 +179,20 @@ class WispHubClient
     /**
      * Flujo completo: registra el pago en WispHub y activa el servicio.
      *
-     * 1. Obtiene facturas pendientes del cliente en WispHub
-     * 2. Registra el pago contra cada factura pendiente
-     * 3. Activa el servicio si sigue suspendido
+     * 1. (Opcional) Busca el service_id por cédula si se proporciona
+     * 2. Obtiene facturas pendientes del cliente en WispHub
+     * 3. Registra el pago contra cada factura pendiente
+     * 4. Activa el servicio si sigue suspendido
      *
-     * @param string $serviceId    ID del servicio en WispHub (ej. "902")
+     * @param string $serviceId    ID del servicio en WispHub (ej. "902").
+     *                             Se ignora si se proporciona $cedula.
      * @param float  $amount       Monto pagado en USD
      * @param string $reference    Referencia/número de pago
      * @param string $paymentDate  Fecha del pago "YYYY-MM-DD HH:MM"
      * @param int    $formaPagoId  ID forma de pago en WispHub (default 45181)
      * @param bool   $forceActivate Forzar activación aunque ya esté activo
+     * @param string $cedula       Cédula del cliente (opcional). Si se pasa,
+     *                             busca el service_id en WispHub automáticamente.
      * @return array Resultado con payments_registered[] y activation
      */
     public function registerPaymentAndActivate(
@@ -197,10 +201,27 @@ class WispHubClient
         string $reference,
         string $paymentDate,
         int    $formaPagoId = self::FORMA_PAGO_OPERACION_BANCARIA,
-        bool   $forceActivate = false
+        bool   $forceActivate = false,
+        string $cedula = ''
     ): array {
+        // Si se pasó cédula, buscar service_id en WispHub en tiempo real
+        if (!empty($cedula)) {
+            $clientInfo = $this->getClientByDocument($cedula);
+            if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
+                $msg = $clientInfo['data']['message'] ?? 'Cliente no encontrado en WispHub';
+                return [
+                    'service_id' => '',
+                    'cedula'     => $cedula,
+                    'status'     => $clientInfo['status'] ?: 404,
+                    'error'      => $msg,
+                ];
+            }
+            $serviceId = (string)$clientInfo['data']['data']['service_id'];
+        }
+
         $results = [
             'service_id'          => $serviceId,
+            'cedula'              => $cedula ?: null,
             'invoices_found'      => 0,
             'payments_registered' => [],
             'activation'          => null,
@@ -279,6 +300,17 @@ class WispHubClient
     public function getServiceBalance(string $serviceId): array
     {
         return $this->request('GET', "clientes/{$serviceId}/saldo/");
+    }
+
+    /**
+     * Busca un cliente en WispHub por su número de cédula/documento.
+     * Endpoint: GET /v1/clients/by-document/{documento}
+     *
+     * Retorna el service_id y datos completos del cliente.
+     */
+    public function getClientByDocument(string $document): array
+    {
+        return $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
     }
 
     /**
