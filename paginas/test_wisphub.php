@@ -217,8 +217,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                 }
             }
         }
-        echo json_encode($response);
-        exit;
+        
+        if ($action === 'lookup_client') {
+            $cedula = trim($_POST['cedula'] ?? '');
+            if (empty($cedula)) {
+                $response['message'] = 'Cédula requerida.';
+            } else {
+                $res = $wispClient->getClientByDocument($cedula);
+                if ($res['status'] === 200 && !empty($res['data']['data']['service_id'])) {
+                    $response['success'] = true;
+                    $response['message'] = 'Cliente encontrado.';
+                    $response['data'] = $res['data']['data'];
+                } else {
+                    $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
+                    $response['data'] = $res['data'];
+                }
+            }
+            echo json_encode($response);
+            exit;
+        }
+        
+        if ($action === 'create_test_debt') {
+            $cedula = trim($_POST['cedula'] ?? '');
+            $monto = floatval($_POST['monto'] ?? 17.50);
+            if (empty($cedula)) {
+                $response['message'] = 'Cédula requerida.';
+            } else {
+                $q = $conn->query("SELECT id FROM contratos WHERE cedula = '$cedula' AND estado != 'ELIMINADO' LIMIT 1");
+                if ($q && $row = $q->fetch_assoc()) {
+                    $idc = $row['id'];
+                    $sql = "INSERT INTO cuentas_por_cobrar (id_contrato, fecha_emision, fecha_vencimiento, monto_total, estado, origen) VALUES (?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 30 DAY), ?, 'PENDIENTE', 'PRUEBA')";
+                    $stmt = $conn->prepare($sql);
+                    $stmt->bind_param("id", $idc, $monto);
+                    if ($stmt->execute()) {
+                        $response['success'] = true;
+                        $response['message'] = "Deuda de prueba creada: $$monto USD para contrato #$idc.";
+                    } else {
+                        $response['message'] = 'Error al crear deuda: ' . $conn->error;
+                    }
+                    $stmt->close();
+                } else {
+                    $response['message'] = "No hay contrato activo para cédula $cedula.";
+                }
+            }
+            echo json_encode($response);
+            exit;
+        }
         
         if ($action === 'clear_test_logs') {
             $conn->query("DELETE FROM wisp_hub_logs WHERE payment_id IS NULL OR payment_id IN (SELECT id_reporte FROM pagos_reportados WHERE cedula_titular = 'V20788775')");
@@ -230,6 +274,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             echo json_encode($response);
             exit;
         }
+        
+        echo json_encode($response);
+        exit;
         
     } catch (\Exception $e) {
         $response['message'] = 'Excepción detectada: ' . $e->getMessage();
@@ -362,22 +409,21 @@ if ($resLogs) {
                         Simulador de Acciones
                     </h5>
                     
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold">1. Cliente de Prueba</label>
                         <div class="d-flex align-items-center gap-2 p-2 rounded-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
                             <span class="badge bg-info bg-opacity-25 text-info px-3 py-2 rounded-pill">V20788775</span>
                             <span class="small text-muted">Cliente OFICINA Prueba</span>
                         </div>
                         <input type="hidden" id="sim_contract_id" value="0">
+                        <input type="hidden" id="sim_account_id" value="902">
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-semibold">2. ID de Servicio en WispHub</label>
-                        <div class="d-flex align-items-center gap-2 p-2 rounded-3" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
-                            <span class="badge bg-warning bg-opacity-25 text-warning px-3 py-2 rounded-pill">#902</span>
-                            <span class="small text-muted">ONU_PRUEBA_OFICINA — Router CCR2116_ESCUQUE</span>
-                        </div>
-                        <input type="hidden" id="sim_account_id" value="902">
+                        <button type="button" class="btn btn-sm btn-outline-info w-100 rounded-3" onclick="lookupClient()">
+                            <i class="fa-solid fa-search me-1"></i> Obtener datos del cliente en WispHub
+                        </button>
+                        <div id="lookupResult" class="mt-2 small"></div>
                     </div>
 
                     <hr class="opacity-10 my-4">
@@ -421,6 +467,23 @@ if ($resLogs) {
                         <button type="button" class="btn btn-sm btn-primary w-100 rounded-3" onclick="triggerAction('notify_payment', this)">
                             <i class="fa-solid fa-paper-plane me-1"></i> Reportar Pago y Auto-Activar
                         </button>
+                    </div>
+
+                    <!-- SECCIÓN C: CREAR DEUDA DE PRUEBA -->
+                    <div class="p-3 rounded-3" style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);">
+                        <h6 class="fw-bold small mb-2"><i class="fa-solid fa-file-invoice-dollar me-1 text-danger"></i> Crear Deuda de Prueba</h6>
+                        <p class="text-muted small mb-2">Genera una cuenta por cobrar <code>PENDIENTE</code> para que el cliente aparezca como deudor.</p>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-6">
+                                <label class="form-label text-muted small mb-1">Monto (USD)</label>
+                                <input type="number" id="debt_amount" class="form-control form-control-sm" value="17.50" step="0.01">
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-sm btn-danger w-100 rounded-3" onclick="createTestDebt(this)">
+                                    <i class="fa-solid fa-plus-circle me-1"></i> Crear Deuda
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -581,6 +644,80 @@ function toggleLogDetail(id) {
     if(row) {
         row.classList.toggle('d-none');
     }
+}
+
+// Buscar cliente en WispHub
+function lookupClient() {
+    const btn = document.querySelector('[onclick="lookupClient()"]');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Buscando...';
+
+    const formData = new FormData();
+    formData.append('ajax_action', 'lookup_client');
+    formData.append('cedula', 'V20788775');
+
+    fetch('test_wisphub.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('lookupResult');
+            if (data.success) {
+                const d = data.data;
+                el.innerHTML = `<div class="alert alert-success small py-2 rounded-3 mb-0">
+                    <i class="fa-solid fa-circle-check me-1"></i> Cliente encontrado:
+                    <strong>${d.nombre || ''} ${d.apellidos || ''}</strong>
+                    &nbsp;·&nbsp; Service ID: <strong>#${d.service_id}</strong>
+                    &nbsp;·&nbsp; Estado: ${d.estado || '?'}
+                </div>`;
+            } else {
+                el.innerHTML = `<div class="alert alert-warning small py-2 rounded-3 mb-0">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> ${data.message}
+                </div>`;
+            }
+        })
+        .catch(() => {
+            document.getElementById('lookupResult').innerHTML = `<div class="alert alert-danger small py-2 rounded-3 mb-0">Error de conexión.</div>`;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        });
+}
+
+// Crear deuda de prueba
+function createTestDebt(btn) {
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> Creando...';
+
+    const formData = new FormData();
+    formData.append('ajax_action', 'create_test_debt');
+    formData.append('cedula', 'V20788775');
+    formData.append('monto', document.getElementById('debt_amount').value);
+
+    fetch('test_wisphub.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            const modal = new bootstrap.Modal(document.getElementById('responseModal'));
+            document.getElementById('modalTitle').textContent = 'Crear Deuda de Prueba';
+            const modalAlert = document.getElementById('modalAlert');
+            if (data.success) {
+                modalAlert.className = 'alert alert-success py-2 rounded-3';
+                modalAlert.innerHTML = '<i class="fa-solid fa-check-double me-2"></i>' + data.message;
+            } else {
+                modalAlert.className = 'alert alert-danger py-2 rounded-3';
+                modalAlert.innerHTML = '<i class="fa-solid fa-circle-exmark me-2"></i>' + data.message;
+            }
+            document.getElementById('modalResponseText').textContent = JSON.stringify(data, null, 2);
+            modal.show();
+        })
+        .catch(err => {
+            alert('Error: ' + err.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
 }
 
 // Conexión Ping
