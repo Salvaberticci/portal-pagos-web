@@ -169,31 +169,10 @@ if ($cedula === TEST_USER_CEDULA) {
     $contratos[0]['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
 
-// NUEVO: Obtener estados de pagos reportados
+// Portal sin base de datos local: los estados de pagos se gestionan
+// directamente desde WispHub. No hay pagos_recientes locales.
 $pagos_recientes = [];
-$sql_pagos = "
-    SELECT id_reporte, estado, fecha_registro, monto_bs, referencia, meses_pagados, fecha_pago, monto_usd, motivo_rechazo
-    FROM pagos_reportados 
-    WHERE cedula_titular = ? 
-      AND visto_por_cliente = 0
-      AND (estado = 'PENDIENTE' OR ((estado = 'APROBADO' OR estado = 'RECHAZADO') AND fecha_registro >= DATE_SUB(NOW(), INTERVAL 2 DAY)))
-    ORDER BY fecha_registro DESC
-";
-$stmt_pagos = $conn->prepare($sql_pagos);
-if ($stmt_pagos) {
-    $stmt_pagos->bind_param("s", $cedula);
-    $stmt_pagos->execute();
-    $res_pagos = $stmt_pagos->get_result();
-    while ($p = $res_pagos->fetch_assoc()) {
-        $pagos_recientes[] = $p;
-    }
-    $stmt_pagos->close();
-}
-
-// Obtener el último pago de mensualidad realizado por el cliente
 $ultimo_pago = null;
-// No consultamos la DB local porque no tenemos contratos locales.
-// Se podría integrar con GET /facturas/ si WispHub lo permite.
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
@@ -286,109 +265,7 @@ $ultimo_pago = null;
             </div>
         <?php endif; ?>
 
-        <!-- TARJETA: ÚLTIMO PAGO REGISTRADO -->
-        <?php if ($ultimo_pago): ?>
-        <div class="glass-panel p-3 mb-4 border-0 shadow-sm d-flex align-items-center gap-3 flex-wrap ultimo-pago-card">
-            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 46px; height: 46px; background: rgba(16, 185, 129, 0.12);">
-                <i class="fas fa-receipt text-success"></i>
-            </div>
-            <div class="flex-grow-1">
-                <div class="fw-bold text-main" style="font-size: 0.92rem;">
-                    Último Pago: <span class="text-success"><?php echo htmlspecialchars($ultimo_pago['mes']); ?></span>
-                    &nbsp;&mdash;&nbsp;
-                    <span class="text-success fw-bold">$<?php echo number_format($ultimo_pago['monto_total'], 2); ?></span>
-                </div>
-                <div class="small text-muted mt-1">
-                    <i class="fas fa-calendar-check me-1"></i>
-                    Registrado el <?php echo date('d/m/Y', strtotime($ultimo_pago['fecha_pago'])); ?>
-                    &nbsp;|&nbsp;
-                    <i class="fas fa-satellite-dish me-1"></i><?php echo htmlspecialchars($ultimo_pago['nombre_plan']); ?>
-                </div>
-            </div>
-            <div class="text-end">
-                <span class="badge bg-success px-3 py-2">
-                    <i class="fas fa-check me-1"></i>PAGADO
-                </span>
-            </div>
-        </div>
-        <?php endif; ?>
 
-        <!-- SECCIÓN DE ESTADOS DE PAGO -->
-        <?php if (!empty($pagos_recientes)): ?>
-            <div class="mb-4">
-                <?php foreach ($pagos_recientes as $pago): ?>
-                    <?php if ($pago['estado'] === 'PENDIENTE'): ?>
-                        <div class="glass-panel p-3 mb-2 border-start border-warning border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(245, 158, 11, 0.05);">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="rounded-circle bg-warning bg-opacity-10 p-2 mt-1 flex-shrink-0">
-                                        <i class="fas fa-clock text-warning"></i>
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold text-main mb-1">
-                                            Pago en revisión &mdash; Ref: <span class="text-warning"><?php echo htmlspecialchars($pago['referencia']); ?></span>
-                                        </div>
-                                        <div class="small text-muted mb-1">
-                                            Monto: <strong>$<?php echo number_format($pago['monto_usd'], 2); ?></strong>
-                                            &nbsp;&bull;&nbsp; Fecha: <?php echo date('d/m/Y', strtotime($pago['fecha_pago'])); ?>
-                                        </div>
-                                        <?php if (!empty($pago['motivo_rechazo'])): ?>
-                                            <div class="small mt-1" style="color: #f59e0b;">
-                                                <i class="fas fa-exclamation-triangle me-1"></i>
-                                                <strong>Motivo:</strong> <?php echo htmlspecialchars($pago['motivo_rechazo']); ?>
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="small text-muted mt-1">Tu pago está siendo verificado por nuestro equipo.</div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
-                                    <div class="badge bg-warning text-dark">PENDIENTE</div>
-                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php elseif ($pago['estado'] === 'APROBADO'): ?>
-                        <div class="glass-panel p-3 mb-2 border-start border-success border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(16, 185, 129, 0.05);">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-success bg-opacity-10 p-2 me-3">
-                                        <i class="fas fa-check-circle text-success"></i>
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold text-main">¡Pago Aprobado!</div>
-                                        <div class="small text-muted">Tu pago de la fecha <?php echo date('d/m/Y', strtotime($pago['fecha_pago'])); ?> ha sido verificado correctamente.</div>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <div class="badge bg-success me-2">APROBADO</div>
-                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php elseif ($pago['estado'] === 'RECHAZADO'): ?>
-                        <div class="glass-panel p-3 mb-2 border-start border-danger border-4 shadow-sm animate-fade" id="notif_<?php echo $pago['id_reporte']; ?>" style="background: rgba(239, 68, 68, 0.05);">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <div class="d-flex align-items-center">
-                                    <div class="rounded-circle bg-danger bg-opacity-10 p-2 me-3">
-                                        <i class="fas fa-times-circle text-danger"></i>
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold text-main">Pago Rechazado (Ref: <?php echo $pago['referencia']; ?>)</div>
-                                        <div class="small text-danger fw-bold">Motivo: <?php echo htmlspecialchars($pago['motivo_rechazo'] ?: 'No especificado'); ?></div>
-                                        <div class="small text-muted mt-1">Por favor, verifica tus datos e intenta reportar de nuevo.</div>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <div class="badge bg-danger me-2">RECHAZADO</div>
-                                    <button class="btn btn-sm text-muted p-0" onclick="dismissNotif(<?php echo $pago['id_reporte']; ?>)"><i class="fas fa-times"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
 
         <div class="row g-4">
             <?php if (empty($contratos)): ?>
@@ -508,19 +385,7 @@ $ultimo_pago = null;
         });
     });
 
-    function dismissNotif(id) {
-        fetch('marcar_leido_pago.php?id=' + id)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'ok') {
-                    const el = document.getElementById('notif_' + id);
-                    if (el) {
-                        el.style.opacity = '0';
-                        setTimeout(() => el.remove(), 300);
-                    }
-                }
-            });
-    }
+
     </script>
 </body>
 </html>
