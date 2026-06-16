@@ -287,10 +287,10 @@ try {
     // =========================================================================
     // FASE 7: FALLO POR MONTO DISCREPANTE
     // =========================================================================
-    echo "Fase 7: Probando fallo con monto incorrecto (ref '999333', mock tiene 5.50 Bs, reportamos 10.00)...\n";
+    echo "Fase 7: Probando fallo con monto incorrecto (ref '999333', mock tiene 5.50 Bs, reportamos 50.00 Bs)...\n";
 
     $_SESSION['cliente_cedula'] = 'V20788775';
-    $monto_bs_incorrecto  = 10.00; // Mock tiene 5.50 Bs para ref 999333
+    $monto_bs_incorrecto  = 50.00; // Mock tiene 5.50 Bs → diferencia 44.5 Bs > tolerancia 10 Bs
     $monto_usd_incorrecto = $monto_bs_incorrecto / $tasa;
 
     $aprobado_monto = verificar_y_aprobar_pago_bdv(
