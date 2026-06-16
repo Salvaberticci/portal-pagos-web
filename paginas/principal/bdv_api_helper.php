@@ -117,13 +117,16 @@ function consultar_movimientos_bdv(
         ];
     }
 
-    $payload = json_encode([
-        'cuenta'        => $cuenta,
-        'fechaIni'      => $fechaIni,
-        'fechaFin'      => $fechaFin,
-        'tipoMoneda'    => 'VES',
-        'nroMovimiento' => $nroMovimiento,
-    ]);
+    $payload_arr = [
+        'cuenta'     => $cuenta,
+        'fechaIni'   => $fechaIni,
+        'fechaFin'   => $fechaFin,
+        'tipoMoneda' => 'VES',
+    ];
+    if ($nroMovimiento !== '') {
+        $payload_arr['nroMovimiento'] = $nroMovimiento;
+    }
+    $payload = json_encode($payload_arr);
 
     $ch = curl_init($endpoint);
     curl_setopt_array($ch, [
@@ -143,6 +146,11 @@ function consultar_movimientos_bdv(
     $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curl_error  = curl_error($ch);
     curl_close($ch);
+
+    // Log debug
+    $log_dir = __DIR__ . '/../../logs';
+    if (!is_dir($log_dir)) { @mkdir($log_dir, 0777, true); }
+    @file_put_contents($log_dir . '/bdv_api.log', date('Y-m-d H:i:s') . " REQ: $payload\nRES: $respuesta\nERR: $curl_error\n===\n", FILE_APPEND);
 
     if ($respuesta === false || !empty($curl_error)) {
         return [
