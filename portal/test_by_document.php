@@ -10,6 +10,12 @@ $cedula = $_GET['cedula'] ?? 'V20788775';
 echo "<h2>Prueba: getClientByDocument('$cedula')</h2>";
 echo "<pre>";
 $result = $client->getClientByDocument($cedula);
+// Si falla, intentar sin prefijo de letra
+if ($result['status'] !== 200 && preg_match('/^[A-Z]/i', $cedula)) {
+    $soloNum = preg_replace('/^[A-Z]/i', '', $cedula);
+    echo "(Reintentando sin prefijo: '$soloNum')\n";
+    $result = $client->getClientByDocument($soloNum);
+}
 echo "Status: " . $result['status'] . "\n";
 echo "Response:\n";
 print_r($result['data']);

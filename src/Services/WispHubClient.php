@@ -310,7 +310,14 @@ class WispHubClient
      */
     public function getClientByDocument(string $document): array
     {
-        return $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
+        // Intentar primero con el documento tal cual
+        $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
+        // Si falla y el documento tiene prefijo alfabético (ej: V20788775), reintentar solo números
+        if ($result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
+            $soloNum = preg_replace('/^[A-Z]/i', '', $document);
+            $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($soloNum));
+        }
+        return $result;
     }
 
     /**

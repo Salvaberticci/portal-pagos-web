@@ -223,7 +223,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             if (empty($cedula)) {
                 $response['message'] = 'Cédula requerida.';
             } else {
+                // Intentar con la cédula tal cual
                 $res = $wispClient->getClientByDocument($cedula);
+                // Si falla, intentar sin el prefijo de letra (ej: "V20788775" → "20788775")
+                if ($res['status'] !== 200 && preg_match('/^[A-Z]/i', $cedula)) {
+                    $soloNum = preg_replace('/^[A-Z]/i', '', $cedula);
+                    $res = $wispClient->getClientByDocument($soloNum);
+                }
+                // Si aún falla, intentar con prefijo "V" por defecto
+                if ($res['status'] !== 200 && !preg_match('/^V/i', $cedula)) {
+                    $res = $wispClient->getClientByDocument('V' . $cedula);
+                }
                 if ($res['status'] === 200 && !empty($res['data']['data']['service_id'])) {
                     $response['success'] = true;
                     $response['message'] = 'Cliente encontrado.';
