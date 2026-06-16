@@ -516,6 +516,24 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
         
         // Initial summary
         updateSummary();
+
+        // Loading modal on form submit
+        document.getElementById('paymentForm').addEventListener('submit', function() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        });
     </script>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;justify-content:center;align-items:center;flex-direction:column;">
+        <div style="width:50px;height:50px;border:4px solid rgba(255,255,255,0.2);border-top-color:#3b82f6;border-radius:50%;animation:loadingSpin 0.8s linear infinite;"></div>
+        <p style="color:#fff;font-size:1.2rem;font-weight:600;margin-top:20px;">Procesando pago...</p>
+        <p style="color:#94a3b8;font-size:0.9rem;margin-top:5px;">Por favor espera, esto puede tomar unos segundos.</p>
+    </div>
+
+    <style>
+        @keyframes loadingSpin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </body>
 </html>
