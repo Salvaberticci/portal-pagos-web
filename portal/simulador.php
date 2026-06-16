@@ -142,6 +142,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             overflow-y: auto;
             font-size: 0.85rem;
         }
+        .text-muted {
+            color: #cbd5e1 !important; /* Gris más claro para que resalte en fondo oscuro */
+        }
+        .form-label {
+            color: #f8fafc !important; /* Blanco para los labels */
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -164,11 +171,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <i class="fas fa-sync-alt"></i> Probar Conexión
                     </button>
                 </div>
-                <div class="row text-muted small">
+                <div class="row text-light small">
                     <div class="col-4">API Endpoint:</div>
-                    <div class="col-8 text-main">https://api.wisphub.net/api/</div>
+                    <div class="col-8 text-main fw-bold">https://api.wisphub.net/api/</div>
                     <div class="col-4 mt-2">API Key:</div>
-                    <div class="col-8 text-main mt-2">******** (Oculto)</div>
+                    <div class="col-8 text-main mt-2 fw-bold">******** (Oculto)</div>
                 </div>
             </div>
 
@@ -189,8 +196,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label text-muted small"><i class="fas fa-bolt text-warning"></i> Simular Suspensión y Activación Directa</label>
-                    <p class="small text-muted mb-2">Llama directamente a los endpoints de suspender y activar en WispHub.</p>
+                    <label class="form-label small"><i class="fas fa-bolt text-warning"></i> Simular Suspensión y Activación Directa</label>
+                    <p class="small text-light mb-2">Llama directamente a los endpoints de suspender y activar en WispHub.</p>
                     <div class="row g-2">
                         <div class="col-6">
                             <button class="btn btn-danger btn-custom w-100" onclick="runAction('suspend')">
@@ -206,8 +213,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label text-muted small"><i class="fas fa-money-bill-wave text-success"></i> Simular Reporte y Aprobación de Pago</label>
-                    <p class="small text-muted mb-2">Simula el registro automático de un pago aprobado, que llama a registrar-pago y auto-activa.</p>
+                    <label class="form-label small"><i class="fas fa-money-bill-wave text-success"></i> Simular Reporte y Aprobación de Pago</label>
+                    <p class="small text-light mb-2">Simula el registro automático de un pago aprobado, que llama a registrar-pago y auto-activa.</p>
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <input type="text" id="sim_ref" class="form-control bg-dark text-white border-secondary" placeholder="Ref. Bancaria (ej. 123456)">
