@@ -4,7 +4,7 @@ require_once '../conexion.php';
 
 // ── Verificar sesión y rol ───────────────────────────────────────────────────
 if (session_status() === PHP_SESSION_NONE) session_start();
-if (!isset($_SESSION['usuario_id']) || ($_SESSION['rol'] ?? '') !== 'admin') {
+if (!isset($_SESSION['usuario_id']) || !in_array(strtolower($_SESSION['rol'] ?? ''), ['admin', 'administrador'])) {
     header('HTTP/1.0 403 Forbidden');
     die("Acceso denegado");
 }
