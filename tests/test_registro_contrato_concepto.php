@@ -47,10 +47,12 @@ $fecha_ven = date('Y-m-d', strtotime('+30 days'));
 $stmt_c = $conn->prepare(
     "INSERT INTO contratos (cedula, nombre_completo, telefono, id_plan, monto_plan, 
      fecha_instalacion, estado, monto_instalacion, monto_pagar, monto_pagado,
-     tipo_conexion, ip_onu, mac_onu, medio_pago, moneda_pago)
-     VALUES (?, ?, '04120000000', ?, ?, ?, 'ACTIVO', 50, 80, 40, 'FTTH', ?, ?, 'Efectivo', 'USD')"
+     tipo_conexion, ip_onu, mac_onu, medio_pago, moneda_pago,
+     direccion, ident_caja_nap, puerto_nap, num_presinto_odn)
+     VALUES (?, ?, '04120000000', ?, ?, ?, 'ACTIVO', 50, 80, 40, 'FTTH', ?, ?, 'Efectivo', 'USD',
+     'TEST DIR', 'CAJA001', '1', 'PRE001')"
 );
-$stmt_c->bind_param("ssiidss", $test_cedula, $test_nombre, $id_plan, $monto_plan, $fecha_hoy, $test_ip, $test_mac);
+$stmt_c->bind_param("ssidsss", $test_cedula, $test_nombre, $id_plan, $monto_plan, $fecha_hoy, $test_ip, $test_mac);
 $stmt_c->execute();
 $id_contrato = $conn->insert_id;
 $stmt_c->close();

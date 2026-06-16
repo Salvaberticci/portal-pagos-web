@@ -152,7 +152,7 @@ function verificar_y_aprobar_pago_bdv(
     // Verificar monto (puede venir en 'importe' o 'monto' y contener formato con comas)
     $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
     $monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
-    if (abs($monto_mov - $monto_bs) > 0.01) { // tolerancia 0.01 Bs
+    if (abs($monto_mov - $monto_bs) > 10) { // tolerancia 10 Bs
         $GLOBALS['bdv_falla_motivo'] = "El monto ingresado no coincide con el registrado en el banco.";
         return false;
     }

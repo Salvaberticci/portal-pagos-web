@@ -41,9 +41,11 @@ echo "ID Par: $id_par \n";
 
 // Emular insert
 $sql = "INSERT INTO contratos (
-    cedula, nombre_completo, telefono, id_municipio, id_parroquia, municipio_texto, parroquia_texto, plan_prorrateo_nombre, observaciones
+    cedula, nombre_completo, telefono, id_municipio, id_parroquia, municipio_texto, parroquia_texto, plan_prorrateo_nombre, observaciones,
+    direccion, ident_caja_nap, puerto_nap, num_presinto_odn
 ) VALUES (
-    '12345678', 'Test User', '0000', ?, ?, ?, ?, 'Test', 'TEST CONTRACT'
+    '12345678', 'Test User', '0000', ?, ?, ?, ?, 'Test', 'TEST CONTRACT',
+    'TEST DIR', 'CAJA001', '1', 'PRE001'
 )";
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("iiss", $id_mun, $id_par, $mun, $par);

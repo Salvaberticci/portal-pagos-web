@@ -82,7 +82,6 @@ if ($contract && $contract['cedula'] === $test_cedula) {
     echo "✅ SUCCESS: Contract recorded with ID $id_contrato\n";
     if ($contract['instalador'] === 'INSTALADOR A, INSTALADOR B') echo "✅ Installer saved correctly.\n";
     else echo "❌ Installer error: " . $contract['instalador'] . "\n";
-    if ($contract['numero_onu'] === $mock_post['numero_onu']) echo "✅ Numero ONU saved correctly.\n";
 } else {
     die("❌ FAILED: Contract record not found or data mismatch.\n");
 }
@@ -104,9 +103,11 @@ if ($deudor) {
 }
 
 // 4. Cleanup
+$conn->query("DELETE FROM cobros_manuales_historial WHERE id_contrato = $id_contrato");
+$conn->query("DELETE FROM cuentas_por_cobrar WHERE id_contrato = $id_contrato");
 $conn->query("DELETE FROM clientes_deudores WHERE id_contrato = $id_contrato");
 $conn->query("DELETE FROM contratos WHERE id = $id_contrato");
-unlink($mock_file);
+@unlink($mock_file);
 
 echo "=== TEST COMPLETED ===\n";
 $conn->close();

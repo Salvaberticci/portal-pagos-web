@@ -18,8 +18,8 @@ $monto_pagar = 100.00;
 $monto_pagado = 40.00;
 $saldo_pendiente = round($monto_pagar - $monto_pagado, 2);
 
-$sql_ins = "INSERT INTO contratos (id, nombre_completo, monto_pagar, monto_pagado, estado) 
-            VALUES ($test_id, 'TEST DEBTOR', $monto_pagar, $monto_pagado, 'ACTIVO')";
+$sql_ins = "INSERT INTO contratos (id, cedula, nombre_completo, monto_pagar, monto_pagado, estado, direccion, telefono, ident_caja_nap, puerto_nap, num_presinto_odn, fecha_instalacion) 
+            VALUES ($test_id, 'V99999999', 'TEST DEBTOR', $monto_pagar, $monto_pagado, 'ACTIVO', 'TEST DIR', '04120000000', 'CAJA001', '1', 'PRE001', CURDATE())";
 if (!$conn->query($sql_ins)) {
     die("Error inserting test contract: " . $conn->error . "\n");
 }

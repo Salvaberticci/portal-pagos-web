@@ -30,29 +30,35 @@ try {
         'monto_plan' => 25.00,
         'vendedor_texto' => 'TEST VEND',
         'direccion' => 'TEST DIR',
+        'telefono' => '04120000000',
         'fecha_instalacion' => date('Y-m-d'),
         'estado_contrato' => 'ACTIVO',
         'instaladores' => ['TEST TEST'],
         'tipo_conexion' => 'FTTH',
-        'mac_onu' => 'MAC' . rand(1000, 9999)
+        'mac_onu' => 'MAC' . rand(1000, 9999),
+        'ident_caja_nap' => 'CAJA001',
+        'puerto_nap' => '1',
+        'num_presinto_odn' => 'PRE001',
     ];
 
     // Simulate guarda.php logic
     $instalador_val = implode(', ', $mock_reg['instaladores']);
     $sql_ins = "INSERT INTO contratos (
         cedula, nombre_completo, id_municipio, id_parroquia, id_plan, monto_plan, vendedor_texto,
-        direccion, fecha_instalacion, estado, monto_instalacion, monto_pagar, monto_pagado, 
-        instalador, tipo_conexion, mac_onu
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        direccion, telefono, fecha_instalacion, estado, monto_instalacion, monto_pagar, monto_pagado, 
+        instalador, tipo_conexion, mac_onu, ident_caja_nap, puerto_nap, num_presinto_odn
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     
     $stmt = $conn->prepare($sql_ins);
-    $types = "ssiiidssssddddss";
+    $types = "ssiiidsssssddddsssss";
     $stmt->bind_param($types, 
         $mock_reg['cedula'], $mock_reg['nombre_completo'], $mock_reg['id_municipio'],
         $mock_reg['id_parroquia'], $mock_reg['id_plan'], $mock_reg['monto_plan'],
-        $mock_reg['vendedor_texto'], $mock_reg['direccion'], $mock_reg['fecha_instalacion'],
+        $mock_reg['vendedor_texto'], $mock_reg['direccion'], $mock_reg['telefono'],
+        $mock_reg['fecha_instalacion'],
         $mock_reg['estado_contrato'], $mock_reg['monto_instalacion'], $mock_reg['monto_pagar'],
-        $mock_reg['monto_pagado'], $instalador_val, $mock_reg['tipo_conexion'], $mock_reg['mac_onu']
+        $mock_reg['monto_pagado'], $instalador_val, $mock_reg['tipo_conexion'], $mock_reg['mac_onu'],
+        $mock_reg['ident_caja_nap'], $mock_reg['puerto_nap'], $mock_reg['num_presinto_odn']
     );
     $stmt->execute();
     $test_id = $conn->insert_id;
@@ -84,8 +90,8 @@ try {
     $conn->query("UPDATE clientes_deudores SET monto_pagado = $nuevo_monto_pagado, saldo_pendiente = $nuevo_saldo_pend WHERE id = $id_deudor");
     
     // Register cxc for abono
-    $conn->query("INSERT INTO cuentas_por_cobrar (id_contrato, monto_total, estado, fecha_pago, referencia_pago, id_banco)
-                  VALUES ($test_id, $abono_amount, 'PAGADO', NOW(), '$referencia', $id_banco)");
+    $conn->query("INSERT INTO cuentas_por_cobrar (id_contrato, monto_total, fecha_emision, fecha_vencimiento, estado, fecha_pago, referencia_pago, id_banco)
+                  VALUES ($test_id, $abono_amount, CURDATE(), CURDATE(), 'PAGADO', NOW(), '$referencia', $id_banco)");
     
     echo "✅ Abono registered. Verifying balance...\n";
     

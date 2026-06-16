@@ -50,7 +50,6 @@ $mock_data = [
     'tipo_conexion' => 'FTTH',
     'mac_onu' => 'AA:BB:CC:DD:EE:FF',
     'ip_onu' => '192.168.100.1',
-    'numero_onu' => 'ONU-001',
     'nap_tx_power' => '-20',
     'onu_rx_power' => '-22',
     'distancia_drop' => '100',
@@ -69,22 +68,21 @@ $sql = "INSERT INTO contratos (
     num_presinto_odn, id_olt, id_pon, tipo_instalacion, monto_instalacion, 
     gastos_adicionales, monto_pagar, monto_pagado, instalador,
     telefono_secundario, correo_adicional, medio_pago, moneda_pago, plan_prorrateo_nombre, dias_prorrateo,
-    monto_prorrateo_usd, observaciones, tipo_conexion, mac_onu, ip_onu, numero_onu,
+    monto_prorrateo_usd, observaciones, tipo_conexion, mac_onu, ip_onu,
     nap_tx_power, onu_rx_power, distancia_drop, punto_acceso, valor_conexion_dbm,
     evidencia_fibra
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 $stmt = $conn->prepare($sql);
 if (!$stmt) die("Prepare failed: " . $conn->error . "\n");
 
 // Types: i (id), s (ced), s (name), s (tel), s (email), i (id_m), i (id_p), s (mun_t), s (par_t), i (id_pl), d (m_pl), s (vend)
 //        s (dir), s (f_i), s (est), s (nap), s (p_nap), s (p_odn), i (olt), i (pon), s (t_i), d (m_i), d (g_a), d (m_pr), d (m_pd), s (inst)
-//        s (t_s), s (c_a), s (m_p), s (mon), s (pl_pr), i (d_pr), d (m_pr_u), s (obs), s (t_c), s (mac), s (ip_o), s (num_o), s (nap_tx), s (onu_rx), s (dist), s (pt_a), s (val_c), s (ev_f)
-// Total columns: 44.
-// Wait, my previous count was 45 (with sae_plus). Now 44.
+//        s (t_s), s (c_a), s (m_p), s (mon), s (pl_pr), i (d_pr), d (m_pr_u), s (obs), s (t_c), s (mac), s (ip_o), s (nap_tx), s (onu_rx), s (dist), s (pt_a), s (val_c), s (ev_f)
+// Total columns: 43.
 
-$types = "issssiissid" . "sssssssiisdddds" . "sssssidsssssssssss";
-// Count: 11 + 15 + 18 = 44. Correct.
+$types = "issssiissid" . "sssssssiisdddds" . "ssssidsssssssssss";
+// Count: 11 + 15 + 17 = 43. Correct.
 
 $stmt->bind_param(
     $types,
@@ -125,7 +123,6 @@ $stmt->bind_param(
     $mock_data['tipo_conexion'],
     $mock_data['mac_onu'],
     $mock_data['ip_onu'],
-    $mock_data['numero_onu'],
     $mock_data['nap_tx_power'],
     $mock_data['onu_rx_power'],
     $mock_data['distancia_drop'],
@@ -152,12 +149,6 @@ if ($check && $check->num_rows > 0) {
         echo "VERIFICATION FAILED: Installer field is '" . $row['instalador'] . "' (Expected 'INSTALADOR 1, INSTALADOR 2').\n";
     }
     
-    // Check numero_onu
-    if ($row['numero_onu'] === 'ONU-001') {
-        echo "VERIFICATION SUCCESS: numero_onu field saved correctly.\n";
-    } else {
-        echo "VERIFICATION FAILED: numero_onu field is '" . $row['numero_onu'] . "'.\n";
-    }
 } else {
     echo "VERIFICATION FAILED: Contract record not found.\n";
 }

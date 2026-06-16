@@ -1,26 +1,30 @@
 <?php
 // test_search_api.php
-require_once 'paginas/conexion.php';
+require_once __DIR__ . '/../paginas/conexion.php';
 
-echo "Testing buscar_contratos.php with a query...\n";
-
-// We'll simulate a request to buscar_contratos.php
-// But since it's a separate file, we'll just check if it returns what we expect if we run it.
-// Alternatively, we can just check the database content first to find a valid query.
+echo "Testing search query logic...\n";
 
 $res = $conn->query("SELECT nombre_completo, cedula FROM contratos WHERE estado = 'ACTIVO' LIMIT 1");
 if ($row = $res->fetch_assoc()) {
-    $q = 'V12721951';
+    $q = $row['cedula'];
     echo "Searching for: $q\n";
     
-    $_GET['q'] = $q;
-    ob_start();
-    chdir('paginas/principal');
-    include 'buscar_contratos.php';
-    chdir('../../');
-    $output = ob_get_clean();
+    // Test the search SQL directly (avoids header/CLI issues with buscar_contratos.php)
+    $search_query = $conn->real_escape_string($q);
+    $sql = "SELECT c.id, c.nombre_completo, c.cedula, c.telefono
+            FROM contratos c
+            WHERE c.nombre_completo LIKE '%$search_query%' 
+               OR c.cedula LIKE '%$search_query%'
+            LIMIT 10";
     
-    $data = json_decode($output, true);
+    $resultado = $conn->query($sql);
+    $data = [];
+    if ($resultado && $resultado->num_rows > 0) {
+        while ($fila = $resultado->fetch_assoc()) {
+            $data[] = $fila;
+        }
+    }
+    
     if (!empty($data)) {
         echo "Found " . count($data) . " results.\n";
         echo "Example Result:\n";

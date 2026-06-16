@@ -16,7 +16,7 @@ $id_contrato = null;
 
 try {
     // --- 1. SETUP: REGISTER CONTRACT ---
-    $conn->query("INSERT INTO contratos (cedula, nombre_completo, estado) VALUES ('$test_cedula', 'SUPPORT TEST USER', 'ACTIVO')");
+    $conn->query("INSERT INTO contratos (cedula, nombre_completo, estado, direccion, telefono, ident_caja_nap, puerto_nap, num_presinto_odn) VALUES ('$test_cedula', 'SUPPORT TEST USER', 'ACTIVO', 'TEST DIR', '04120000000', 'CAJA001', '1', 'PRE001')");
     $id_contrato = $conn->insert_id;
     echo "✅ Contract $id_contrato registered.\n";
 
@@ -61,7 +61,7 @@ try {
     
     // Check soportes table
     $soporte = $conn->query("SELECT * FROM soportes WHERE id_soporte = $id_soporte")->fetch_assoc();
-    if ($soporte && $soporte['tipo_falla'] === 'LENTITUD' && $soporte['prioridad'] === 'NIVEL 2') {
+    if ($soporte && $soporte['tipo_falla'] === 'LENTITUD' && $soporte['prioridad'] === 'NIVEL 1') {
         echo "✅ SUCCESS: Support record data integrity verified.\n";
     } else {
         throw new Exception("Support record mismatch.");

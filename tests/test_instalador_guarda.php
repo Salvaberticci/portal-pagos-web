@@ -8,7 +8,7 @@ require_once __DIR__ . '/../paginas/conexion.php';
 
 echo "=== TESTING: registro_contrato_instalador.php -> guardar_contrato_instalador.php ===\n";
 
-$test_cedula = "V-" . rand(1000000, 9999999);
+$test_cedula = "V" . rand(10000000, 99999999);
 
 // Mock data simulating form submission from registro_contrato_instalador.php
 $mock_post = [

@@ -19,7 +19,7 @@ try {
     // --- 1. SETUP: REGISTER FIRST CONTRACT WITH IP ---
     echo "Registering first contract with IP $test_ip...\n";
     
-    $conn->query("INSERT INTO contratos (cedula, nombre_completo, ip_onu, estado) VALUES ('$test_cedula1', 'USER 1', '$test_ip', 'ACTIVO')");
+    $conn->query("INSERT INTO contratos (cedula, nombre_completo, ip_onu, estado, direccion, telefono, ident_caja_nap, puerto_nap, num_presinto_odn) VALUES ('$test_cedula1', 'USER 1', '$test_ip', 'ACTIVO', 'TEST DIR', '04120000000', 'CAJA001', '1', 'PRE001')");
     $id1 = $conn->insert_id;
     echo "✅ Contract $id1 registered.\n";
 

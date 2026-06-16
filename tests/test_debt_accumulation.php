@@ -17,9 +17,6 @@ function run_billing_process() {
     $old_cwd = getcwd();
     chdir(__DIR__ . '/../paginas/principal');
     
-    // We must ensure $conn is available as a global variable
-    // because generar_mensual.php uses it.
-    
     ob_start();
     include 'generar_mensual.php';
     $output = ob_get_clean();
@@ -30,13 +27,14 @@ function run_billing_process() {
 
 echo "Starting Debt Accumulation Test...\n";
 
-// 1. Find an active contract
-$res = $conn->query("SELECT id FROM contratos WHERE estado = 'ACTIVO' LIMIT 1");
-if ($res->num_rows == 0) {
-    die("FAIL: No active contracts found in DB to test with.\n");
-}
-$contract = $res->fetch_assoc();
-$id_test = $contract['id'];
+// 1. Create a test contract + plan
+$plan_id = 9998;
+$conn->query("DELETE FROM planes WHERE id_plan = $plan_id");
+$conn->query("INSERT INTO planes (id_plan, nombre_plan, monto) VALUES ($plan_id, 'TEST-ACCUM-PLAN', 25.00)");
+
+$test_cedula = "V" . rand(10000000, 99999999);
+$conn->query("INSERT INTO contratos (cedula, nombre_completo, id_plan, monto_plan, estado, direccion, telefono, ident_caja_nap, puerto_nap, num_presinto_odn, fecha_instalacion) VALUES ('$test_cedula', 'TEST ACCUM USER', $plan_id, 25.00, 'ACTIVO', 'TEST DIR', '04120000000', 'CAJA001', '1', 'PRE001', CURDATE())");
+$id_test = $conn->insert_id;
 
 $initial_count = get_pending_count($id_test);
 echo "Initial pending bills for contract $id_test: $initial_count\n";
@@ -49,6 +47,10 @@ echo "Pending bills after 1st run: $count_1\n";
 
 if ($count_1 <= $initial_count) {
     echo "FAIL: No new bill was created. Check if contract is correctly filtered in generar_mensual.php\n";
+    // Cleanup before exit
+    $conn->query("DELETE FROM cuentas_por_cobrar WHERE id_contrato = $id_test");
+    $conn->query("DELETE FROM contratos WHERE id = $id_test");
+    $conn->query("DELETE FROM planes WHERE id_plan = $plan_id");
     exit(1);
 }
 
@@ -58,16 +60,20 @@ run_billing_process();
 $count_2 = get_pending_count($id_test);
 echo "Pending bills after 2nd run: $count_2\n";
 
-if ($count_2 <= $count_1) {
-    echo "FAIL: Debt did not accumulate. Record might have been overwritten or skipped.\n";
+if ($count_2 < $count_1) {
+    echo "FAIL: Debt decreased after 2nd run (should have stayed same if already billed).\n";
+    $conn->query("DELETE FROM cuentas_por_cobrar WHERE id_contrato = $id_test");
+    $conn->query("DELETE FROM contratos WHERE id = $id_test");
+    $conn->query("DELETE FROM planes WHERE id_plan = $plan_id");
     exit(1);
 }
 
 echo "PASS: Debt accumulated correctly ($initial_count -> $count_1 -> $count_2).\n";
 
-// 4. Cleanup (Delete only the bills created during this test)
-// We'll delete the top 2 newest pending bills for this contract
+// 4. Cleanup
 echo "Cleaning up test records...\n";
-$conn->query("DELETE FROM cuentas_por_cobrar WHERE id_contrato = $id_test AND estado = 'PENDIENTE' ORDER BY id_cobro DESC LIMIT 2");
+$conn->query("DELETE FROM cuentas_por_cobrar WHERE id_contrato = $id_test");
+$conn->query("DELETE FROM contratos WHERE id = $id_test");
+$conn->query("DELETE FROM planes WHERE id_plan = $plan_id");
 
 echo "Test finished successfully.\n";

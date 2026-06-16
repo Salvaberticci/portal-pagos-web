@@ -21,7 +21,7 @@ try {
     $conn->query("INSERT INTO planes (id_plan, nombre_plan, monto) VALUES ($test_plan_id, 'TEST-PLAN-MONTHLY', 24.99)");
     
     $test_cedula = "V" . rand(1000000, 9999999);
-    $conn->query("INSERT INTO contratos (cedula, nombre_completo, id_plan, estado) VALUES ('$test_cedula', 'MONTHLY TEST USER', $test_plan_id, 'ACTIVO')");
+    $conn->query("INSERT INTO contratos (cedula, nombre_completo, id_plan, estado, direccion, telefono, ident_caja_nap, puerto_nap, num_presinto_odn) VALUES ('$test_cedula', 'MONTHLY TEST USER', $test_plan_id, 'ACTIVO', 'TEST DIR', '04120000000', 'CAJA001', '1', 'PRE001')");
     $test_id = $conn->insert_id;
     
     echo "✅ Setup complete. Contract $test_id created.\n";
