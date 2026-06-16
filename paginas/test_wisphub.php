@@ -85,6 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                         }
                         $stmt_upd->close();
                     }
+                    $conn->query("UPDATE contratos SET estado = 'SUSPENDIDO' WHERE id IN (SELECT contract_id FROM wisp_hub_links WHERE wisp_account_id = '$accountId')");
                     $response['success'] = true;
                     $response['message'] = 'Servicio SUSPENDIDO en WispHub Sandbox. Estado del link local: SUSPENDED.';
                 } else {
@@ -131,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                         }
                         $stmt_upd->close();
                     }
+                    $conn->query("UPDATE contratos SET estado = 'ACTIVO' WHERE id IN (SELECT contract_id FROM wisp_hub_links WHERE wisp_account_id = '$accountId')");
                     $response['success'] = true;
                     $response['message'] = 'Servicio ACTIVADO en WispHub Sandbox. Estado del link local: ACTIVE.';
                 } else {
@@ -276,6 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
                                 }
                                 $stmt_upd->close();
                             }
+                            $conn->query("UPDATE contratos SET estado = 'SUSPENDIDO' WHERE id = $idc AND estado != 'SUSPENDIDO'");
                         } else {
                             $suspendMsg = "Error al suspender (HTTP $sStatus).";
                         }

@@ -277,6 +277,13 @@ function verificar_y_aprobar_pago_bdv(
                             $stmt_cache->close();
                         }
                     }
+                    // Sincronizar estado del contrato local con WispHub
+                    $stmt_act = $conn->prepare("UPDATE contratos SET estado = 'ACTIVO' WHERE id = ? AND estado != 'ACTIVO'");
+                    if ($stmt_act) {
+                        $stmt_act->bind_param("i", $id_contrato);
+                        $stmt_act->execute();
+                        $stmt_act->close();
+                    }
                     // Log WispHub exitoso
                     $sql_log = "INSERT INTO wisp_hub_logs (payment_id, request_payload, response_payload, created_at) VALUES (?, ?, ?, NOW())";
                     $stmt_log = $conn->prepare($sql_log);
