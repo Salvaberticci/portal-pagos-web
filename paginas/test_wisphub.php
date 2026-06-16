@@ -665,12 +665,17 @@ function lookupClient() {
             const el = document.getElementById('lookupResult');
             if (data.success) {
                 const d = data.data;
+                const estadoStr = d.estado || d.status || d.estatus || 'desconocido';
                 el.innerHTML = `<div class="alert alert-success small py-2 rounded-3 mb-0">
                     <i class="fa-solid fa-circle-check me-1"></i> Cliente encontrado:
                     <strong>${d.nombre || ''} ${d.apellidos || ''}</strong>
                     &nbsp;·&nbsp; Cédula: <strong>${d.cedula || '?'}</strong>
                     &nbsp;·&nbsp; Service ID: <strong>#${d.id_servicio || d.id || '?'}</strong>
-                    &nbsp;·&nbsp; Estado: ${d.estado || '?'}
+                    &nbsp;·&nbsp; Estado: ${estadoStr}
+                    <details class="mt-1" style="font-size:.7rem">
+                        <summary class="text-muted">Ver JSON completo</summary>
+                        <pre class="bg-black bg-opacity-50 p-2 mt-1 rounded-2 mb-0 text-info font-monospace" style="max-height:200px;overflow:auto">${JSON.stringify(d, null, 2)}</pre>
+                    </details>
                 </div>`;
             } else {
                 el.innerHTML = `<div class="alert alert-warning small py-2 rounded-3 mb-0">
