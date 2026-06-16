@@ -310,32 +310,44 @@ class WispHubClient
      */
     public function getClientByDocument(string $document): array
     {
-        // Lista de patrones de endpoint a probar (el resto de la API usa 'clientes/' sin 'v1/')
-        $patterns = [
-            'v1/clients/by-document/',
-            'clientes/by-document/',
-            'clientes/cedula/',
-        ];
-        $attempts = [];
-        foreach ($patterns as $prefix) {
-            // Intentar con el documento original
-            $result = $this->request('GET', $prefix . urlencode($document));
-            $attempts[] = $prefix . $document . ' → status ' . ($result['status'] ?? 0);
-            if ($result['status'] === 200) {
-                return $result;
+        $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
+        if ($result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
+            $soloNum = preg_replace('/^[A-Z]/i', '', $document);
+            $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($soloNum));
+        }
+        return $result;
+    }
+
+    /**
+     * Busca un cliente en WispHub por su cédula/documento recorriendo
+     * página por página el endpoint listClients.
+     * Útil si la API no expone un endpoint by-document.
+     *
+     * @param string $document Cédula (ej: V20788775 o 20788775)
+     * @param int    $maxPages Máximo de páginas a recorrer (default 50)
+     * @return array ['status' => 200|404, 'data' => [...datos del cliente...]]
+     */
+    public function findClientByDocument(string $document, int $maxPages = 50): array
+    {
+        $cleanDoc = preg_replace('/^[A-Z]/i', '', $document);
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $result = $this->request('GET', 'clientes/', ['page' => $page, 'limit' => 100]);
+            if ($result['status'] !== 200) {
+                return ['status' => $result['status'], 'data' => $result['data'] ?? null, 'error' => $result['error'] ?? 'Error en listClients'];
             }
-            // Si el documento tiene prefijo alfabético (ej: V20788775), intentar solo números
-            if (preg_match('/^[A-Z]/i', $document)) {
-                $soloNum = preg_replace('/^[A-Z]/i', '', $document);
-                $result = $this->request('GET', $prefix . urlencode($soloNum));
-                $attempts[] = $prefix . $soloNum . ' → status ' . ($result['status'] ?? 0);
-                if ($result['status'] === 200) {
-                    return $result;
+            $clients = $result['data']['results'] ?? [];
+            foreach ($clients as $c) {
+                $cedula = $c['cedula'] ?? $c['documento'] ?? '';
+                if (preg_replace('/^[A-Z]/i', '', $cedula) === $cleanDoc || $cedula === $document) {
+                    return ['status' => 200, 'data' => ['data' => $c]];
                 }
             }
+            // Si no hay más páginas, salir
+            if (empty($clients) || ($result['data']['current_page'] ?? 0) >= ($result['data']['last_page'] ?? 1)) {
+                break;
+            }
         }
-        error_log('[WispHubClient] getClientByDocument falló para ' . $document . '. Intentos: ' . implode(' | ', $attempts));
-        return ['status' => 404, 'data' => ['message' => 'Cliente no encontrado después de varios intentos']];
+        return ['status' => 404, 'data' => ['message' => "Cliente no encontrado después de revisar $maxPages páginas"]];
     }
 
     /**

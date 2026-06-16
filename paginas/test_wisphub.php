@@ -223,47 +223,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             if (empty($cedula)) {
                 $response['message'] = 'Cédula requerida.';
             } else {
-                // Intentar con la cédula tal cual
+                // 1) Intentar getClientByDocument
                 $res = $wispClient->getClientByDocument($cedula);
-                // Si falla, intentar sin el prefijo de letra (ej: "V20788775" → "20788775")
-                if ($res['status'] !== 200 && preg_match('/^[A-Z]/i', $cedula)) {
-                    $soloNum = preg_replace('/^[A-Z]/i', '', $cedula);
-                    $res = $wispClient->getClientByDocument($soloNum);
-                }
-                // Si aún falla, intentar con prefijo "V" por defecto
-                if ($res['status'] !== 200 && !preg_match('/^V/i', $cedula)) {
-                    $res = $wispClient->getClientByDocument('V' . $cedula);
-                }
-                if ($res['status'] === 200 && !empty($res['data']['data']['service_id'])) {
+                $found = ($res['status'] === 200 && !empty($res['data']['data']['service_id']));
+                if ($found) {
                     $response['success'] = true;
                     $response['message'] = 'Cliente encontrado.';
                     $response['data'] = $res['data']['data'];
                 } else {
-                    // Fallback: buscar en listClients página por página
-                    $found = null;
-                    $page = 1;
-                    while ($page <= 20) { // máx 20 páginas
-                        $list = $wispClient->listClients(['page' => $page, 'limit' => 50]);
-                        if (!empty($list['data']['data'])) {
-                            foreach ($list['data']['data'] as $c) {
-                                $doc = $c['cedula'] ?? $c['documento'] ?? '';
-                                if (str_replace(['V', 'v', 'E', 'e', 'J', 'j', 'P', 'p'], '', $doc) === str_replace(['V', 'v', 'E', 'e', 'J', 'j', 'P', 'p'], '', $cedula) || $doc === $cedula) {
-                                    $found = $c;
-                                    break 2;
-                                }
-                            }
-                        }
-                        if (empty($list['data']['data']) || $list['data']['current_page'] >= $list['data']['last_page']) {
-                            break;
-                        }
-                        $page++;
-                    }
-                    if ($found) {
+                    // 2) Fallback: buscar en listClients página por página
+                    $fb = $wispClient->findClientByDocument($cedula);
+                    if ($fb['status'] === 200 && !empty($fb['data']['data'])) {
                         $response['success'] = true;
                         $response['message'] = 'Cliente encontrado (fallback listClients).';
-                        $response['data'] = $found;
+                        $response['data'] = $fb['data']['data'];
                     } else {
-                        $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
+                        $response['message'] = 'Cliente no encontrado.';
                         $response['data'] = $res['data'];
                     }
                 }
