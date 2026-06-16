@@ -223,14 +223,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action'])) {
             if (empty($serviceId)) {
                 $response['message'] = 'ID de servicio requerido.';
             } else {
-                $res = $wispClient->getServiceProfile($serviceId);
-                if ($res['status'] === 200 && !empty($res['data'])) {
+                $profile = $wispClient->getServiceProfile($serviceId);
+                if ($profile['status'] === 200 && !empty($profile['data'])) {
+                    $data = $profile['data'];
+                    $balance = $wispClient->getServiceBalance($serviceId);
+                    if ($balance['status'] === 200 && !empty($balance['data']['estado'])) {
+                        $data['estado'] = $balance['data']['estado'];
+                    }
                     $response['success'] = true;
                     $response['message'] = 'Cliente encontrado.';
-                    $response['data'] = $res['data'];
+                    $response['data'] = $data;
                 } else {
-                    $response['message'] = 'Cliente no encontrado (HTTP ' . $res['status'] . ').';
-                    $response['data'] = $res['data'] ?? null;
+                    $response['message'] = 'Cliente no encontrado (HTTP ' . $profile['status'] . ').';
+                    $response['data'] = $profile['data'] ?? null;
                 }
             }
             echo json_encode($response);
@@ -665,11 +670,16 @@ function lookupClient() {
             const el = document.getElementById('lookupResult');
             if (data.success) {
                 const d = data.data;
+                const esActive = (d.estado || '').toLowerCase() === 'activo';
+                const badgeColor = esActive ? '#16a34a' : '#eab308';
+                const badgeIcon = esActive ? 'fa-circle-check' : 'fa-circle-pause';
+                const badgeLabel = esActive ? 'Activo' : (d.estado || '?');
                 el.innerHTML = `<div class="alert alert-success small py-2 rounded-3 mb-0">
                     <i class="fa-solid fa-circle-check me-1"></i> Cliente encontrado:
                     <strong>${d.nombre || ''} ${d.apellidos || ''}</strong>
                     &nbsp;·&nbsp; Cédula: <strong>${d.cedula || '?'}</strong>
                     &nbsp;·&nbsp; Service ID: <strong>#${d.id_servicio || d.id || '?'}</strong>
+                    &nbsp;·&nbsp; <span class="badge rounded-pill" style="background:${badgeColor}22;color:${badgeColor}"><i class="fa-solid ${badgeIcon} me-1"></i>${badgeLabel}</span>
                     <details class="mt-1" style="font-size:.7rem">
                         <summary class="text-muted">Ver JSON completo</summary>
                         <pre class="bg-black bg-opacity-50 p-2 mt-1 rounded-2 mb-0 text-info font-monospace" style="max-height:200px;overflow:auto">${JSON.stringify(d, null, 2)}</pre>
