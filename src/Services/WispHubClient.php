@@ -310,14 +310,32 @@ class WispHubClient
      */
     public function getClientByDocument(string $document): array
     {
-        // Intentar primero con el documento tal cual
-        $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
-        // Si falla y el documento tiene prefijo alfabético (ej: V20788775), reintentar solo números
-        if ($result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
-            $soloNum = preg_replace('/^[A-Z]/i', '', $document);
-            $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($soloNum));
+        // Lista de patrones de endpoint a probar (el resto de la API usa 'clientes/' sin 'v1/')
+        $patterns = [
+            'v1/clients/by-document/',
+            'clientes/by-document/',
+            'clientes/cedula/',
+        ];
+        $attempts = [];
+        foreach ($patterns as $prefix) {
+            // Intentar con el documento original
+            $result = $this->request('GET', $prefix . urlencode($document));
+            $attempts[] = $prefix . $document . ' → status ' . ($result['status'] ?? 0);
+            if ($result['status'] === 200) {
+                return $result;
+            }
+            // Si el documento tiene prefijo alfabético (ej: V20788775), intentar solo números
+            if (preg_match('/^[A-Z]/i', $document)) {
+                $soloNum = preg_replace('/^[A-Z]/i', '', $document);
+                $result = $this->request('GET', $prefix . urlencode($soloNum));
+                $attempts[] = $prefix . $soloNum . ' → status ' . ($result['status'] ?? 0);
+                if ($result['status'] === 200) {
+                    return $result;
+                }
+            }
         }
-        return $result;
+        error_log('[WispHubClient] getClientByDocument falló para ' . $document . '. Intentos: ' . implode(' | ', $attempts));
+        return ['status' => 404, 'data' => ['message' => 'Cliente no encontrado después de varios intentos']];
     }
 
     /**
