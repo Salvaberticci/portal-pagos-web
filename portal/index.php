@@ -23,15 +23,24 @@ if (isset($_SESSION['cliente_cedula'])) {
     <!-- Estilos Premium -->
     <link rel="stylesheet" href="css/style.css">
     <style>
+        .select-wrapper {
+            position: relative;
+        }
         .select-tipo {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 16px 12px;
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            padding-right: 2.25rem;
+            padding-right: 2.5rem;
+            background-image: none !important;
+        }
+        .select-arrow {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--text-muted, #6b7280);
+            font-size: 0.75rem;
         }
         .select-tipo option {
             background: var(--bg-card, #1e293b);
@@ -66,13 +75,16 @@ if (isset($_SESSION['cliente_cedula'])) {
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label class="label-premium mb-1">Tipo</label>
-                            <select id="tipo_cedula" class="form-select glass-input select-tipo" style="cursor: pointer;">
-                                <option value="V" selected>Venezolano</option>
-                                <option value="E">Extranjero</option>
-                                <option value="J">Jurídico</option>
-                                <option value="P">Pasaporte</option>
-                                <option value="G">Gubernamental</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select id="tipo_cedula" class="form-select glass-input select-tipo" style="cursor: pointer;">
+                                    <option value="V" selected>Venezolano</option>
+                                    <option value="E">Extranjero</option>
+                                    <option value="J">Jurídico</option>
+                                    <option value="P">Pasaporte</option>
+                                    <option value="G">Gubernamental</option>
+                                </select>
+                                <i class="fas fa-chevron-down select-arrow"></i>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="label-premium mb-1">Número</label>
