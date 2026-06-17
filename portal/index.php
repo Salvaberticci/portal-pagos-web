@@ -22,6 +22,22 @@ if (isset($_SESSION['cliente_cedula'])) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Estilos Premium -->
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .select-tipo {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px 12px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 2.25rem;
+        }
+        .select-tipo option {
+            background: var(--bg-card, #1e293b);
+            color: var(--text-main, #e2e8f0);
+        }
+    </style>
 </head>
 <body>
     <div class="login-wrapper">
@@ -50,7 +66,7 @@ if (isset($_SESSION['cliente_cedula'])) {
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label class="label-premium mb-1">Tipo</label>
-                            <select id="tipo_cedula" class="form-select glass-input" style="cursor: pointer;">
+                            <select id="tipo_cedula" class="form-select glass-input select-tipo" style="cursor: pointer;">
                                 <option value="V" selected>Venezolano</option>
                                 <option value="E">Extranjero</option>
                                 <option value="J">Jurídico</option>
