@@ -398,30 +398,51 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         ocultarResultado();
     }
 
+    function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+            const original = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('text-success');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.remove('text-success');
+            }, 1500);
+        });
+    }
+
     function mostrarBanco(bank) {
         document.getElementById('panel-banco').classList.remove('d-none');
         document.getElementById('banco_nombre').textContent = bank.nombre_banco;
         document.getElementById('input_banco').value = bank.id_banco;
 
         const div = document.getElementById('banco_detalles');
-        const lines = [];
-        if (selectedMetodo === 'Pago Móvil') {
-            lines.push({label:'Teléfono', val:bank.numero_cuenta});
-            lines.push({label:'Cédula/RIF', val:bank.cedula_propietario});
-        } else if (selectedMetodo === 'Transferencia') {
-            lines.push({label:'N° Cuenta', val:bank.numero_cuenta});
-            lines.push({label:'Titular', val:bank.nombre_propietario});
-            lines.push({label:'RIF', val:bank.cedula_propietario});
-        } else if (selectedMetodo === 'Zelle') {
-            lines.push({label:'Correo', val:bank.numero_cuenta});
-            lines.push({label:'Titular', val:bank.nombre_propietario});
+        div.innerHTML = '';
+
+        function addRow(label, value) {
+            const row = document.createElement('div');
+            row.className = 'd-flex justify-content-between align-items-center mb-2';
+            row.innerHTML = `
+                <div>
+                    <small class="text-muted">${label}</small>
+                    <div class="fw-bold">${value}</div>
+                </div>
+                <button class="btn btn-sm btn-glass copy-btn" onclick="copyToClipboard('${value.replace(/'/g, "\\'")}', this)">
+                    <i class="far fa-copy"></i>
+                </button>`;
+            div.appendChild(row);
         }
-        div.innerHTML = lines.map(l =>
-            `<div class="d-flex justify-content-between align-items-center mb-2">
-                <small class="text-muted">${l.label}</small>
-                <span class="fw-bold">${l.val}</span>
-            </div>`
-        ).join('');
+
+        if (selectedMetodo === 'Pago Móvil') {
+            addRow('Teléfono', bank.numero_cuenta);
+            addRow('Cédula/RIF', bank.cedula_propietario);
+        } else if (selectedMetodo === 'Transferencia') {
+            addRow('N° Cuenta', bank.numero_cuenta);
+            addRow('Titular', bank.nombre_propietario);
+            addRow('RIF', bank.cedula_propietario);
+        } else if (selectedMetodo === 'Zelle') {
+            addRow('Correo', bank.numero_cuenta);
+            addRow('Titular', bank.nombre_propietario);
+        }
     }
 
     function verificarPago() {
