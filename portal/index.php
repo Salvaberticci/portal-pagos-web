@@ -46,19 +46,18 @@ if (isset($_SESSION['cliente_cedula'])) {
             <form action="auth.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <div class="mb-4 text-start">
-                    <label class="label-premium">Ingresa tu Cédula</label>
+                    <label class="label-premium">Tipo y Número de Documento</label>
                     <div class="input-group">
                         <span class="input-group-text glass-input"><i class="fas fa-id-card text-primary"></i></span>
-                        <select id="tipo_cedula" class="form-select glass-input px-2" style="max-width: 70px; border-left: none; cursor: pointer;">
-                            <option value="V" selected>V</option>
-                            <option value="J">J</option>
-                            <option value="E">E</option>
-                            <option value="G">G</option>
-                            <option value="P">P</option>
-                            <option value="C">C</option>
+                        <select id="tipo_cedula" class="form-select glass-input px-2" style="max-width: 155px; border-left: none; cursor: pointer;">
+                            <option value="V" selected>Venezolano</option>
+                            <option value="E">Extranjero</option>
+                            <option value="J">Jurídico</option>
+                            <option value="P">Pasaporte</option>
+                            <option value="G">Gubernamental</option>
                         </select>
                         <input type="hidden" name="cedula" id="cedula_hidden">
-                        <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Ej: 12345678" required style="border-left: none;">
+                        <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Número" required style="border-left: none;">
                     </div>
                 </div>
                 
