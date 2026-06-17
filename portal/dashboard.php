@@ -304,9 +304,6 @@ if (count($invoices) > 0) {
                         </div>
                         <div class="recibo-desc-row">
                             <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
-                            <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn-pagar">
-                                <i class="fas fa-credit-card me-1"></i> Pagar
-                            </a>
                         </div>
                     </div>
 
@@ -314,6 +311,11 @@ if (count($invoices) > 0) {
                     <div class="recibo-accent-bar"></div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+            <div class="text-center mt-4">
+                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>" class="btn btn-premium btn-lg px-5">
+                    <i class="fas fa-credit-card me-2"></i> Ir a Pagar
+                </a>
             </div>
             <?php else: ?>
             <div class="text-center py-5">
