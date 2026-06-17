@@ -236,11 +236,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                                class="invoice-check visually-hidden" checked
                                onchange="event.stopPropagation(); recalcTotal();">
 
-                        <!-- Indicador visual de selección -->
-                        <div class="recibo-check-indicator">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-
                         <!-- Icono tipo factura -->
                         <div class="recibo-icon-wrap">
                             <i class="fas fa-file-invoice-dollar"></i>
@@ -748,21 +743,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         .recibo-card.recibo-vencida.selected {
             border-color: #ef4444;
             background: rgba(239,68,68,0.06);
-        }
-        /* Icono de check de selección */
-        .recibo-check-indicator {
-            position: absolute;
-            top: 12px;
-            right: 14px;
-            font-size: 1rem;
-            color: var(--primary);
-            opacity: 0;
-            transform: scale(0.6);
-            transition: all 0.2s ease;
-        }
-        .recibo-card.selected .recibo-check-indicator {
-            opacity: 1;
-            transform: scale(1);
         }
         /* Barra de acento inferior */
         .recibo-accent-bar {
