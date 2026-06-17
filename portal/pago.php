@@ -261,6 +261,9 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                                 <div class="recibo-montos">
                                     <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
                                     <span class="recibo-bs">Bs <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
+                                    <button type="button" class="recibo-select-btn" onclick="event.stopPropagation(); toggleRecibo(this.closest('.recibo-card'), <?php echo $inv_id; ?>);">
+                                        <i class="fas fa-check-circle me-1"></i> Seleccionar este
+                                    </button>
                                 </div>
                             </div>
                             <div class="recibo-desc"><?php echo htmlspecialchars($descripcion); ?></div>
@@ -278,26 +281,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                     <p class="text-muted mb-0 small">No tienes recibos pendientes de pago.</p>
                 </div>
                 <?php endif; ?>
-            </div>
-
-            <!-- Total a Pagar -->
-            <div class="glass-panel p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <small class="text-muted d-block">Tasa BCV</small>
-                        <span class="fw-bold">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-muted d-block">Total a Pagar</small>
-                        <span class="fs-4 fw-bold text-gradient" id="total_usd">$0.00</span>
-                        <span class="d-block text-ves" id="total_bs">Bs 0,00</span>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="progress" style="height:4px;">
-                        <div class="progress-bar bg-primary" id="progress_bar" style="width:0%"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- Método de Pago (Dropdown) -->
@@ -330,12 +313,33 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                         </select>
                     </div>
                 </div>
+
+                <!-- Datos del Banco Destino (dentro del mismo panel) -->
+                <div class="d-none" id="panel-banco">
+                    <hr class="my-3 border-white border-opacity-10">
+                    <h6 class="fw-bold mb-2"><i class="fas fa-university me-2 text-primary"></i> <span id="banco_nombre"></span></h6>
+                    <div id="banco_detalles"></div>
+                </div>
             </div>
 
-            <!-- Datos del Banco Destino -->
-            <div class="glass-panel p-4 mb-4 d-none" id="panel-banco">
-                <h5 class="fw-bold mb-3"><i class="fas fa-university me-2 text-primary"></i> <span id="banco_nombre"></span></h5>
-                <div id="banco_detalles" class="mb-3"></div>
+            <!-- Total a Pagar -->
+            <div class="glass-panel p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted d-block">Tasa BCV</small>
+                        <span class="fw-bold">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted d-block">Total a Pagar</small>
+                        <span class="fs-4 fw-bold text-gradient" id="total_usd">$0.00</span>
+                        <span class="d-block text-ves" id="total_bs">Bs 0,00</span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="progress" style="height:4px;">
+                        <div class="progress-bar bg-primary" id="progress_bar" style="width:0%"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Datos del Reporte -->
@@ -417,6 +421,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         document.querySelectorAll('.invoice-check').forEach(cb => {
             cb.checked = allSelected;
             cb.closest('.recibo-card')?.classList.toggle('selected', allSelected);
+            const cardBtn = cb.closest('.recibo-card')?.querySelector('.recibo-select-btn');
+            if (cardBtn) {
+                cardBtn.innerHTML = allSelected
+                    ? '<i class="fas fa-check-circle me-1"></i> Seleccionado'
+                    : '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
+            }
         });
         btn.innerHTML = allSelected
             ? '<i class="fas fa-check-double me-1"></i> Todos'
@@ -428,6 +438,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         const cb = card.querySelector('.invoice-check');
         cb.checked = !cb.checked;
         card.classList.toggle('selected', cb.checked);
+        const btn = card.querySelector('.recibo-select-btn');
+        if (btn) {
+            btn.innerHTML = cb.checked
+                ? '<i class="fas fa-check-circle me-1"></i> Seleccionado'
+                : '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
+        }
         // Actualizar estado del botón todos
         const btn = document.getElementById('btn_select_all');
         if (btn) {
@@ -446,15 +462,23 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         const checks = document.querySelectorAll('.invoice-check:checked');
         checks.forEach(cb => {
             const card = cb.closest('.recibo-card');
-            if (card) card.classList.add('selected');
-            const montoEl = card ? card.querySelector('.text-gradient') : null;
+            if (card) {
+                card.classList.add('selected');
+                const btn = card.querySelector('.recibo-select-btn');
+                if (btn) btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionado';
+            }
+            const montoEl = card ? card.querySelector('.recibo-usd') : null;
             if (montoEl) {
                 total += parseFloat(montoEl.textContent.replace('$', '').replace(',', '')) || 0;
             }
         });
         document.querySelectorAll('.invoice-check:not(:checked)').forEach(cb => {
             const card = cb.closest('.recibo-card');
-            if (card) card.classList.remove('selected');
+            if (card) {
+                card.classList.remove('selected');
+                const btn = card.querySelector('.recibo-select-btn');
+                if (btn) btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
+            }
         });
         document.getElementById('total_usd').textContent = '$' + total.toFixed(2);
         document.getElementById('total_bs').textContent = 'Bs ' + (total * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
@@ -482,18 +506,20 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             filtrados.forEach(b => {
                 selectBanco.innerHTML += '<option value="' + b.id_banco + '">' + b.nombre_banco + '</option>';
             });
-            // Auto-select first bank
             if (filtrados.length === 1) {
                 selectBanco.value = filtrados[0].id_banco;
                 selectBanco(filtrados[0].id_banco);
+            } else {
+                document.getElementById('panel-banco').classList.add('d-none');
+                selectedBanco = null;
+                document.getElementById('input_banco').value = '';
             }
         } else {
             bancoGroup.classList.add('d-none');
+            document.getElementById('panel-banco').classList.add('d-none');
+            selectedBanco = null;
+            document.getElementById('input_banco').value = '';
         }
-
-        document.getElementById('panel-banco').classList.add('d-none');
-        selectedBanco = null;
-        document.getElementById('input_banco').value = '';
 
         if (metodo === 'Zelle') {
             document.getElementById('monto_manual_group').classList.remove('d-none');
@@ -839,6 +865,29 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        /* Botón "Seleccionar este" en cada card */
+        .recibo-select-btn {
+            display: block;
+            margin-top: 6px;
+            padding: 3px 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            border: 1px solid var(--primary);
+            border-radius: 20px;
+            background: transparent;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .recibo-select-btn:hover {
+            background: rgba(59,130,246,0.12);
+        }
+        .recibo-card.selected .recibo-select-btn {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
         }
         /* Botón seleccionar todos */
         .btn-glass {
