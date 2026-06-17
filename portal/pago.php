@@ -444,13 +444,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                 ? '<i class="fas fa-check-circle me-1"></i> Seleccionado'
                 : '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
         }
-        // Actualizar estado del botón todos
-        const btn = document.getElementById('btn_select_all');
-        if (btn) {
+        const btnAll = document.getElementById('btn_select_all');
+        if (btnAll) {
             const all = document.querySelectorAll('.invoice-check');
             const checked = document.querySelectorAll('.invoice-check:checked');
             allSelected = all.length === checked.length;
-            btn.innerHTML = allSelected
+            btnAll.innerHTML = allSelected
                 ? '<i class="fas fa-check-double me-1"></i> Todos'
                 : '<i class="far fa-square me-1"></i> Ninguno';
         }
