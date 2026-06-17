@@ -45,26 +45,30 @@ if (isset($_SESSION['cliente_cedula'])) {
 
             <form action="auth.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
-                <div class="mb-4 text-start">
-                    <label class="label-premium">Tipo y Número de Documento</label>
-                    <div class="input-group">
-                        <span class="input-group-text glass-input"><i class="fas fa-id-card text-primary"></i></span>
-                        <select id="tipo_cedula" class="form-select glass-input px-2" style="max-width: 155px; border-left: none; cursor: pointer;">
-                            <option value="V" selected>Venezolano</option>
-                            <option value="E">Extranjero</option>
-                            <option value="J">Jurídico</option>
-                            <option value="P">Pasaporte</option>
-                            <option value="G">Gubernamental</option>
-                        </select>
-                        <input type="hidden" name="cedula" id="cedula_hidden">
-                        <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Número" required style="border-left: none;">
+                <div class="mb-4">
+                    <h5 class="fw-bold text-gradient mb-3"><i class="fas fa-id-card me-2"></i>Documento de Identidad</h5>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="label-premium mb-1">Tipo</label>
+                            <select id="tipo_cedula" class="form-select glass-input" style="cursor: pointer;">
+                                <option value="V" selected>Venezolano</option>
+                                <option value="E">Extranjero</option>
+                                <option value="J">Jurídico</option>
+                                <option value="P">Pasaporte</option>
+                                <option value="G">Gubernamental</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="label-premium mb-1">Número</label>
+                            <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Ingresa tu número" required>
+                        </div>
                     </div>
+                    <input type="hidden" name="cedula" id="cedula_hidden">
                 </div>
-                
-                <button type="submit" class="btn btn-premium w-100 mb-3">
-                    INGRESAR <i class="fas fa-arrow-right ms-2"></i>
-                </button>
 
+                <button type="submit" class="btn btn-premium w-100 mb-3 py-3">
+                    Aceptar <i class="fas fa-arrow-right ms-2"></i>
+                </button>
             </form>
 
         </div>
