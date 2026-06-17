@@ -248,55 +248,75 @@ if (count($invoices) > 0) {
 
         <!-- Recibos Pendientes -->
         <div class="glass-panel p-4 mb-4">
-            <h5 class="fw-bold mb-3"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+                    <?php if (count($invoices) > 0): ?>
+                    <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar</small>
+                    <?php endif; ?>
+                </div>
+            </div>
             <?php if (count($invoices) > 0): ?>
-            <div class="table-responsive">
-                <table class="table table-premium mb-0">
-                    <thead>
-                        <tr>
-                            <th>Recibo</th>
-                            <th>Descripción</th>
-                            <th class="text-end">Monto USD</th>
-                            <th class="text-end">Monto Bs</th>
-                            <th class="text-center">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($invoices as $inv):
-                            $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                            $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                            $inv_desc = '';
-                            if (!empty($inv['articulos'][0]['descripcion'])) {
-                                $inv_desc = $inv['articulos'][0]['descripcion'];
-                            } elseif (!empty($inv['descripcion'])) {
-                                $inv_desc = $inv['descripcion'];
-                            } else {
-                                $inv_desc = 'Recibo N° ' . $inv_id;
-                            }
-                            // Truncar a 80 caracteres
-                            if (mb_strlen($inv_desc) > 80) {
-                                $inv_desc = mb_substr($inv_desc, 0, 80) . '...';
-                            }
-                        ?>
-                        <tr>
-                            <td class="fw-bold"><?php echo $inv_id; ?></td>
-                            <td><?php echo htmlspecialchars($inv_desc); ?></td>
-                            <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
-                            <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
-                            <td class="text-center">
-                                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn btn-premium btn-sm">
-                                    <i class="fas fa-credit-card me-1"></i> Pagar
-                                </a>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+            <div class="recibos-list">
+                <?php foreach ($invoices as $inv):
+                    $inv_id    = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                    $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                    $inv_monto_bs = $inv_monto * $tasa_bcv;
+                    $inv_desc  = '';
+                    if (!empty($inv['articulos'][0]['descripcion'])) {
+                        $inv_desc = $inv['articulos'][0]['descripcion'];
+                    } elseif (!empty($inv['descripcion'])) {
+                        $inv_desc = $inv['descripcion'];
+                    } else {
+                        $inv_desc = 'Recibo N° ' . $inv_id;
+                    }
+                    if (mb_strlen($inv_desc) > 55) $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
+                    $fecha_emi  = $inv['fecha_emision'] ?? '';
+                    $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                    $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
+                ?>
+                <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
+
+                    <!-- Icono -->
+                    <div class="recibo-icon-wrap">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+
+                    <!-- Cuerpo -->
+                    <div class="recibo-body">
+                        <div class="recibo-top">
+                            <div class="recibo-info">
+                                <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
+                                <?php if ($fecha_emi): ?>
+                                <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
+                                <?php endif; ?>
+                                <?php if ($vencida): ?>
+                                <span class="recibo-badge-vencida"><i class="fas fa-exclamation-triangle me-1"></i>Vencida</span>
+                                <?php endif; ?>
+                            </div>
+                            <div class="recibo-montos">
+                                <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
+                                <span class="recibo-bs">Bs <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
+                            </div>
+                        </div>
+                        <div class="recibo-desc-row">
+                            <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
+                            <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn-pagar">
+                                <i class="fas fa-credit-card me-1"></i> Pagar
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Barra de acento inferior -->
+                    <div class="recibo-accent-bar"></div>
+                </div>
+                <?php endforeach; ?>
             </div>
             <?php else: ?>
-            <div class="text-center py-4">
-                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                <p class="mb-0">No tienes recibos pendientes.</p>
+            <div class="text-center py-5">
+                <div class="mb-3" style="font-size:3rem;">&#127881;</div>
+                <h6 class="fw-bold text-success">&#161;Sin deudas pendientes!</h6>
+                <p class="text-muted mb-0 small">No tienes recibos pendientes de pago.</p>
             </div>
             <?php endif; ?>
         </div>
@@ -307,15 +327,163 @@ if (count($invoices) > 0) {
     </div>
 
     <script src="../js/bootstrap.bundle.min.js"></script>
+    </script>
+
+    <style>
+        /* ── Recibos: cards premium en dashboard ── */
+        .recibos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .recibo-card {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1.5px solid var(--border-glass);
+            background: var(--glass-bg);
+            overflow: hidden;
+            transition: all 0.25s ease;
+        }
+        .recibo-card:hover {
+            border-color: rgba(59,130,246,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.12);
+        }
+        .recibo-card.recibo-vencida {
+            border-color: rgba(239,68,68,0.4);
+        }
+        /* Icono */
+        .recibo-icon-wrap {
+            flex-shrink: 0;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: rgba(59,130,246,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+        .recibo-vencida .recibo-icon-wrap {
+            background: rgba(239,68,68,0.1);
+            color: #ef4444;
+        }
+        /* Cuerpo */
+        .recibo-body { flex: 1; min-width: 0; }
+        .recibo-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .recibo-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .recibo-num {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+        }
+        .recibo-fecha {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .recibo-badge-vencida {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #ef4444;
+            background: rgba(239,68,68,0.1);
+            padding: 1px 7px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .recibo-montos { text-align: right; flex-shrink: 0; }
+        .recibo-usd {
+            display: block;
+            font-size: 1.15rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .recibo-bs {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+        /* Fila inferior: descripción + botón */
+        .recibo-desc-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .recibo-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        /* Botón Pagar */
+        .btn-pagar {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 16px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+        }
+        .btn-pagar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(59,130,246,0.45);
+            color: #fff;
+        }
+        /* Barra de acento inferior */
+        .recibo-accent-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 0 0 16px 16px;
+        }
+        .recibo-vencida .recibo-accent-bar {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+    </style>
+
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const themeBtn = document.getElementById('themeToggleBtn');
+        if (!themeBtn) return;
         const html = document.documentElement;
         const themeIcon = themeBtn.querySelector('i');
         function updateThemeIcon(theme) {
             themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         }
-        updateThemeIcon(html.getAttribute('data-theme'));
+        const saved = localStorage.getItem('theme') || 'dark';
+        html.setAttribute('data-theme', saved);
+        updateThemeIcon(saved);
         themeBtn.addEventListener('click', function() {
             const current = html.getAttribute('data-theme');
             const next = current === 'dark' ? 'light' : 'dark';
