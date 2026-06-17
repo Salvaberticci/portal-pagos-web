@@ -197,42 +197,56 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
             <!-- Recibos Pendientes -->
             <div class="glass-panel p-4 mb-4">
-                <h5 class="fw-bold mb-3"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+                    <?php if (count($invoices) > 1): ?>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="check_all" checked onchange="toggleAll(this)">
+                        <label class="form-check-label small text-muted" for="check_all">Seleccionar todos</label>
+                    </div>
+                    <?php endif; ?>
+                </div>
                 <?php if (count($invoices) > 0): ?>
-                <div class="table-responsive">
-                    <table class="table table-premium mb-0">
-                        <thead>
-                            <tr>
-                                <th style="width:40px"><input type="checkbox" id="check_all" checked onchange="toggleAll(this)"></th>
-                                <th>N° Recibo</th>
-                                <th>Descripción</th>
-                                <th class="text-end">Monto USD</th>
-                                <th class="text-end">Monto Bs</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($invoices as $i => $inv): 
-                                $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                                $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                                // Descripción: primera línea de articulos
-                                $descripcion = '';
-                                if (!empty($inv['articulos'][0]['descripcion'])) {
-                                    $desc_full = $inv['articulos'][0]['descripcion'];
-                                    $descripcion = explode("\n", $desc_full)[0];
-                                    if (strlen($descripcion) > 50) $descripcion = substr($descripcion, 0, 50) . '...';
-                                }
-                                $inv_check = ($recibo_id_sel > 0 && $inv_id == $recibo_id_sel) ? 'checked' : 'checked';
-                            ?>
-                            <tr>
-                                <td><input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="invoice-check" checked onchange="recalcTotal()"></td>
-                                <td class="fw-bold"><?php echo $inv_id; ?></td>
-                                <td><?php echo htmlspecialchars($descripcion); ?></td>
-                                <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
-                                <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                <div class="row g-3">
+                    <?php foreach ($invoices as $i => $inv): 
+                        $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                        $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                        $descripcion = '';
+                        if (!empty($inv['articulos'][0]['descripcion'])) {
+                            $desc_full = $inv['articulos'][0]['descripcion'];
+                            $descripcion = explode("\n", $desc_full)[0];
+                            if (strlen($descripcion) > 60) $descripcion = substr($descripcion, 0, 60) . '...';
+                        }
+                        $fecha_emi = $inv['fecha_emision'] ?? '';
+                        $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                    ?>
+                    <div class="col-12">
+                        <div class="recibo-card glass-panel p-3" onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
+                            <div class="d-flex align-items-start">
+                                <div class="form-check me-3 mt-1">
+                                    <input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="form-check-input invoice-check" checked onchange="event.stopPropagation(); recalcTotal();">
+                                </div>
+                                <div class="flex-fill">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="recibo-id-badge">#<?php echo $inv_id; ?></span>
+                                            <?php if ($fecha_emi): ?>
+                                            <small class="text-muted ms-2"><?php echo date('d/m/Y', strtotime($fecha_emi)); ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-gradient fs-5">$<?php echo number_format($inv_monto, 2); ?></div>
+                                            <div class="text-ves small">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></div>
+                                        </div>
+                                    </div>
+                                    <?php if ($descripcion): ?>
+                                    <div class="recibo-descripcion text-muted small"><?php echo htmlspecialchars($descripcion); ?></div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
                 <?php else: ?>
                 <div class="text-center py-4">
@@ -374,7 +388,17 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
     });
 
     function toggleAll(master) {
-        document.querySelectorAll('.invoice-check').forEach(cb => cb.checked = master.checked);
+        document.querySelectorAll('.invoice-check').forEach(cb => {
+            cb.checked = master.checked;
+            cb.closest('.recibo-card')?.classList.toggle('selected', master.checked);
+        });
+        recalcTotal();
+    }
+
+    function toggleRecibo(card, invId) {
+        const cb = card.querySelector('.invoice-check');
+        cb.checked = !cb.checked;
+        card.classList.toggle('selected', cb.checked);
         recalcTotal();
     }
 
@@ -382,9 +406,16 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         let total = 0;
         const checks = document.querySelectorAll('.invoice-check:checked');
         checks.forEach(cb => {
-            const row = cb.closest('tr');
-            const txt = row.querySelector('td:nth-child(4)').textContent.replace('$', '').replace(',', '');
-            total += parseFloat(txt) || 0;
+            const card = cb.closest('.recibo-card');
+            if (card) card.classList.add('selected');
+            const montoEl = card ? card.querySelector('.text-gradient') : null;
+            if (montoEl) {
+                total += parseFloat(montoEl.textContent.replace('$', '').replace(',', '')) || 0;
+            }
+        });
+        document.querySelectorAll('.invoice-check:not(:checked)').forEach(cb => {
+            const card = cb.closest('.recibo-card');
+            if (card) card.classList.remove('selected');
         });
         document.getElementById('total_usd').textContent = '$' + total.toFixed(2);
         document.getElementById('total_bs').textContent = 'Bs ' + (total * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
@@ -617,6 +648,33 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         .table-premium td, .table-premium th { padding: 12px 16px; }
         input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
         #loadingOverlay { display:none; }
+
+        .recibo-card {
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .recibo-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(59,130,246,0.15);
+        }
+        .recibo-card.selected {
+            border-color: var(--primary);
+            background: rgba(59,130,246,0.05);
+        }
+        .recibo-id-badge {
+            background: var(--primary);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .recibo-descripcion {
+            line-height: 1.4;
+        }
     </style>
 </body>
 </html>
