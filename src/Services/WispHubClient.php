@@ -448,6 +448,23 @@ class WispHubClient
     }
 
     /**
+     * Obtiene el detalle completo de una factura/recibo.
+     * Endpoint: GET /facturas/{id}/
+     * Retorna la factura con artículos, zona, cliente, etc.
+     *
+     * @param string $invoiceId ID de la factura
+     * @return array Datos completos de la factura
+     */
+    public function getInvoiceDetail(string $invoiceId): array
+    {
+        $result = $this->request('GET', "facturas/{$invoiceId}/");
+        if ($result['status'] === 200 && !empty($result['data'])) {
+            return $result['data'];
+        }
+        return [];
+    }
+
+    /**
      * Consulta el estado de una tarea as├¡ncrona.
      * Endpoint: GET /tasks/{task_id}/
      */

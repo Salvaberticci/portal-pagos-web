@@ -12,7 +12,11 @@ if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 $pago_err = $_SESSION['pago_err'] ?? '';
 unset($_SESSION['pago_err']);
 
+$pago_exito = $_SESSION['pago_exito'] ?? '';
+unset($_SESSION['pago_exito']);
+
 $wisp_service_id = isset($_GET['id_contrato']) ? $_GET['id_contrato'] : '';
+$recibo_id_sel = isset($_GET['recibo_id']) ? intval($_GET['recibo_id']) : 0;
 $cedula = $_SESSION['cliente_cedula'];
 
 if (empty($wisp_service_id)) {
@@ -47,14 +51,8 @@ if ($monto_plan <= 0) $monto_plan = 15.0;
 $usuario_ws = $c_perfil['usuario'] ?? '';
 
 $ultimo_pago = null;
-$paid_receipts = [];
 if (!empty($usuario_ws)) {
     $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
-    $paid_receipts = $wispClient->getInvoices([
-        'estado'  => 2,
-        'cliente' => $usuario_ws,
-        'limit'   => 10,
-    ]);
 }
 
 $tasa_bcv = 1;
@@ -124,6 +122,10 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
         <?php if (!empty($pago_err)): ?>
             <div class="alert alert-danger glass-panel mb-4"><?php echo $pago_err; ?></div>
+        <?php endif; ?>
+
+        <?php if (!empty($pago_exito)): ?>
+            <div class="alert alert-success glass-panel mb-4"><?php echo $pago_exito; ?></div>
         <?php endif; ?>
 
         <?php if ($cedula === TEST_USER_CEDULA): ?>
@@ -203,7 +205,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                             <tr>
                                 <th style="width:40px"><input type="checkbox" id="check_all" checked onchange="toggleAll(this)"></th>
                                 <th>N° Recibo</th>
-                                <th>Período</th>
+                                <th>Descripción</th>
                                 <th class="text-end">Monto USD</th>
                                 <th class="text-end">Monto Bs</th>
                             </tr>
@@ -212,12 +214,19 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                             <?php foreach ($invoices as $i => $inv): 
                                 $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
                                 $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                                $inv_periodo = ($inv['fecha_emision'] ?? '') . ' al ' . ($inv['fecha_vencimiento'] ?? '');
+                                // Descripción: primera línea de articulos
+                                $descripcion = '';
+                                if (!empty($inv['articulos'][0]['descripcion'])) {
+                                    $desc_full = $inv['articulos'][0]['descripcion'];
+                                    $descripcion = explode("\n", $desc_full)[0];
+                                    if (strlen($descripcion) > 50) $descripcion = substr($descripcion, 0, 50) . '...';
+                                }
+                                $inv_check = ($recibo_id_sel > 0 && $inv_id == $recibo_id_sel) ? 'checked' : 'checked';
                             ?>
                             <tr>
                                 <td><input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="invoice-check" checked onchange="recalcTotal()"></td>
                                 <td class="fw-bold"><?php echo $inv_id; ?></td>
-                                <td><?php echo htmlspecialchars($inv_periodo); ?></td>
+                                <td><?php echo htmlspecialchars($descripcion); ?></td>
                                 <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
                                 <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
                             </tr>
@@ -229,56 +238,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                 <div class="text-center py-4">
                     <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
                     <p class="mb-0">No tienes recibos pendientes.</p>
-                </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- Recibos Pagados -->
-            <div class="glass-panel p-4 mb-4">
-                <h5 class="fw-bold mb-3"><i class="fas fa-check-circle text-success me-2"></i> Recibos Pagados</h5>
-                <?php if (count($paid_receipts) > 0): ?>
-                <div class="table-responsive">
-                    <table class="table table-premium mb-0">
-                        <thead>
-                            <tr>
-                                <th>N° Recibo</th>
-                                <th>Período</th>
-                                <th>Fecha Pago</th>
-                                <th class="text-end">Monto USD</th>
-                                <th>Referencia</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            $total_pagado = 0;
-                            foreach ($paid_receipts as $pr): 
-                                $pr_id = $pr['id_factura'] ?? $pr['folio'] ?? '-';
-                                $pr_monto = floatval($pr['total_cobrado'] ?? $pr['total'] ?? 0);
-                                $total_pagado += $pr_monto;
-                                $pr_fecha_pago = date('d/m/Y', strtotime($pr['fecha_pago'] ?? 'now'));
-                                $pr_periodo = ($pr['fecha_emision'] ?? '') . ' al ' . ($pr['fecha_vencimiento'] ?? '');
-                            ?>
-                            <tr>
-                                <td class="fw-bold"><?php echo $pr_id; ?></td>
-                                <td><?php echo htmlspecialchars($pr_periodo); ?></td>
-                                <td><?php echo $pr_fecha_pago; ?></td>
-                                <td class="text-end fw-bold">$<?php echo number_format($pr_monto, 2); ?></td>
-                                <td><?php echo htmlspecialchars($pr['referencia'] ?? '-'); ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                        <tfoot>
-                            <tr class="fw-bold">
-                                <td colspan="3" class="text-end text-success">Total Pagado</td>
-                                <td class="text-end text-success">$<?php echo number_format($total_pagado, 2); ?></td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                <?php else: ?>
-                <div class="text-center py-3">
-                    <p class="text-muted mb-0">No hay recibos pagados aún.</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -303,32 +262,35 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                 </div>
             </div>
 
-            <!-- Método de Pago -->
+            <!-- Método de Pago (Dropdown) -->
             <div class="glass-panel p-4 mb-4">
                 <h5 class="fw-bold mb-3"><i class="fas fa-credit-card me-2 text-primary"></i> Método de Pago</h5>
-                <div class="row g-2">
-                    <?php 
-                    $metodos_unicos = [];
-                    foreach ($bancosArr as $b) {
-                        if ($b['activo'] !== false) {
-                            foreach ($b['metodos_pago'] as $m) {
-                                $metodos_unicos[$m] = true;
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="label-premium">Selecciona método de pago</label>
+                        <select id="select_metodo" class="form-select glass-input" onchange="selectMetodo(this.value)">
+                            <option value="">-- Seleccionar --</option>
+                            <?php 
+                            $metodos_unicos = [];
+                            foreach ($bancosArr as $b) {
+                                if ($b['activo'] !== false) {
+                                    foreach ($b['metodos_pago'] as $m) {
+                                        $metodos_unicos[$m] = true;
+                                    }
+                                }
                             }
-                        }
-                    }
-                    $orden = ['Pago Móvil', 'Transferencia', 'Zelle'];
-                    foreach ($orden as $met): if (!isset($metodos_unicos[$met])) continue; ?>
-                    <div class="col-md-4">
-                        <div class="selection-card metodo-card py-3 px-3 text-center" data-metodo="<?php echo $met; ?>" onclick="selectMetodo('<?php echo $met; ?>', this)">
-                            <div class="d-flex flex-column align-items-center">
-                                <div class="selection-icon mb-2" style="width:44px;height:44px;font-size:1.2rem;">
-                                    <i class="fas <?php echo $met === 'Pago Móvil' ? 'fa-mobile-alt' : ($met === 'Transferencia' ? 'fa-university' : 'fa-bolt'); ?>"></i>
-                                </div>
-                                <span class="fw-bold small"><?php echo $met; ?></span>
-                            </div>
-                        </div>
+                            $orden = ['Pago Móvil', 'Transferencia', 'Zelle'];
+                            foreach ($orden as $met): if (!isset($metodos_unicos[$met])) continue; ?>
+                            <option value="<?php echo $met; ?>"><?php echo $met; ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
-                    <?php endforeach; ?>
+                    <div class="col-md-6 d-none" id="banco_select_group">
+                        <label class="label-premium">Banco destino</label>
+                        <select id="select_banco" class="form-select glass-input" onchange="selectBanco(this.value)">
+                            <option value="">-- Seleccionar banco --</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -359,7 +321,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
             <!-- Acciones -->
             <div class="d-flex gap-2 mb-4">
-                <button type="button" class="btn btn-premium flex-fill py-3" id="btn_verificar" onclick="verificarPago()">
+                <button type="button" class="btn btn-premium flex-fill py-3" id="btn_verificar" onclick="verificarPago()" disabled>
                     <i class="fas fa-search me-2"></i> Verificar Pago
                 </button>
                 <button type="button" class="btn btn-glass flex-fill py-3 d-none" id="btn_confirmar" onclick="confirmarPago()">
@@ -394,6 +356,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
     const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
     const csrfToken = '<?php echo htmlspecialchars(generate_csrf_token()); ?>';
     const idContrato = '<?php echo $wisp_service_id; ?>';
+    const reciboSel = <?php echo $recibo_id_sel; ?>;
     let selectedMetodo = '';
     let selectedBanco = null;
     let verificacionData = null;
@@ -435,25 +398,38 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         ocultarResultado();
     }
 
-    function selectMetodo(metodo, el) {
+    function selectMetodo(metodo) {
         selectedMetodo = metodo;
         document.getElementById('input_metodo').value = metodo;
-        document.querySelectorAll('.metodo-card').forEach(c => c.classList.remove('selected'));
-        el.classList.add('selected');
 
         const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(metodo) && b.activo !== false);
+        const bancoGroup = document.getElementById('banco_select_group');
+        const selectBanco = document.getElementById('select_banco');
+
         if (filtrados.length > 0) {
-            selectedBanco = filtrados[0];
-            mostrarBanco(selectedBanco);
+            bancoGroup.classList.remove('d-none');
+            selectBanco.innerHTML = '<option value="">-- Seleccionar banco --</option>';
+            filtrados.forEach(b => {
+                selectBanco.innerHTML += '<option value="' + b.id_banco + '">' + b.nombre_banco + '</option>';
+            });
+            // Auto-select first bank
+            if (filtrados.length === 1) {
+                selectBanco.value = filtrados[0].id_banco;
+                selectBanco(filtrados[0].id_banco);
+            }
+        } else {
+            bancoGroup.classList.add('d-none');
         }
 
-        // Para Zelle, mostrar campo de monto manual
+        document.getElementById('panel-banco').classList.add('d-none');
+        selectedBanco = null;
+        document.getElementById('input_banco').value = '';
+
         if (metodo === 'Zelle') {
             document.getElementById('monto_manual_group').classList.remove('d-none');
             document.getElementById('btn_verificar').classList.add('d-none');
             document.getElementById('btn_submit_zelle').classList.remove('d-none');
             document.getElementById('btn_confirmar').classList.add('d-none');
-            document.getElementById('panel-resultado').classList.add('d-none');
         } else {
             document.getElementById('monto_manual_group').classList.add('d-none');
             document.getElementById('btn_verificar').classList.remove('d-none');
@@ -461,6 +437,18 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             document.getElementById('btn_confirmar').classList.add('d-none');
         }
         ocultarResultado();
+    }
+
+    function selectBanco(bancoId) {
+        const bank = todosLosBancos.find(b => b.id_banco === bancoId);
+        if (!bank) {
+            document.getElementById('panel-banco').classList.add('d-none');
+            selectedBanco = null;
+            document.getElementById('input_banco').value = '';
+            return;
+        }
+        selectedBanco = bank;
+        mostrarBanco(bank);
     }
 
     function mostrarBanco(bank) {
@@ -490,7 +478,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             ];
         }
 
-        // Boton copiar todos los datos
         const copyBtn = document.createElement('button');
         copyBtn.className = 'btn btn-sm btn-glass copy-btn mb-3';
         copyBtn.innerHTML = '<i class="far fa-copy me-1"></i> Copiar Todos los Datos';
@@ -526,7 +513,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             return;
         }
         if (!selectedMetodo || !selectedBanco) {
-            alert('Selecciona un método de pago.');
+            alert('Selecciona un método de pago y banco destino.');
             return;
         }
 
@@ -601,15 +588,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
     function confirmarPago() {
         if (!verificacionData) return;
-        // Setear montos reales del banco antes de submit
         document.getElementById('input_monto_usd').value = verificacionData.monto_usd || 0;
         document.getElementById('input_monto_usd_real').value = verificacionData.monto_usd || 0;
         document.getElementById('paymentForm').submit();
     }
 
-    // Zelle: submit directo sin verificacion
     document.getElementById('paymentForm').addEventListener('submit', function(e) {
-        // Si es Zelle, validar monto manual
         if (selectedMetodo === 'Zelle') {
             const manual = document.querySelector('input[name="monto_manual_usd"]');
             if (!manual || !manual.value || parseFloat(manual.value) <= 0) {

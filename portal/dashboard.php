@@ -11,18 +11,11 @@ if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 $cedula = $_SESSION['cliente_cedula'];
 $nombre = $_SESSION['cliente_nombre'];
 
-// Depuración de errores en servidor (Opcional, quitar en producción)
-// error_reporting(E_ALL); ini_set('display_errors', 1);
-
-// Cargar bancos para el reporte manual
-$json_bancos = @file_get_contents('../paginas/principal/bancos.json');
-$bancosArr = json_decode($json_bancos, true) ?: [];
-
-// Intentar obtener tasa BCV (con cache de 1 hora para evitar lentitud)
+// Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;
 $tasa_fecha = '';
 $cache_file = 'tasa_cache.json';
-$cache_time = 3600; // 1 hora
+$cache_time = 3600;
 
 if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
     $data_cache = json_decode(file_get_contents($cache_file), true);
@@ -62,30 +55,27 @@ if (!$wisp_service_id) {
 $profileRes = $wispClient->getServiceProfile($wisp_service_id);
 $c_perfil = $profileRes['data'] ?? [];
 
-// Obtener facturas pendientes (deuda)
+// Obtener recibos pendientes
 $invoices = $wispClient->getPendingInvoices($wisp_service_id);
-$deuda_mensualidades = 0;
+$deuda_total = 0;
 foreach ($invoices as $inv) {
-    $deuda_mensualidades += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
 }
 
-$monto_plan = floatval($c_perfil['plan_internet_precio'] ?? 0);
-if ($monto_plan <= 0 && count($invoices) > 0) {
-    // Fallback: usar el monto de la factura más reciente si no hay info del plan
-    $monto_plan = floatval($invoices[0]['monto'] ?? 0);
-}
+// Estado del servicio
+$estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
+if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
+if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
 
-// Configurar el mensaje dinámico de vencimiento
+// Mensaje de vencimiento dinámico
 $mensaje_vencimiento = [
     'texto' => 'RECUERDA CANCELAR LOS PRIMEROS <span class="text-primary fs-5">5</span> DE CADA MES',
     'icono' => 'fas fa-bell text-primary',
     'bg' => 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.1))',
     'border' => 'var(--primary)',
-    'text_class' => 'text-primary'
 ];
 
 if (count($invoices) > 0) {
-    // Buscar la fecha de vencimiento más antigua
     $fecha_vencimiento = null;
     foreach ($invoices as $inv) {
         if (!empty($inv['fecha_vencimiento'])) {
@@ -95,37 +85,26 @@ if (count($invoices) > 0) {
             }
         }
     }
-    
     if ($fecha_vencimiento) {
         $hoy = strtotime(date('Y-m-d'));
         $fv_date = strtotime(date('Y-m-d', $fecha_vencimiento));
         $diferencia_dias = round(($fv_date - $hoy) / 86400);
         $fecha_str = date('d/m/Y', $fecha_vencimiento);
-        
+
         if ($diferencia_dias < 0) {
             $dias_abs = abs($diferencia_dias);
             $mensaje_vencimiento = [
-                'texto' => "¡ATENCIÓN! TU FACTURA ESTÁ VENCIDA DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . " (Venció el $fecha_str)",
+                'texto' => "¡TU RECIBO ESTÁ VENCIDO DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . "! (Venció el $fecha_str)",
                 'icono' => 'fas fa-exclamation-triangle text-danger',
                 'bg' => 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))',
                 'border' => 'var(--danger)',
-                'text_class' => 'text-danger'
-            ];
-        } elseif ($diferencia_dias == 0) {
-            $mensaje_vencimiento = [
-                'texto' => "¡ATENCIÓN! TU MENSUALIDAD VENCE <span class='text-warning fs-5'>HOY</span> ($fecha_str)",
-                'icono' => 'fas fa-clock text-warning',
-                'bg' => 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1))',
-                'border' => 'var(--warning)',
-                'text_class' => 'text-warning'
             ];
         } elseif ($diferencia_dias <= 5) {
             $mensaje_vencimiento = [
-                'texto' => "FALTAN <span class='text-warning fs-5'>$diferencia_dias</span> DÍAS PARA QUE VENZA TU MENSUALIDAD (Vence el $fecha_str)",
+                'texto' => "FALTAN <span class='text-warning fs-5'>$diferencia_dias</span> DÍAS PARA QUE VENZA TU RECIBO (Vence el $fecha_str)",
                 'icono' => 'fas fa-calendar-day text-warning',
                 'bg' => 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1))',
                 'border' => 'var(--warning)',
-                'text_class' => 'text-warning'
             ];
         } else {
             $mensaje_vencimiento = [
@@ -133,52 +112,22 @@ if (count($invoices) > 0) {
                 'icono' => 'fas fa-calendar-check text-info',
                 'bg' => 'linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.1))',
                 'border' => 'var(--info)',
-                'text_class' => 'text-info'
             ];
         }
     }
 } else {
-    // Si no tiene deuda
     $mensaje_vencimiento = [
-        'texto' => "¡ESTÁS AL DÍA! NO TIENES FACTURAS PENDIENTES.",
+        'texto' => "¡ESTÁS AL DÍA! NO TIENES RECIBOS PENDIENTES.",
         'icono' => 'fas fa-check-circle text-success',
         'bg' => 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1))',
         'border' => 'var(--success)',
-        'text_class' => 'text-success'
     ];
 }
-
-$contratos = [];
-$estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
-if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
-if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
-
-$contratos[] = [
-    'id' => $wisp_service_id,
-    'estado_contrato' => $estado_ws,
-    'direccion' => $c_perfil['direccion'] ?? 'No especificada',
-    'monto_plan' => $monto_plan,
-    'nombre_plan' => $c_perfil['plan_internet_nombre'] ?? 'Servicio de Internet',
-    'deuda_mensualidades' => $deuda_mensualidades
-];
-
-if ($cedula === TEST_USER_CEDULA) {
-    if ($contratos[0]['deuda_mensualidades'] > 0) {
-        $contratos[0]['deuda_mensualidades'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-    }
-    $contratos[0]['monto_plan'] = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-}
-
-// Portal sin base de datos local: los estados de pagos se gestionan
-// directamente desde WispHub. No hay pagos_recientes locales.
-$pagos_recientes = [];
-$ultimo_pago = null;
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
     <script>
-        // Iniciar tema lo más rápido posible para evitar parpadeo
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
     </script>
@@ -191,11 +140,10 @@ $ultimo_pago = null;
 </head>
 <body>
 
-    <!-- Header -->
     <header class="glass-header py-3 mb-4">
         <div class="container d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center">
-                <img src="../images/logo-galanet.png" alt="Logo Galanet" class="me-3" style="height: 40px; border-radius: 6px;">
+                <img src="../images/logo-galanet.png" alt="Logo" class="me-3" style="height: 40px; border-radius: 6px;">
                 <h5 class="mb-0 fw-bold d-none d-sm-block text-gradient">Portal de Clientes</h5>
             </div>
             <div class="d-flex align-items-center gap-3">
@@ -213,21 +161,21 @@ $ultimo_pago = null;
     <div class="container main-container animate-fade">
         <?php if ($cedula === TEST_USER_CEDULA): ?>
             <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px;">
-                <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px; color: #bae6fd;">
-                    <i class="fas fa-info-circle me-2 text-info"></i> 
-                    MODO DE PRUEBA: Iniciaste sesión como usuario de prueba. Todos tus pagos serán procesados a exactamente <span class="text-info fs-5">Bs. 1,00</span> para pruebas de la API.
+                <p class="mb-0 fw-bold" style="letter-spacing: 0.5px; color: #bae6fd;">
+                    <i class="fas fa-info-circle me-2 text-info"></i>
+                    MODO DE PRUEBA: Todos tus pagos serán procesados a exactamente <span class="text-info fs-5">Bs. 1,00</span>.
                 </p>
             </div>
         <?php endif; ?>
+
         <div class="d-flex justify-content-between align-items-end mb-4">
             <div>
-                <h2 class="mb-1 text-gradient">Gestión de Mensualidades</h2>
-                <p class="text-muted mb-0">Revisa tus mensualidades, historial de pagos y mantente al día.</p>
+                <h2 class="mb-1 text-gradient">Pago Pendiente</h2>
+                <p class="text-muted mb-0">Selecciona un recibo para realizar tu pago.</p>
             </div>
             <?php if ($tasa_bcv > 1): ?>
             <div class="text-end d-none d-md-block">
                 <span class="badge bg-primary glass-panel p-2">Tasa BCV: Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
-                <div class="small text-muted mt-1" style="font-size: 0.75rem;">Ref: <?php echo $tasa_fecha; ?></div>
             </div>
             <?php endif; ?>
         </div>
@@ -238,10 +186,10 @@ $ultimo_pago = null;
             </div>
         <?php endif; ?>
 
-        <!-- Mensaje Recordatorio Dinámico -->
+        <!-- Mensaje Dinámico -->
         <div class="glass-panel p-3 mb-4 text-center border-0 shadow-sm animate-pulse-slow" style="background: <?php echo $mensaje_vencimiento['bg']; ?>; border-left: 4px solid <?php echo $mensaje_vencimiento['border']; ?> !important;">
-            <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px;">
-                <i class="<?php echo $mensaje_vencimiento['icono']; ?> me-2"></i> 
+            <p class="mb-0 fw-bold" style="letter-spacing: 0.5px;">
+                <i class="<?php echo $mensaje_vencimiento['icono']; ?> me-2"></i>
                 <?php echo $mensaje_vencimiento['texto']; ?>
             </p>
         </div>
@@ -258,134 +206,124 @@ $ultimo_pago = null;
                 }, 6000);
             </script>
         <?php endif; ?>
-        <?php if (isset($_SESSION['pago_pendiente'])) { unset($_SESSION['pago_pendiente']); } ?>
         <?php if (isset($_SESSION['pago_err'])): ?>
             <div class="alert alert-danger glass-panel mb-4">
                 <i class="fas fa-times-circle me-2"></i> <?php echo htmlspecialchars($_SESSION['pago_err'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['pago_err']); ?>
             </div>
         <?php endif; ?>
 
-
-
-        <div class="row g-4">
-            <?php if (empty($contratos)): ?>
-                <div class="col-12 text-center py-5 glass-panel">
-                    <i class="fas fa-satellite-dish fa-3x text-muted mb-3"></i>
-                    <h4>No se encontraron servicios asociados</h4>
-                    <p class="text-muted">Si crees que esto es un error, por favor contacta a soporte técnico.</p>
+        <!-- Cabecera del Cliente -->
+        <div class="glass-panel p-4 mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Cliente</small>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['nombre'] ?? $nombre); ?></span>
                 </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Estado</small>
+                    <span class="status-badge <?php echo $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended'; ?>"><?php echo $estado_ws; ?></span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Email</small>
+                    <span><?php echo htmlspecialchars($c_perfil['correo'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Teléfono</small>
+                    <span><?php echo htmlspecialchars($c_perfil['telefono'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Zona</small>
+                    <span><?php echo htmlspecialchars($c_perfil['zona']['nombre'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Dirección</small>
+                    <span><?php echo htmlspecialchars($c_perfil['direccion'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Plan</small>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recibos Pendientes -->
+        <div class="glass-panel p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+            <?php if (count($invoices) > 0): ?>
+            <div class="table-responsive">
+                <table class="table table-premium mb-0">
+                    <thead>
+                        <tr>
+                            <th>Recibo</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Monto USD</th>
+                            <th class="text-end">Monto Bs</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($invoices as $inv):
+                            $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                            $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                            $inv_desc = '';
+                            if (!empty($inv['articulos'][0]['descripcion'])) {
+                                $inv_desc = $inv['articulos'][0]['descripcion'];
+                            } elseif (!empty($inv['descripcion'])) {
+                                $inv_desc = $inv['descripcion'];
+                            } else {
+                                $inv_desc = 'Recibo N° ' . $inv_id;
+                            }
+                            // Truncar a 80 caracteres
+                            if (mb_strlen($inv_desc) > 80) {
+                                $inv_desc = mb_substr($inv_desc, 0, 80) . '...';
+                            }
+                        ?>
+                        <tr>
+                            <td class="fw-bold"><?php echo $inv_id; ?></td>
+                            <td><?php echo htmlspecialchars($inv_desc); ?></td>
+                            <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
+                            <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
+                            <td class="text-center">
+                                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn btn-premium btn-sm">
+                                    <i class="fas fa-credit-card me-1"></i> Pagar
+                                </a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
             <?php else: ?>
-                <?php foreach ($contratos as $c): ?>
-                    <div class="col-12">
-                        <div class="glass-panel p-4 contract-card">
-                            <div class="row">
-                                <!-- Info Col -->
-                                <div class="col-md-7 mb-4 mb-md-0 border-end border-secondary border-opacity-25 pe-md-4">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <div>
-                                            <h4 class="mb-1 fw-bold">Contrato #<?php echo $c['id']; ?></h4>
-                                            <?php 
-                                                $badge_class = 'status-active';
-                                                if ($c['estado_contrato'] === 'SUSPENDIDO') $badge_class = 'status-suspended';
-                                                if ($c['estado_contrato'] === 'POR INSTALAR') $badge_class = 'status-pending';
-                                            ?>
-                                            <span class="status-badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($c['estado_contrato']); ?></span>
-                                            <span class="badge bg-info text-dark ms-2"><i class="fas fa-bolt me-1"></i> <?php echo htmlspecialchars($c['nombre_plan']); ?></span>
-                                        </div>
-                                    </div>
-                                    
-                                    <p class="text-muted small mb-3"><i class="fas fa-map-marker-alt me-1 text-primary"></i> <?php echo htmlspecialchars($c['direccion']); ?></p>
-
-                                    <div class="d-flex flex-wrap gap-2 mb-4">
-                                        <div class="glass-panel p-2 px-3 d-flex align-items-center border-0" style="background: var(--border-glass);">
-                                            <i class="fas fa-circle-check me-2 <?php echo $c['deuda_mensualidades'] > 0 ? 'text-warning' : 'text-success'; ?>"></i>
-                                            <div>
-                                                <span class="text-muted d-block" style="font-size: 0.65rem; font-weight: 700; letter-spacing: 0.5px;">ESTADO DE PAGO</span>
-                                                <span class="fw-bold small">
-                                                    <?php echo $c['deuda_mensualidades'] > 0 ? 'Pago Pendiente' : 'Al día'; ?>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Payment Col -->
-                                <div class="col-md-5 ps-md-4 d-flex flex-column justify-content-center">
-                                    <div class="payment-summary-box mb-4 shadow-sm">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted small fw-semibold">Tarifa Mensual</span>
-                                            <span class="fw-bold">$<?php echo number_format($c['monto_plan'], 2); ?></span>
-                                        </div>
-                                        <hr>
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="text-muted small fw-semibold">Deuda Pendiente</span>
-                                            <span class="fs-4 fw-bold <?php echo ($c['deuda_mensualidades'] > 0) ? 'text-danger' : 'text-success'; ?>">
-                                                $<?php echo number_format($c['deuda_mensualidades'], 2); ?>
-                                            </span>
-                                        </div>
-                                        <?php if ($tasa_bcv > 1 && $c['deuda_mensualidades'] > 0): ?>
-                                        <div class="d-flex justify-content-between align-items-center mt-2">
-                                            <span class="text-muted small" style="font-size: 0.75rem;">Equivalente en Bs</span>
-                                            <span class="text-muted fw-bold" style="font-size: 0.9rem;">
-                                                Bs <?php echo number_format($c['deuda_mensualidades'] * $tasa_bcv, 2, ',', '.'); ?>
-                                            </span>
-                                        </div>
-                                        <?php endif; ?>
-                                    </div>
-
-                                    <?php if ($c['deuda_mensualidades'] > 0): ?>
-                                        <a href="pago.php?id_contrato=<?php echo $c['id']; ?>" class="btn btn-premium w-100 py-3">
-                                            <i class="fas fa-credit-card me-2"></i> PROCEDER AL PAGO
-                                        </a>
-                                    <?php else: ?>
-                                        <a href="pago.php?id_contrato=<?php echo $c['id']; ?>" class="btn btn-premium w-100">
-                                            <i class="fas fa-arrow-up me-2"></i> ADELANTAR PAGO
-                                        </a>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                <?php endforeach; ?>
+            <div class="text-center py-4">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <p class="mb-0">No tienes recibos pendientes.</p>
+            </div>
             <?php endif; ?>
         </div>
-        
+
         <footer class="text-center py-4 mt-5 border-top border-white border-opacity-10">
             <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> Wireless Supply. Todos los derechos reservados.</p>
         </footer>
     </div>
 
-    <!-- Bootstrap JS -->
     <script src="../js/bootstrap.bundle.min.js"></script>
-
-    <!-- GESTIÓN DE TEMA -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const themeBtn = document.getElementById('themeToggleBtn');
         const html = document.documentElement;
         const themeIcon = themeBtn.querySelector('i');
-
         function updateThemeIcon(theme) {
-            if (theme === 'dark') {
-                themeIcon.className = 'fas fa-sun';
-            } else {
-                themeIcon.className = 'fas fa-moon';
-            }
+            themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         }
-
         updateThemeIcon(html.getAttribute('data-theme'));
-
         themeBtn.addEventListener('click', function() {
-            const currentTheme = html.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            updateThemeIcon(next);
         });
     });
-
-
     </script>
 </body>
 </html>
