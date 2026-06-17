@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Montos
     $monto_usd  = isset($_POST['monto_usd'])  ? floatval($_POST['monto_usd'])  : 0.00;
-    $tasa_dolar = isset($_POST['tasa_dolar']) ? floatval($_POST['tasa_dolar']) : 0.00;
+    $tasa_dolar = obtener_tasa_bcv();
     $monto_bs   = ($monto_usd > 0 && $tasa_dolar > 0) ? round($monto_usd * $tasa_dolar, 2) : 0.00;
 
     if ($cedula === TEST_USER_CEDULA) {

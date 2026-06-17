@@ -140,14 +140,18 @@ function verificar_y_aprobar_pago_bdv(
         $GLOBALS['bdv_falla_motivo'] = "La referencia ingresada no aparece en los movimientos recientes del banco.";
         return false;
     }
-    
-    // Verificar monto (puede venir en 'importe' o 'monto' y contener formato con comas)
+    // Obtener monto real del banco
     $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
     $monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
+    
+    // Verificar que coincida con el monto reportado por el formulario para seguridad
     if (abs($monto_mov - $monto_bs) > 10) { // tolerancia 10 Bs
-        $GLOBALS['bdv_falla_motivo'] = "El monto de la referencia no coincide con el monto calculado a pagar ($monto_bs Bs).";
+        $GLOBALS['bdv_falla_motivo'] = "El monto de la referencia no coincide con el monto reportado ($monto_bs Bs).";
         return false;
     }
+    
+    // Sobrescribimos el monto en USD usando el monto real conciliado del banco para evitar discrepancias de centavos
+    $monto_usd = round($monto_mov / $tasa_dolar, 2);
     
     // ─── Match encontrado → aprobar automáticamente en WispHub ───────────────────────────
     if (!empty($wisp_service_id)) {

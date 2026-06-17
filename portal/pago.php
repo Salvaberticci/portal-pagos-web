@@ -112,15 +112,8 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             <input type="hidden" name="metodo_pago" id="input_metodo" value="">
             <input type="hidden" name="id_banco_destino" id="input_banco" value="">
 
-            <!-- PASO 1: Selección de Monto -->
+            <!-- PASO 1: Selección de Método -->
             <div class="wizard-step active" id="step-1">
-                <?php if ($cedula === TEST_USER_CEDULA): ?>
-                    <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px; font-size: 0.9rem;">
-                        <i class="fas fa-info-circle me-2 text-info"></i>
-                        Usuario de prueba: Se muestran montos demo de Bs. 1.00, Bs. 2.00 y Bs. 4.00.
-                    </div>
-                <?php endif; ?>
-                
                 <?php if (!empty($pago_err)): ?>
                     <div class="alert alert-danger glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444 !important; border-radius: 12px; font-size: 0.95rem;">
                         <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
@@ -128,164 +121,122 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
                     </div>
                 <?php endif; ?>
 
-                <h3 class="mb-4">¿Cuánto quieres pagar hoy?</h3>
-                <div class="selection-card" onclick="selectAmount(<?php echo $deuda; ?>, 0, this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon"><i class="fas fa-money-bill-wave"></i></div>
-                        <div>
-                            <span class="fw-bold d-block">Deuda Actual</span>
-                            <small class="text-muted">Paga el saldo pendiente</small>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <span class="fw-bold fs-5 d-block">$<?php echo number_format($deuda, 2); ?></span>
-                        <small class="text-ves">Bs <?php echo number_format($deuda * $tasa_bcv, 2, ',', '.'); ?></small>
-                    </div>
-                </div>
-
-                <div class="selection-card" onclick="selectAmount(<?php echo $deuda + $monto_plan; ?>, 1, this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon"><i class="fas fa-plus-circle"></i></div>
-                        <div>
-                            <span class="fw-bold d-block">Deuda + 1 Mes</span>
-                            <small class="text-muted">Mantente al día por adelantado</small>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <span class="fw-bold fs-5 d-block">$<?php echo number_format($deuda + $monto_plan, 2); ?></span>
-                        <small class="text-ves">Bs <?php echo number_format(($deuda + $monto_plan) * $tasa_bcv, 2, ',', '.'); ?></small>
-                    </div>
-                </div>
-
-                <div class="selection-card" onclick="selectAmount(<?php echo $deuda + ($monto_plan * 3); ?>, 3, this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon"><i class="fas fa-gem"></i></div>
-                        <div>
-                            <span class="fw-bold d-block">Plan Trimestral</span>
-                            <small class="text-muted">Paga 3 meses y olvídate</small>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <span class="fw-bold fs-5 d-block">$<?php echo number_format($deuda + ($monto_plan * 3), 2); ?></span>
-                        <small class="text-ves">Bs <?php echo number_format(($deuda + ($monto_plan * 3)) * $tasa_bcv, 2, ',', '.'); ?></small>
-                    </div>
-                </div>
-                
-                <input type="hidden" name="meses_adelanto" id="input_meses" value="0">
-            </div>
-
-            <!-- PASO 2: Selección de Método -->
-            <div class="wizard-step" id="step-2">
                 <h3 class="mb-4">¿Cómo vas a pagar?</h3>
-                <div class="selection-card" onclick="selectMethod('Pago Móvil', this)">
+                <div class="selection-card animate-fade" onclick="selectMethod('Pago Móvil', this)">
                     <div class="d-flex align-items-center">
                         <div class="selection-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i class="fas fa-mobile-alt"></i></div>
                         <div>
-                            <span class="fw-bold d-block">Pago Móvil</span>
-                            <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">SE ACREDITA MÁS RÁPIDO</span>
+                            <span class="fw-bold d-block text-white">Pago Móvil</span>
+                            <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">SE ACREDITA AL INSTANTE</span>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-muted"></i>
                 </div>
 
-                <div class="selection-card" onclick="selectMethod('Transferencia', this)">
+                <div class="selection-card animate-fade" onclick="selectMethod('Transferencia', this)">
                     <div class="d-flex align-items-center">
                         <div class="selection-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i class="fas fa-university"></i></div>
                         <div>
-                            <span class="fw-bold d-block">Transferencia Bancaria</span>
-                            <small class="text-muted">Desde cualquier banco</small>
+                            <span class="fw-bold d-block text-white">Transferencia Bancaria</span>
+                            <small class="text-light opacity-75">Desde cualquier banco</small>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-muted"></i>
                 </div>
 
-                <div class="selection-card" onclick="selectMethod('Zelle', this)">
+                <div class="selection-card animate-fade" onclick="selectMethod('Zelle', this)">
                     <div class="d-flex align-items-center">
                         <div class="selection-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i class="fas fa-bolt"></i></div>
                         <div>
-                            <span class="fw-bold d-block">Zelle</span>
-                            <small class="text-muted">Pagos en USD</small>
+                            <span class="fw-bold d-block text-white">Zelle</span>
+                            <small class="text-light opacity-75">Pagos en USD</small>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-muted"></i>
                 </div>
             </div>
 
-            <!-- PASO 3: Selección de Banco -->
-            <div class="wizard-step" id="step-3">
+            <!-- PASO 2: Selección de Banco -->
+            <div class="wizard-step" id="step-2">
                 <h3 class="mb-4">Selecciona el banco destino</h3>
                 <div id="bancos-list">
                     <!-- Se llena con JS -->
                 </div>
             </div>
 
-            <!-- PASO 4: Datos del Pago -->
-            <div class="wizard-step" id="step-4">
-                <div class="text-center mb-4">
-                    <h3 class="mb-2">Información de tu pago</h3>
-                    <p class="text-muted">Realiza la operación con estos datos:</p>
-                </div>
-
+            <!-- PASO 3: Datos de la Operación y Reporte -->
+            <div class="wizard-step" id="step-3">
                 <div class="glass-panel p-4 mb-4">
-                    <div class="bank-logo-placeholder" id="final-bank-logo">
-                        <i class="fas fa-university text-primary fa-2x"></i>
-                    </div>
-                    <h5 class="text-center fw-bold mb-4" id="final-bank-name">Nombre del Banco</h5>
-
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <small class="text-muted d-block">Monto a pagar</small>
-                            <span class="fw-bold fs-5" id="final-amount-text">Bs 0,00</span>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-glass copy-btn" onclick="copyText('final-amount-raw')"><i class="far fa-copy me-1"></i> Copiar</button>
-                        <span id="final-amount-raw" class="d-none"></span>
-                    </div>
-
-                    <div id="bank-details-fields">
+                    <h5 class="fw-bold mb-3 text-info text-center" id="final-bank-name">Datos para Transferir</h5>
+                    <div id="bank-details-fields" class="mb-2">
                         <!-- Se llena con JS -->
                     </div>
                 </div>
 
-                <button type="button" class="btn btn-premium w-100 py-3 mb-3" onclick="nextStep(5)">
-                    YA PAGUÉ, INGRESAR REFERENCIA <i class="fas fa-arrow-right ms-2"></i>
+                <h4 class="mb-3">Ingresa los datos de tu pago</h4>
+
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold">FECHA DE OPERACIÓN</label>
+                    <input type="date" name="fecha_pago" id="field_fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-white small fw-bold">NÚMERO DE REFERENCIA</label>
+                    <input type="text" name="referencia" id="field_referencia" class="form-control glass-input" placeholder="Ingresa la referencia completa o los últimos 6-8 dígitos" required>
+                </div>
+
+                <!-- Campo de Monto (Solo para métodos manuales como Zelle) -->
+                <div class="mb-3" id="monto_manual_wrapper" style="display: none;">
+                    <label class="form-label text-white small fw-bold">MONTO PAGADO ($ USD)</label>
+                    <input type="number" step="0.01" name="monto_manual" id="field_monto_manual" class="form-control glass-input" placeholder="Ej: 15.00">
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-white small fw-bold">COMPROBANTE (CAPTURE - OPCIONAL)</label>
+                    <div class="upload-area glass-panel p-3 text-center" onclick="document.getElementById('capture_input').click()">
+                        <i class="fas fa-cloud-upload-alt fa-lg text-primary mb-1"></i>
+                        <p class="mb-0 small text-light">Presiona para subir la imagen del comprobante</p>
+                        <input type="file" id="capture_input" name="capture_pago" class="d-none" accept="image/*" onchange="previewImage(this)">
+                    </div>
+                    <div id="image-preview" class="mt-2 d-none text-center">
+                        <img src="" class="img-fluid rounded shadow-sm" style="max-height: 120px;">
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-premium w-100 py-3" id="btn-verificar-pago" onclick="verificarPagoAJAX()">
+                    VERIFICAR PAGO <i class="fas fa-search ms-2"></i>
                 </button>
             </div>
 
-            <!-- PASO 5: Reporte Final -->
-            <div class="wizard-step" id="step-5">
-                <h3 class="mb-4">Reportar Pago</h3>
+            <!-- PASO 4: Confirmación y Resultados -->
+            <div class="wizard-step" id="step-4">
+                <h3 class="mb-3 text-center">Verificación de Pago</h3>
                 
-                <div class="mb-4">
-                    <label class="form-label text-muted small fw-bold">FECHA DE OPERACIÓN</label>
-                    <input type="date" name="fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label text-muted small fw-bold">NÚMERO DE REFERENCIA</label>
-                    <input type="text" name="referencia" class="form-control glass-input" placeholder="Ingresa los últimos 6 dígitos o el número completo" required>
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label text-muted small fw-bold">COMPROBANTE DE PAGO (CAPTURE)</label>
-                    <div class="upload-area glass-panel p-4 text-center" onclick="document.getElementById('capture_input').click()">
-                        <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
-                        <p class="mb-0 small">Presiona para subir la imagen</p>
-                        <input type="file" id="capture_input" name="capture_pago" class="d-none" accept="image/*" onchange="previewImage(this)">
+                <div class="glass-panel p-4 mb-4 text-center">
+                    <div id="verification-status-icon" class="mb-3">
+                        <!-- Icono animado de carga o éxito -->
                     </div>
-                    <div id="image-preview" class="mt-3 d-none text-center">
-                        <img src="" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                    <h4 class="fw-bold text-white mb-2" id="verification-title">Buscando pago...</h4>
+                    <p class="text-light opacity-75" id="verification-details">Estamos comprobando tu referencia directamente con los movimientos recientes del banco.</p>
+
+                    <div id="payment-details-box" style="display: none;" class="text-start mt-4 border-top border-secondary pt-3">
+                        <!-- Se llena dinámicamente -->
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-premium w-100 py-3">
-                    FINALIZAR REPORTE <i class="fas fa-check-circle ms-2"></i>
+                <button type="submit" class="btn btn-premium w-100 py-3" id="btn-confirmar-pago" style="display: none;">
+                    APLICAR PAGO Y ACTIVAR <i class="fas fa-check-circle ms-2"></i>
+                </button>
+                
+                <button type="button" class="btn btn-secondary w-100 py-2 mt-2" onclick="nextStep(3)">
+                    <i class="fas fa-arrow-left me-2"></i> Corregir datos
                 </button>
             </div>
         </form>
     </div>
 
     <!-- Barra de Resumen Inferior -->
-    <div class="bottom-bar">
+    <div class="bottom-bar" style="display: none;">
         <div class="container d-flex justify-content-center align-items-center text-center">
             <div>
                 <small class="text-muted d-block" style="letter-spacing: 0.5px; font-weight: 600;">TOTAL A PAGAR</small>
@@ -295,41 +246,20 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
         </div>
     </div>
 
+
     <script>
         let currentStep = 1;
-        const totalSteps = 5;
+        const totalSteps = 4;
         const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
         const tasaBcv = <?php echo $tasa_bcv; ?>;
         
-        let selectedAmountUsd = 0;
         let selectedMethod = '';
         let selectedBankId = null;
 
         function updateSummary() {
-            document.getElementById('summary-usd').textContent = '$' + selectedAmountUsd.toFixed(2);
-            document.getElementById('summary-bs').textContent = 'Bs ' + (selectedAmountUsd * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
-            
-            // Step titles
-            const titles = ["", "Realizar Pago", "Método de Pago", "Banco Destino", "Datos del Pago", "Reportar Pago"];
+            // Títulos de pasos
+            const titles = ["", "Método de Pago", "Banco Destino", "Ingresar Pago", "Verificación de Pago"];
             document.getElementById('wizard-title').textContent = titles[currentStep];
-
-            // Show/Hide bottom bar button logic
-            const btn = document.getElementById('btn-next-global');
-            if (btn) {
-                if (currentStep === 1) {
-                    btn.disabled = selectedAmountUsd === 0;
-                } else if (currentStep === 2) {
-                    btn.disabled = selectedMethod === '';
-                } else if (currentStep === 3) {
-                    btn.disabled = selectedBankId === null;
-                } else {
-                    btn.style.display = 'none'; // Step 4 and 5 handle their own buttons
-                }
-                
-                if (currentStep < 4) {
-                    btn.style.display = 'block';
-                }
-            }
         }
 
         function nextStep(step) {
@@ -340,35 +270,24 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             updateSummary();
         }
 
-        function handleNextMain() {
-            if (currentStep === 3) {
-                prepareStep4();
-            }
-            nextStep(currentStep + 1);
-        }
-
-        function selectAmount(usd, meses, el) {
-            selectedAmountUsd = usd;
-            document.getElementById('input_monto_usd').value = usd;
-            document.getElementById('input_meses').value = meses;
-            
-            document.querySelectorAll('#step-1 .selection-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-            updateSummary();
-            
-            // Auto-avanzar al Paso 2
-            setTimeout(() => {
-                nextStep(2);
-            }, 250);
-        }
-
         function selectMethod(method, el) {
             selectedMethod = method;
             document.getElementById('input_metodo').value = method;
             
-            document.querySelectorAll('#step-2 .selection-card').forEach(c => c.classList.remove('selected'));
+            document.querySelectorAll('#step-1 .selection-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             
+            // Mostrar input de monto manual solo si es Zelle
+            const montoManual = document.getElementById('monto_manual_wrapper');
+            const fieldMonto = document.getElementById('field_monto_manual');
+            if (method === 'Zelle') {
+                montoManual.style.display = 'block';
+                fieldMonto.setAttribute('required', 'required');
+            } else {
+                montoManual.style.display = 'none';
+                fieldMonto.removeAttribute('required');
+            }
+
             // Cargar bancos
             const list = document.getElementById('bancos-list');
             list.innerHTML = '';
@@ -376,14 +295,14 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             
             filtrados.forEach(b => {
                 const div = document.createElement('div');
-                div.className = 'selection-card';
+                div.className = 'selection-card animate-fade';
                 div.onclick = () => selectBank(b, div);
                 div.innerHTML = `
                     <div class="d-flex align-items-center">
                         <div class="selection-icon"><i class="fas fa-university"></i></div>
                         <div>
-                            <span class="fw-bold d-block">${b.nombre_banco}</span>
-                            <small class="text-muted">${method}</small>
+                            <span class="fw-bold d-block text-white">${b.nombre_banco}</span>
+                            <small class="text-light opacity-75">${method}</small>
                         </div>
                     </div>
                     <i class="fas fa-chevron-right text-muted"></i>
@@ -393,37 +312,27 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             
             updateSummary();
             
-            // Auto-avanzar al Paso 3
             setTimeout(() => {
-                nextStep(3);
-            }, 250);
+                nextStep(2);
+            }, 200);
         }
 
         function selectBank(bank, el) {
             selectedBankId = bank.id_banco;
             document.getElementById('input_banco').value = bank.id_banco;
-            document.querySelectorAll('#step-3 .selection-card').forEach(c => c.classList.remove('selected'));
+            document.querySelectorAll('#step-2 .selection-card').forEach(c => c.classList.remove('selected'));
             el.classList.add('selected');
             updateSummary();
             
-            // Auto-avanzar al Paso 4 preparando primero la información final
             setTimeout(() => {
-                prepareStep4();
-                nextStep(4);
-            }, 250);
+                prepareStep3();
+                nextStep(3);
+            }, 200);
         }
 
-        function prepareStep4() {
+        function prepareStep3() {
             const bank = todosLosBancos.find(b => b.id_banco == selectedBankId);
             document.getElementById('final-bank-name').textContent = bank.nombre_banco;
-            
-            const montoBs = selectedAmountUsd * tasaBcv;
-            const isUsd = (selectedMethod === 'Zelle' || selectedMethod === 'Divisas');
-            const montoText = isUsd ? '$' + selectedAmountUsd.toFixed(2) : 'Bs ' + montoBs.toLocaleString('es-VE', {minimumFractionDigits: 2});
-            const montoRaw = isUsd ? selectedAmountUsd.toFixed(2) : montoBs.toFixed(2);
-            
-            document.getElementById('final-amount-text').textContent = montoText;
-            document.getElementById('final-amount-raw').textContent = montoRaw;
 
             const detailsDiv = document.getElementById('bank-details-fields');
             detailsDiv.innerHTML = '';
@@ -439,23 +348,120 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             } else if (selectedMethod === 'Zelle') {
                 fields.push({ label: 'Correo', value: bank.numero_cuenta });
                 fields.push({ label: 'Titular', value: bank.nombre_propietario });
-            } else {
-                fields.push({ label: 'Referencia', value: bank.numero_cuenta });
             }
 
             fields.forEach((f, index) => {
                 const id = 'field-' + index;
                 const html = `
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2 small border-bottom border-secondary pb-1">
                         <div>
-                            <small class="text-muted d-block">${f.label}</small>
-                            <span class="fw-bold" id="${id}">${f.value}</span>
+                            <small class="text-light opacity-75 d-block">${f.label}</small>
+                            <span class="fw-bold text-white" id="${id}">${f.value}</span>
                         </div>
-                        <button type="button" class="btn btn-sm btn-glass copy-btn" onclick="copyText('${id}', event)"><i class="far fa-copy"></i></button>
+                        <button type="button" class="btn btn-sm btn-glass copy-btn py-0 px-2" onclick="copyText('${id}', event)"><i class="far fa-copy"></i></button>
                     </div>
                 `;
                 detailsDiv.innerHTML += html;
             });
+        }
+
+        function verificarPagoAJAX() {
+            const ref = document.getElementById('field_referencia').value.trim();
+            const fecha = document.getElementById('field_fecha_pago').value;
+            const montoManual = document.getElementById('field_monto_manual').value;
+
+            if (!ref || !fecha) {
+                alert('Por favor, ingresa la fecha y el número de referencia.');
+                return;
+            }
+
+            // Cambiar a paso 4 para mostrar cargando
+            nextStep(4);
+
+            const statusIcon = document.getElementById('verification-status-icon');
+            const title = document.getElementById('verification-title');
+            const details = document.getElementById('verification-details');
+            const detailsBox = document.getElementById('payment-details-box');
+            const btnConfirmar = document.getElementById('btn-confirmar-pago');
+
+            statusIcon.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>';
+            title.textContent = 'Buscando pago...';
+            details.textContent = 'Comprobando referencia con los movimientos del banco en tiempo real.';
+            detailsBox.style.display = 'none';
+            btnConfirmar.style.display = 'none';
+
+            // Zelle / Manual
+            if (selectedMethod === 'Zelle') {
+                if (!montoManual || parseFloat(montoManual) <= 0) {
+                    alert('Debes ingresar un monto válido para reportar Zelle.');
+                    nextStep(3);
+                    return;
+                }
+                
+                // Configurar montos para envío manual
+                document.getElementById('input_monto_usd').value = parseFloat(montoManual).toFixed(2);
+                
+                statusIcon.innerHTML = '<i class="fas fa-info-circle text-info fa-3x animate-fade"></i>';
+                title.textContent = 'Verificación Manual';
+                details.textContent = 'Los pagos de Zelle requieren validación administrativa. Tu reporte será procesado a la brevedad.';
+                
+                detailsBox.style.display = 'block';
+                detailsBox.innerHTML = `
+                    <div class="alert alert-info py-2" style="background: rgba(14, 165, 233, 0.1);">
+                        <strong>Monto reportado:</strong> $${parseFloat(montoManual).toFixed(2)} USD<br>
+                        <strong>Referencia:</strong> ${ref}<br>
+                        <strong>Fecha:</strong> ${fecha}
+                    </div>
+                `;
+                btnConfirmar.style.display = 'block';
+                btnConfirmar.textContent = 'ENVIAR REPORTE';
+                return;
+            }
+
+            // BDV API
+            const csrf = document.querySelector('input[name="csrf_token"]').value;
+            const url = `api_verificar_pago.php?id_banco=${selectedBankId}&referencia=${encodeURIComponent(ref)}&fecha_pago=${fecha}&metodo_pago=${encodeURIComponent(selectedMethod)}&id_contrato=${encodeURIComponent(document.querySelector('input[name="id_contrato"]').value)}&csrf_token=${csrf}`;
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'verified') {
+                        statusIcon.innerHTML = '<i class="fas fa-check-circle text-success fa-3x animate-fade"></i>';
+                        title.textContent = '¡Pago Verificado!';
+                        details.textContent = 'Hemos validado tu transacción de forma exitosa.';
+                        
+                        // Guardar el monto USD conciliado
+                        document.getElementById('input_monto_usd').value = data.monto_usd;
+
+                        detailsBox.style.display = 'block';
+                        detailsBox.innerHTML = `
+                            <div class="p-3 rounded mb-3" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981;">
+                                <div class="mb-2"><strong>Monto encontrado:</strong> Bs ${data.monto_bs.toLocaleString('es-VE', {minimumFractionDigits: 2})}</div>
+                                <div class="mb-2"><strong>Equivalente en USD:</strong> $${data.monto_usd.toFixed(2)} USD</div>
+                                <div class="mb-2"><strong>Tu deuda actual:</strong> $${data.deuda_usd.toFixed(2)} USD</div>
+                                <div class="mt-2 pt-2 border-top border-secondary small text-light font-italic">${data.descripcion}</div>
+                            </div>
+                        `;
+                        btnConfirmar.style.display = 'block';
+                        btnConfirmar.textContent = 'APLICAR PAGO Y ACTIVAR';
+                    } else if (data.status === 'manual') {
+                        statusIcon.innerHTML = '<i class="fas fa-info-circle text-info fa-3x"></i>';
+                        title.textContent = 'Verificación Manual';
+                        details.textContent = data.message;
+                        
+                        btnConfirmar.style.display = 'block';
+                        btnConfirmar.textContent = 'ENVIAR REPORTE';
+                    } else {
+                        statusIcon.innerHTML = '<i class="fas fa-times-circle text-danger fa-3x animate-fade"></i>';
+                        title.textContent = 'Pago No Encontrado';
+                        details.textContent = data.message;
+                    }
+                })
+                .catch(err => {
+                    statusIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning fa-3x"></i>';
+                    title.textContent = 'Error de Red';
+                    details.textContent = 'No pudimos conectar con el servidor de validación. Por favor, reintenta.';
+                });
         }
 
         function copyText(id, event) {

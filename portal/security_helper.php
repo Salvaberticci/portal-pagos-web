@@ -121,3 +121,34 @@ function enforce_https(): void {
         }
     }
 }
+
+/**
+ * Obtiene la tasa oficial de cambio del dólar (BCV) con caché de 1 hora.
+ */
+function obtener_tasa_bcv(): float {
+    $tasa = 1.0;
+    $cache_file = __DIR__ . '/tasa_cache.json';
+    $cache_time = 3600; // 1 hora
+
+    if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
+        $data_cache = json_decode(file_get_contents($cache_file), true);
+        $tasa = floatval($data_cache['tasa'] ?? 1.0);
+    } else {
+        $url_bcv = "https://ve.dolarapi.com/v1/dolares/oficial";
+        $ch = curl_init($url_bcv);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $resp_bcv = curl_exec($ch);
+        if (!curl_errno($ch)) {
+            $data_bcv = json_decode($resp_bcv, true);
+            if (isset($data_bcv['promedio'])) {
+                $tasa = floatval($data_bcv['promedio']);
+                @file_put_contents($cache_file, json_encode(['tasa' => $tasa, 'fecha' => date('Y-m-d H:i:s')]));
+            }
+        }
+        curl_close($ch);
+    }
+    return $tasa > 0 ? $tasa : 1.0;
+}
+
