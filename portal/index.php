@@ -49,7 +49,16 @@ if (isset($_SESSION['cliente_cedula'])) {
                     <label class="label-premium">Ingresa tu Cédula</label>
                     <div class="input-group">
                         <span class="input-group-text glass-input"><i class="fas fa-id-card text-primary"></i></span>
-                        <input type="text" name="cedula" class="form-control glass-input" placeholder="Ej: V12345678" required style="border-left: none; text-transform: uppercase;">
+                        <select id="tipo_cedula" class="form-select glass-input px-2" style="max-width: 70px; border-left: none; cursor: pointer;">
+                            <option value="V" selected>V</option>
+                            <option value="J">J</option>
+                            <option value="E">E</option>
+                            <option value="G">G</option>
+                            <option value="P">P</option>
+                            <option value="C">C</option>
+                        </select>
+                        <input type="hidden" name="cedula" id="cedula_hidden">
+                        <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Ej: 12345678" required style="border-left: none;">
                     </div>
                 </div>
                 
@@ -63,9 +72,19 @@ if (isset($_SESSION['cliente_cedula'])) {
     </div>
 
     <script>
-        // Convert to uppercase automatically for cédula
-        document.querySelector('input[name="cedula"]').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase().replace(/[^VEJGP0-9]/g, '');
+        // Concatenar el tipo de cédula y el número al enviar el formulario
+        const form = document.querySelector('form');
+        const tipoCedula = document.getElementById('tipo_cedula');
+        const cedulaNumero = document.getElementById('cedula_numero');
+        const cedulaHidden = document.getElementById('cedula_hidden');
+
+        form.addEventListener('submit', function() {
+            cedulaHidden.value = tipoCedula.value + cedulaNumero.value;
+        });
+
+        // Asegurar que solo se ingresen números en el campo
+        cedulaNumero.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
         });
 
         // Theme Toggle Logic
