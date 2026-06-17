@@ -77,11 +77,13 @@ $mensaje_vencimiento = [
 
 if (count($invoices) > 0) {
     $fecha_vencimiento = null;
+    $recibo_vencido_id = null;
     foreach ($invoices as $inv) {
         if (!empty($inv['fecha_vencimiento'])) {
             $fv = strtotime($inv['fecha_vencimiento']);
             if ($fecha_vencimiento === null || $fv < $fecha_vencimiento) {
                 $fecha_vencimiento = $fv;
+                $recibo_vencido_id = $inv['id'] ?? $inv['id_factura'] ?? null;
             }
         }
     }
@@ -90,11 +92,12 @@ if (count($invoices) > 0) {
         $fv_date = strtotime(date('Y-m-d', $fecha_vencimiento));
         $diferencia_dias = round(($fv_date - $hoy) / 86400);
         $fecha_str = date('d/m/Y', $fecha_vencimiento);
+        $recibo_str = $recibo_vencido_id ? " #$recibo_vencido_id" : '';
 
         if ($diferencia_dias < 0) {
             $dias_abs = abs($diferencia_dias);
             $mensaje_vencimiento = [
-                'texto' => "¡TU RECIBO ESTÁ VENCIDO DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . "! (Venció el $fecha_str)",
+                'texto' => "¡TU RECIBO$recibo_str ESTÁ VENCIDO DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . "! (Venció el $fecha_str)",
                 'icono' => 'fas fa-exclamation-triangle text-danger',
                 'bg' => 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))',
                 'border' => 'var(--danger)',
