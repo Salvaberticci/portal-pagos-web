@@ -398,18 +398,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         ocultarResultado();
     }
 
-    function copyToClipboard(text, btn) {
-        navigator.clipboard.writeText(text).then(() => {
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i>';
-            btn.classList.add('text-success');
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.classList.remove('text-success');
-            }, 1500);
-        });
-    }
-
     function mostrarBanco(bank) {
         document.getElementById('panel-banco').classList.remove('d-none');
         document.getElementById('banco_nombre').textContent = bank.nombre_banco;
@@ -418,31 +406,49 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         const div = document.getElementById('banco_detalles');
         div.innerHTML = '';
 
-        function addRow(label, value) {
-            const row = document.createElement('div');
-            row.className = 'd-flex justify-content-between align-items-center mb-2';
-            row.innerHTML = `
-                <div>
-                    <small class="text-muted">${label}</small>
-                    <div class="fw-bold">${value}</div>
-                </div>
-                <button class="btn btn-sm btn-glass copy-btn" onclick="copyToClipboard('${value.replace(/'/g, "\\'")}', this)">
-                    <i class="far fa-copy"></i>
-                </button>`;
-            div.appendChild(row);
+        let lines = [];
+        if (selectedMetodo === 'Pago Móvil') {
+            lines = [
+                {label:'Teléfono', val:bank.numero_cuenta},
+                {label:'Cédula/RIF', val:bank.cedula_propietario},
+            ];
+        } else if (selectedMetodo === 'Transferencia') {
+            lines = [
+                {label:'N° Cuenta', val:bank.numero_cuenta},
+                {label:'Titular', val:bank.nombre_propietario},
+                {label:'RIF', val:bank.cedula_propietario},
+            ];
+        } else if (selectedMetodo === 'Zelle') {
+            lines = [
+                {label:'Correo', val:bank.numero_cuenta},
+                {label:'Titular', val:bank.nombre_propietario},
+            ];
         }
 
-        if (selectedMetodo === 'Pago Móvil') {
-            addRow('Teléfono', bank.numero_cuenta);
-            addRow('Cédula/RIF', bank.cedula_propietario);
-        } else if (selectedMetodo === 'Transferencia') {
-            addRow('N° Cuenta', bank.numero_cuenta);
-            addRow('Titular', bank.nombre_propietario);
-            addRow('RIF', bank.cedula_propietario);
-        } else if (selectedMetodo === 'Zelle') {
-            addRow('Correo', bank.numero_cuenta);
-            addRow('Titular', bank.nombre_propietario);
-        }
+        // Boton copiar todos los datos
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn btn-sm btn-glass copy-btn mb-3';
+        copyBtn.innerHTML = '<i class="far fa-copy me-1"></i> Copiar Todos los Datos';
+        copyBtn.onclick = function () {
+            const text = lines.map(l => l.label + ': ' + l.val).join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = this.innerHTML;
+                this.innerHTML = '<i class="fas fa-check me-1"></i> Copiado';
+                this.classList.add('text-success');
+                setTimeout(() => { this.innerHTML = orig; this.classList.remove('text-success'); }, 2000);
+            });
+        };
+        const wrap = document.createElement('div');
+        wrap.className = 'text-end';
+        wrap.appendChild(copyBtn);
+        div.appendChild(wrap);
+
+        lines.forEach(l => {
+            const row = document.createElement('div');
+            row.className = 'd-flex justify-content-between align-items-center mb-2';
+            row.innerHTML = '<div><small class="text-muted">' + l.label + '</small><div class="fw-bold">' + l.val + '</div></div>';
+            div.appendChild(row);
+        });
     }
 
     function verificarPago() {
