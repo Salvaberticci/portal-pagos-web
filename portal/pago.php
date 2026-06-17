@@ -201,14 +201,9 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                     <div>
                         <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
                         <?php if (count($invoices) > 0): ?>
-                        <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar</small>
+                        <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar. Selecciona uno para pagar.</small>
                         <?php endif; ?>
                     </div>
-                    <?php if (count($invoices) > 1): ?>
-                    <button type="button" class="btn btn-sm btn-glass" onclick="toggleAllBtn(this)" id="btn_select_all">
-                        <i class="fas fa-check-double me-1"></i> Todos
-                    </button>
-                    <?php endif; ?>
                 </div>
                 <?php if (count($invoices) > 0): ?>
                 <div class="recibos-list">
@@ -410,43 +405,28 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
 
-    let allSelected = true;
-    function toggleAllBtn(btn) {
-        allSelected = !allSelected;
-        document.querySelectorAll('.invoice-check').forEach(cb => {
-            cb.checked = allSelected;
-            cb.closest('.recibo-card')?.classList.toggle('selected', allSelected);
-            const cardBtn = cb.closest('.recibo-card')?.querySelector('.recibo-select-btn');
-            if (cardBtn) {
-                cardBtn.innerHTML = allSelected
-                    ? '<i class="fas fa-check-circle me-1"></i> Seleccionado'
-                    : '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
-            }
-        });
-        btn.innerHTML = allSelected
-            ? '<i class="fas fa-check-double me-1"></i> Todos'
-            : '<i class="far fa-square me-1"></i> Ninguno';
-        recalcTotal();
-    }
-
     function toggleRecibo(card, invId) {
         const cb = card.querySelector('.invoice-check');
-        cb.checked = !cb.checked;
-        card.classList.toggle('selected', cb.checked);
+        // Si ya está seleccionado, no hacemos nada (no se puede deseleccionar)
+        if (cb.checked) return;
+
+        // Deseleccionar todos los demás
+        document.querySelectorAll('.invoice-check:checked').forEach(other => {
+            other.checked = false;
+            const otherCard = other.closest('.recibo-card');
+            if (otherCard) {
+                otherCard.classList.remove('selected');
+                const otherBtn = otherCard.querySelector('.recibo-select-btn');
+                if (otherBtn) otherBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
+            }
+        });
+
+        // Seleccionar este
+        cb.checked = true;
+        card.classList.add('selected');
         const btn = card.querySelector('.recibo-select-btn');
         if (btn) {
-            btn.innerHTML = cb.checked
-                ? '<i class="fas fa-check-circle me-1"></i> Seleccionado'
-                : '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
-        }
-        const btnAll = document.getElementById('btn_select_all');
-        if (btnAll) {
-            const all = document.querySelectorAll('.invoice-check');
-            const checked = document.querySelectorAll('.invoice-check:checked');
-            allSelected = all.length === checked.length;
-            btnAll.innerHTML = allSelected
-                ? '<i class="fas fa-check-double me-1"></i> Todos'
-                : '<i class="far fa-square me-1"></i> Ninguno';
+            btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionado';
         }
         recalcTotal();
     }
@@ -733,16 +713,17 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             box-shadow: 0 6px 20px rgba(59,130,246,0.12);
         }
         .recibo-card.selected {
-            border-color: var(--primary);
-            background: rgba(59,130,246,0.07);
-            box-shadow: 0 0 0 1px rgba(59,130,246,0.25), 0 4px 16px rgba(59,130,246,0.1);
+            border-color: #22c55e;
+            background: rgba(34,197,94,0.06);
+            box-shadow: 0 0 0 1px rgba(34,197,94,0.25), 0 4px 16px rgba(34,197,94,0.1);
         }
         .recibo-card.recibo-vencida {
             border-color: rgba(239,68,68,0.4);
         }
         .recibo-card.recibo-vencida.selected {
-            border-color: #ef4444;
-            background: rgba(239,68,68,0.06);
+            border-color: #22c55e;
+            background: rgba(34,197,94,0.06);
+            box-shadow: 0 0 0 1px rgba(34,197,94,0.25), 0 4px 16px rgba(34,197,94,0.1);
         }
         /* Barra de acento inferior */
         .recibo-accent-bar {
@@ -751,7 +732,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            background: linear-gradient(90deg, #22c55e, #16a34a);
             transform: scaleX(0);
             transform-origin: left;
             transition: transform 0.3s ease;
@@ -769,16 +750,16 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             width: 46px;
             height: 46px;
             border-radius: 12px;
-            background: rgba(59,130,246,0.1);
+            background: rgba(34,197,94,0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.25rem;
-            color: var(--primary);
+            color: #22c55e;
             transition: background 0.25s;
         }
         .recibo-card.selected .recibo-icon-wrap {
-            background: rgba(59,130,246,0.18);
+            background: rgba(34,197,94,0.18);
         }
         .recibo-card.recibo-vencida .recibo-icon-wrap {
             background: rgba(239,68,68,0.1);
@@ -852,21 +833,21 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
             padding: 3px 10px;
             font-size: 0.72rem;
             font-weight: 600;
-            border: 1px solid var(--primary);
+            border: 1px solid #22c55e;
             border-radius: 20px;
             background: transparent;
-            color: var(--primary);
+            color: #22c55e;
             cursor: pointer;
             transition: all 0.2s;
             white-space: nowrap;
         }
         .recibo-select-btn:hover {
-            background: rgba(59,130,246,0.12);
+            background: rgba(34,197,94,0.12);
         }
         .recibo-card.selected .recibo-select-btn {
-            background: var(--primary);
+            background: #22c55e;
             color: #fff;
-            border-color: var(--primary);
+            border-color: #22c55e;
         }
         /* Botón seleccionar todos */
         .btn-glass {
