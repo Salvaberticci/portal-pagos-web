@@ -472,16 +472,16 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
         const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(metodo) && b.activo !== false);
         const bancoGroup = document.getElementById('banco_select_group');
-        const selectBanco = document.getElementById('select_banco');
+        const selectBancoEl = document.getElementById('select_banco');
 
         if (filtrados.length > 0) {
             bancoGroup.classList.remove('d-none');
-            selectBanco.innerHTML = '<option value="">-- Seleccionar banco --</option>';
+            selectBancoEl.innerHTML = '<option value="">-- Seleccionar banco --</option>';
             filtrados.forEach(b => {
-                selectBanco.innerHTML += '<option value="' + b.id_banco + '">' + b.nombre_banco + '</option>';
+                selectBancoEl.innerHTML += '<option value="' + b.id_banco + '">' + b.nombre_banco + '</option>';
             });
             if (filtrados.length === 1) {
-                selectBanco.value = filtrados[0].id_banco;
+                selectBancoEl.value = filtrados[0].id_banco;
                 selectBanco(filtrados[0].id_banco);
             } else {
                 document.getElementById('panel-banco').classList.add('d-none');
