@@ -199,6 +199,59 @@ class WispHubClient
     }
 
     /**
+     * Consulta facturas en WispHub con filtros.
+     * Endpoint: GET /facturas/
+     *
+     * Filtros disponibles:
+     *   - estado: 1=Pendiente, 2=Pagada, 3=Cancelada, 4=En Revision, 5=Transferida
+     *   - cliente: nombre de usuario (ej. "usuario@empresa")
+     *   - fecha_pago__range_0, fecha_pago__range_1: rango de fecha de pago (YYYY-MM-DD)
+     *   - fecha_emision__range_0, fecha_emision__range_1: rango de emision
+     *   - fecha_vencimiento__range_0, fecha_vencimiento__range_1: rango de vencimiento
+     *   - limit: max resultados por pagina (default 10)
+     *   - offset: desplazamiento
+     *
+     * @param array $filters Asociativo de query params
+     * @return array Lista de facturas (results del JSON de WispHub)
+     */
+    public function getInvoices(array $filters = []): array
+    {
+        $result = $this->request('GET', 'facturas/', $filters);
+        if ($result['status'] === 200 && !empty($result['data']['results'])) {
+            return $result['data']['results'];
+        }
+        if ($result['status'] !== 200) {
+            error_log('[WispHubClient] getInvoices fall├│ filters=' . json_encode($filters)
+                . ' status=' . ($result['status'] ?? 0));
+        }
+        return [];
+    }
+
+    /**
+     * Obtiene la ├║ltima factura pagada de un cliente por su nombre de usuario.
+     *
+     * @param string $usuario Nombre de usuario en WispHub (ej. "usuario@empresa")
+     * @return array|null {monto, fecha_pago, referencia} o null si no hay
+     */
+    public function getLastPaidInvoice(string $usuario): ?array
+    {
+        $invoices = $this->getInvoices([
+            'estado'  => 2,
+            'cliente' => $usuario,
+            'limit'   => 1,
+        ]);
+        if (!empty($invoices[0])) {
+            $inv = $invoices[0];
+            return [
+                'monto'      => floatval($inv['total_cobrado'] ?? $inv['total'] ?? 0),
+                'fecha_pago' => $inv['fecha_pago'] ?? '',
+                'referencia' => $inv['referencia'] ?? '',
+            ];
+        }
+        return null;
+    }
+
+    /**
      * Flujo completo: registra el pago en WispHub y activa el servicio.
      *
      * 1. (Opcional) Busca el service_id por c├®dula si se proporciona
@@ -224,7 +277,8 @@ class WispHubClient
         string $paymentDate,
         int    $formaPagoId = self::FORMA_PAGO_OPERACION_BANCARIA,
         bool   $forceActivate = false,
-        string $cedula = ''
+        string $cedula = '',
+        array  $invoiceIds = []
     ): array {
         // Si se pas├│ c├®dula, buscar service_id en WispHub en tiempo real
         if (!empty($cedula)) {
@@ -255,6 +309,15 @@ class WispHubClient
 
         // 1. Obtener facturas pendientes (ordenadas por vencimiento, m├ís antigua primero)
         $invoices = $this->getPendingInvoices($serviceId);
+
+        // Filtrar solo las facturas seleccionadas si se especificaron IDs
+        if (!empty($invoiceIds)) {
+            $invoiceIds = array_map('strval', $invoiceIds);
+            $invoices = array_values(array_filter($invoices, function ($inv) use ($invoiceIds) {
+                return in_array(strval($inv['id'] ?? $inv['id_factura'] ?? ''), $invoiceIds, true);
+            }));
+        }
+
         $results['invoices_found'] = count($invoices);
 
         // 2. Distribuir el monto entre las facturas, pagando la m├ís antigua primero

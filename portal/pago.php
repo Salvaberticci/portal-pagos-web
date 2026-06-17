@@ -20,7 +20,6 @@ if (empty($wisp_service_id)) {
     exit;
 }
 
-// Conectar a WispHub
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
@@ -34,24 +33,27 @@ if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
 $c_perfil = $profileRes['data'];
 
 $invoices = $wispClient->getPendingInvoices($wisp_service_id);
-$deuda = 0;
+$deuda_total = 0;
 foreach ($invoices as $inv) {
-    $deuda += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
 }
 
 $monto_plan = floatval($c_perfil['plan_internet_precio'] ?? 0);
 if ($monto_plan <= 0 && count($invoices) > 0) {
     $monto_plan = floatval($invoices[0]['monto'] ?? 0);
 }
-if ($monto_plan <= 0) $monto_plan = 15.0; // Default fallback
+if ($monto_plan <= 0) $monto_plan = 15.0;
 
-// Para los inputs
-$id_contrato = $wisp_service_id;
+$usuario_ws = $c_perfil['usuario'] ?? '';
 
-// Tasa BCV (con cache de 1 hora)
+$ultimo_pago = null;
+if (!empty($usuario_ws)) {
+    $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
+}
+
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
-$cache_time = 3600; // 1 hora
+$cache_time = 3600;
 
 if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
     $data_cache = json_decode(file_get_contents($cache_file), true);
@@ -74,20 +76,24 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
 }
 
 if ($cedula === TEST_USER_CEDULA) {
-    $deuda = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
+    $deuda_total = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
     $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
 }
 
-// Bancos
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');
 $bancosArr = json_decode($json_bancos, true) ?: [];
+
+$estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
+if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
+if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
+$badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realizar Pago - Wireless Supply</title>
+    <title>Pagar - Wireless Supply</title>
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
@@ -99,465 +105,442 @@ $bancosArr = json_decode($json_bancos, true) ?: [];
             <a href="dashboard.php" class="text-decoration-none me-3">
                 <i class="fas fa-chevron-left fa-lg"></i>
             </a>
-            <h5 class="mb-0 fw-bold" id="wizard-title">Realizar Pago</h5>
+            <h5 class="mb-0 fw-bold text-gradient">Pagar Mensualidad</h5>
+            <div class="ms-auto">
+                <button class="theme-toggle" id="themeToggleBtn" title="Cambiar Tema">
+                    <i class="fas fa-sun"></i>
+                </button>
+            </div>
         </div>
     </header>
 
-    <div class="container py-4" style="margin-bottom: 120px;">
+    <div class="container main-container animate-fade py-4">
+
+        <?php if (!empty($pago_err)): ?>
+            <div class="alert alert-danger glass-panel mb-4"><?php echo $pago_err; ?></div>
+        <?php endif; ?>
+
+        <?php if ($cedula === TEST_USER_CEDULA): ?>
+            <div class="alert alert-info glass-panel mb-4 text-center">
+                <i class="fas fa-info-circle me-2"></i> Modo de prueba: montos demo.
+            </div>
+        <?php endif; ?>
+
+        <!-- Cabecera del Cliente -->
+        <div class="glass-panel p-4 mb-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <small class="text-muted d-block">Cliente</small>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['nombre'] ?? $_SESSION['cliente_nombre']); ?></span>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Estado</small>
+                    <span class="status-badge <?php echo $badge_class; ?>"><?php echo $estado_ws; ?></span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Plan</small>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Teléfono</small>
+                    <span><?php echo htmlspecialchars($c_perfil['telefono'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-12">
+                    <small class="text-muted d-block">Dirección</small>
+                    <span><?php echo htmlspecialchars($c_perfil['direccion'] ?? 'N/A'); ?></span>
+                </div>
+            </div>
+            <?php if ($ultimo_pago): ?>
+            <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
+                <div class="col-12">
+                    <div class="ultimo-pago-card glass-panel p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted d-block"><i class="fas fa-check-circle text-success me-1"></i> Último Pago</small>
+                            <span class="fw-bold">$<?php echo number_format($ultimo_pago['monto'], 2); ?></span>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted d-block">Fecha</small>
+                            <span class="fw-bold"><?php echo date('d/m/Y', strtotime($ultimo_pago['fecha_pago'])); ?></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+        </div>
+
         <form id="paymentForm" action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
-            <input type="hidden" name="id_contrato" value="<?php echo $id_contrato; ?>">
+            <input type="hidden" name="id_contrato" value="<?php echo $wisp_service_id; ?>">
             <input type="hidden" name="tasa_dolar" value="<?php echo $tasa_bcv; ?>">
-            <input type="hidden" name="monto_usd" id="input_monto_usd" value="">
+            <input type="hidden" name="monto_usd" id="input_monto_usd" value="0">
             <input type="hidden" name="metodo_pago" id="input_metodo" value="">
             <input type="hidden" name="id_banco_destino" id="input_banco" value="">
+            <input type="hidden" name="monto_usd_real" id="input_monto_usd_real" value="0">
+            <input type="hidden" name="verificacion_data" id="input_verificacion_data" value="">
+            <input type="hidden" name="meses_adelanto" value="0">
 
-            <!-- PASO 1: Selección de Método -->
-            <div class="wizard-step active" id="step-1">
-                <?php if (!empty($pago_err)): ?>
-                    <div class="alert alert-danger glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(239, 68, 68, 0.15); border-left: 4px solid #ef4444 !important; border-radius: 12px; font-size: 0.95rem;">
-                        <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
-                        <?php echo $pago_err; ?>
-                    </div>
+            <!-- Recibos Pendientes -->
+            <div class="glass-panel p-4 mb-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+                <?php if (count($invoices) > 0): ?>
+                <div class="table-responsive">
+                    <table class="table table-premium mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40px"><input type="checkbox" id="check_all" checked onchange="toggleAll(this)"></th>
+                                <th>Vencimiento</th>
+                                <th>Concepto</th>
+                                <th class="text-end">Monto USD</th>
+                                <th class="text-end">Monto Bs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($invoices as $i => $inv): 
+                                $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                                $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                            ?>
+                            <tr>
+                                <td><input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="invoice-check" checked onchange="recalcTotal()"></td>
+                                <td><?php echo htmlspecialchars($inv['fecha_vencimiento'] ?? 'N/A'); ?></td>
+                                <td>Mensualidad Internet</td>
+                                <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
+                                <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-4">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <p class="mb-0">No tienes facturas pendientes.</p>
+                </div>
                 <?php endif; ?>
+            </div>
 
-                <h3 class="mb-4">¿Cómo vas a pagar?</h3>
-                <div class="selection-card animate-fade" onclick="selectMethod('Pago Móvil', this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;"><i class="fas fa-mobile-alt"></i></div>
-                        <div>
-                            <span class="fw-bold d-block text-white">Pago Móvil</span>
-                            <span class="badge bg-warning text-dark" style="font-size: 0.6rem;">SE ACREDITA AL INSTANTE</span>
-                        </div>
+            <!-- Total a Pagar -->
+            <div class="glass-panel p-4 mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted d-block">Tasa BCV</small>
+                        <span class="fw-bold">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
                     </div>
-                    <i class="fas fa-chevron-right text-muted"></i>
+                    <div class="text-end">
+                        <small class="text-muted d-block">Total a Pagar</small>
+                        <span class="fs-4 fw-bold text-gradient" id="total_usd">$0.00</span>
+                        <span class="d-block text-ves" id="total_bs">Bs 0,00</span>
+                    </div>
                 </div>
-
-                <div class="selection-card animate-fade" onclick="selectMethod('Transferencia', this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;"><i class="fas fa-university"></i></div>
-                        <div>
-                            <span class="fw-bold d-block text-white">Transferencia Bancaria</span>
-                            <small class="text-light opacity-75">Desde cualquier banco</small>
-                        </div>
+                <div class="mt-3">
+                    <div class="progress" style="height:4px;">
+                        <div class="progress-bar bg-primary" id="progress_bar" style="width:0%"></div>
                     </div>
-                    <i class="fas fa-chevron-right text-muted"></i>
-                </div>
-
-                <div class="selection-card animate-fade" onclick="selectMethod('Zelle', this)">
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6;"><i class="fas fa-bolt"></i></div>
-                        <div>
-                            <span class="fw-bold d-block text-white">Zelle</span>
-                            <small class="text-light opacity-75">Pagos en USD</small>
-                        </div>
-                    </div>
-                    <i class="fas fa-chevron-right text-muted"></i>
                 </div>
             </div>
 
-            <!-- PASO 2: Selección de Banco -->
-            <div class="wizard-step" id="step-2">
-                <h3 class="mb-4">Selecciona el banco destino</h3>
-                <div id="bancos-list">
-                    <!-- Se llena con JS -->
+            <!-- Método de Pago -->
+            <div class="glass-panel p-4 mb-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-credit-card me-2 text-primary"></i> Método de Pago</h5>
+                <div class="row g-2">
+                    <?php 
+                    $metodos_unicos = [];
+                    foreach ($bancosArr as $b) {
+                        if ($b['activo'] !== false) {
+                            foreach ($b['metodos_pago'] as $m) {
+                                $metodos_unicos[$m] = true;
+                            }
+                        }
+                    }
+                    $orden = ['Pago Móvil', 'Transferencia', 'Zelle'];
+                    foreach ($orden as $met): if (!isset($metodos_unicos[$met])) continue; ?>
+                    <div class="col-md-4">
+                        <div class="selection-card metodo-card py-3 px-3 text-center" data-metodo="<?php echo $met; ?>" onclick="selectMetodo('<?php echo $met; ?>', this)">
+                            <div class="d-flex flex-column align-items-center">
+                                <div class="selection-icon mb-2" style="width:44px;height:44px;font-size:1.2rem;">
+                                    <i class="fas <?php echo $met === 'Pago Móvil' ? 'fa-mobile-alt' : ($met === 'Transferencia' ? 'fa-university' : 'fa-bolt'); ?>"></i>
+                                </div>
+                                <span class="fw-bold small"><?php echo $met; ?></span>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
 
-            <!-- PASO 3: Datos de la Operación y Reporte -->
-            <div class="wizard-step" id="step-3">
-                <div class="glass-panel p-4 mb-4">
-                    <h5 class="fw-bold mb-3 text-info text-center" id="final-bank-name">Datos para Transferir</h5>
-                    <div id="bank-details-fields" class="mb-2">
-                        <!-- Se llena con JS -->
+            <!-- Datos del Banco Destino -->
+            <div class="glass-panel p-4 mb-4 d-none" id="panel-banco">
+                <h5 class="fw-bold mb-3"><i class="fas fa-university me-2 text-primary"></i> <span id="banco_nombre"></span></h5>
+                <div id="banco_detalles" class="mb-3"></div>
+            </div>
+
+            <!-- Datos del Reporte -->
+            <div class="glass-panel p-4 mb-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-pen me-2 text-primary"></i> Datos del Reporte</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="label-premium">Fecha de Operación</label>
+                        <input type="date" name="fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="label-premium">Número de Referencia</label>
+                        <input type="text" name="referencia" class="form-control glass-input" placeholder="Últimos 6 dígitos o completo" required>
+                    </div>
+                    <div class="col-md-4 d-none" id="monto_manual_group">
+                        <label class="label-premium">Monto en USD</label>
+                        <input type="number" step="0.01" min="0.01" name="monto_manual_usd" class="form-control glass-input" placeholder="0.00">
                     </div>
                 </div>
+            </div>
 
-                <h4 class="mb-3">Ingresa los datos de tu pago</h4>
-
-                <div class="mb-3">
-                    <label class="form-label text-white small fw-bold">FECHA DE OPERACIÓN</label>
-                    <input type="date" name="fecha_pago" id="field_fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label text-white small fw-bold">NÚMERO DE REFERENCIA</label>
-                    <input type="text" name="referencia" id="field_referencia" class="form-control glass-input" placeholder="Ingresa la referencia completa o los últimos 6-8 dígitos" required>
-                </div>
-
-                <!-- Campo de Monto (Solo para métodos manuales como Zelle) -->
-                <div class="mb-3" id="monto_manual_wrapper" style="display: none;">
-                    <label class="form-label text-white small fw-bold">MONTO PAGADO ($ USD)</label>
-                    <input type="number" step="0.01" name="monto_manual" id="field_monto_manual" class="form-control glass-input" placeholder="Ej: 15.00">
-                </div>
-
-                <div class="mb-4">
-                    <label class="form-label text-white small fw-bold">COMPROBANTE (CAPTURE - OPCIONAL)</label>
-                    <div class="upload-area glass-panel p-3 text-center" onclick="document.getElementById('capture_input').click()">
-                        <i class="fas fa-cloud-upload-alt fa-lg text-primary mb-1"></i>
-                        <p class="mb-0 small text-light">Presiona para subir la imagen del comprobante</p>
-                        <input type="file" id="capture_input" name="capture_pago" class="d-none" accept="image/*" onchange="previewImage(this)">
-                    </div>
-                    <div id="image-preview" class="mt-2 d-none text-center">
-                        <img src="" class="img-fluid rounded shadow-sm" style="max-height: 120px;">
-                    </div>
-                </div>
-
-                <button type="button" class="btn btn-premium w-100 py-3" id="btn-verificar-pago" onclick="verificarPagoAJAX()">
-                    VERIFICAR PAGO <i class="fas fa-search ms-2"></i>
+            <!-- Acciones -->
+            <div class="d-flex gap-2 mb-4">
+                <button type="button" class="btn btn-premium flex-fill py-3" id="btn_verificar" onclick="verificarPago()">
+                    <i class="fas fa-search me-2"></i> Verificar Pago
+                </button>
+                <button type="button" class="btn btn-glass flex-fill py-3 d-none" id="btn_confirmar" onclick="confirmarPago()">
+                    <i class="fas fa-check-circle me-2"></i> Confirmar Pago
+                </button>
+                <button type="submit" class="btn btn-premium flex-fill py-3 d-none" id="btn_submit_zelle">
+                    <i class="fas fa-check-circle me-2"></i> Confirmar Pago
                 </button>
             </div>
 
-            <!-- PASO 4: Confirmación y Resultados -->
-            <div class="wizard-step" id="step-4">
-                <h3 class="mb-3 text-center">Verificación de Pago</h3>
-                
-                <div class="glass-panel p-4 mb-4 text-center">
-                    <div id="verification-status-icon" class="mb-3">
-                        <!-- Icono animado de carga o éxito -->
-                    </div>
-                    <h4 class="fw-bold text-white mb-2" id="verification-title">Buscando pago...</h4>
-                    <p class="text-light opacity-75" id="verification-details">Estamos comprobando tu referencia directamente con los movimientos recientes del banco.</p>
-
-                    <div id="payment-details-box" style="display: none;" class="text-start mt-4 border-top border-secondary pt-3">
-                        <!-- Se llena dinámicamente -->
-                    </div>
+            <!-- Resultado de Verificación -->
+            <div class="glass-panel p-4 mb-4 d-none" id="panel-resultado">
+                <h5 class="fw-bold mb-3 text-success"><i class="fas fa-check-circle me-2"></i> Datos de Reporte</h5>
+                <div class="table-responsive">
+                    <table class="table table-premium mb-0">
+                        <tbody id="resultado_body"></tbody>
+                    </table>
                 </div>
-
-                <button type="submit" class="btn btn-premium w-100 py-3" id="btn-confirmar-pago" style="display: none;">
-                    APLICAR PAGO Y ACTIVAR <i class="fas fa-check-circle ms-2"></i>
-                </button>
-                
-                <button type="button" class="btn btn-secondary w-100 py-2 mt-2" onclick="nextStep(3)">
-                    <i class="fas fa-arrow-left me-2"></i> Corregir datos
-                </button>
+                <div class="mt-3 p-3 rounded" style="background:rgba(16,185,129,0.08);border-left:4px solid var(--success);" id="descripcion_pago"></div>
             </div>
         </form>
     </div>
 
-    <!-- Barra de Resumen Inferior -->
-    <div class="bottom-bar" style="display: none;">
-        <div class="container d-flex justify-content-center align-items-center text-center">
-            <div>
-                <small class="text-muted d-block" style="letter-spacing: 0.5px; font-weight: 600;">TOTAL A PAGAR</small>
-                <span class="fw-bold fs-4 text-gradient" id="summary-usd">$0.00</span>
-                <span class="text-muted small ms-2 d-block d-sm-inline" id="summary-bs">Bs 0,00</span>
-            </div>
-        </div>
-    </div>
-
-
-    <script>
-        let currentStep = 1;
-        const totalSteps = 4;
-        const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
-        const tasaBcv = <?php echo $tasa_bcv; ?>;
-        
-        let selectedMethod = '';
-        let selectedBankId = null;
-
-        function updateSummary() {
-            // Títulos de pasos
-            const titles = ["", "Método de Pago", "Banco Destino", "Ingresar Pago", "Verificación de Pago"];
-            document.getElementById('wizard-title').textContent = titles[currentStep];
-        }
-
-        function nextStep(step) {
-            document.querySelector('.wizard-step.active').classList.remove('active');
-            currentStep = step;
-            document.getElementById('step-' + step).classList.add('active');
-            window.scrollTo(0, 0);
-            updateSummary();
-        }
-
-        function selectMethod(method, el) {
-            selectedMethod = method;
-            document.getElementById('input_metodo').value = method;
-            
-            document.querySelectorAll('#step-1 .selection-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-            
-            // Mostrar input de monto manual solo si es Zelle
-            const montoManual = document.getElementById('monto_manual_wrapper');
-            const fieldMonto = document.getElementById('field_monto_manual');
-            if (method === 'Zelle') {
-                montoManual.style.display = 'block';
-                fieldMonto.setAttribute('required', 'required');
-            } else {
-                montoManual.style.display = 'none';
-                fieldMonto.removeAttribute('required');
-            }
-
-            // Cargar bancos
-            const list = document.getElementById('bancos-list');
-            list.innerHTML = '';
-            const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(method) && b.activo !== false);
-            
-            filtrados.forEach(b => {
-                const div = document.createElement('div');
-                div.className = 'selection-card animate-fade';
-                div.onclick = () => selectBank(b, div);
-                div.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <div class="selection-icon"><i class="fas fa-university"></i></div>
-                        <div>
-                            <span class="fw-bold d-block text-white">${b.nombre_banco}</span>
-                            <small class="text-light opacity-75">${method}</small>
-                        </div>
-                    </div>
-                    <i class="fas fa-chevron-right text-muted"></i>
-                `;
-                list.appendChild(div);
-            });
-            
-            updateSummary();
-            
-            setTimeout(() => {
-                nextStep(2);
-            }, 200);
-        }
-
-        function selectBank(bank, el) {
-            selectedBankId = bank.id_banco;
-            document.getElementById('input_banco').value = bank.id_banco;
-            document.querySelectorAll('#step-2 .selection-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-            updateSummary();
-            
-            setTimeout(() => {
-                prepareStep3();
-                nextStep(3);
-            }, 200);
-        }
-
-        function prepareStep3() {
-            const bank = todosLosBancos.find(b => b.id_banco == selectedBankId);
-            document.getElementById('final-bank-name').textContent = bank.nombre_banco;
-
-            const detailsDiv = document.getElementById('bank-details-fields');
-            detailsDiv.innerHTML = '';
-
-            const fields = [];
-            if (selectedMethod === 'Pago Móvil') {
-                fields.push({ label: 'Teléfono', value: bank.numero_cuenta });
-                fields.push({ label: 'Cédula/RIF', value: bank.cedula_propietario });
-            } else if (selectedMethod === 'Transferencia') {
-                fields.push({ label: 'N° de Cuenta', value: bank.numero_cuenta });
-                fields.push({ label: 'Titular', value: bank.nombre_propietario });
-                fields.push({ label: 'RIF', value: bank.cedula_propietario });
-            } else if (selectedMethod === 'Zelle') {
-                fields.push({ label: 'Correo', value: bank.numero_cuenta });
-                fields.push({ label: 'Titular', value: bank.nombre_propietario });
-            }
-
-            fields.forEach((f, index) => {
-                const id = 'field-' + index;
-                const html = `
-                    <div class="d-flex justify-content-between align-items-center mb-2 small border-bottom border-secondary pb-1">
-                        <div>
-                            <small class="text-light opacity-75 d-block">${f.label}</small>
-                            <span class="fw-bold text-white" id="${id}">${f.value}</span>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-glass copy-btn py-0 px-2" onclick="copyText('${id}', event)"><i class="far fa-copy"></i></button>
-                    </div>
-                `;
-                detailsDiv.innerHTML += html;
-            });
-        }
-
-        function verificarPagoAJAX() {
-            const ref = document.getElementById('field_referencia').value.trim();
-            const fecha = document.getElementById('field_fecha_pago').value;
-            const montoManual = document.getElementById('field_monto_manual').value;
-
-            if (!ref || !fecha) {
-                alert('Por favor, ingresa la fecha y el número de referencia.');
-                return;
-            }
-
-            // Cambiar a paso 4 para mostrar cargando
-            nextStep(4);
-
-            const statusIcon = document.getElementById('verification-status-icon');
-            const title = document.getElementById('verification-title');
-            const details = document.getElementById('verification-details');
-            const detailsBox = document.getElementById('payment-details-box');
-            const btnConfirmar = document.getElementById('btn-confirmar-pago');
-
-            statusIcon.innerHTML = '<div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>';
-            title.textContent = 'Buscando pago...';
-            details.textContent = 'Comprobando referencia con los movimientos del banco en tiempo real.';
-            detailsBox.style.display = 'none';
-            btnConfirmar.style.display = 'none';
-
-            // Zelle / Manual
-            if (selectedMethod === 'Zelle') {
-                if (!montoManual || parseFloat(montoManual) <= 0) {
-                    alert('Debes ingresar un monto válido para reportar Zelle.');
-                    nextStep(3);
-                    return;
-                }
-                
-                // Configurar montos para envío manual
-                document.getElementById('input_monto_usd').value = parseFloat(montoManual).toFixed(2);
-                
-                statusIcon.innerHTML = '<i class="fas fa-info-circle text-info fa-3x animate-fade"></i>';
-                title.textContent = 'Verificación Manual';
-                details.textContent = 'Los pagos de Zelle requieren validación administrativa. Tu reporte será procesado a la brevedad.';
-                
-                detailsBox.style.display = 'block';
-                detailsBox.innerHTML = `
-                    <div class="alert alert-info py-2" style="background: rgba(14, 165, 233, 0.1);">
-                        <strong>Monto reportado:</strong> $${parseFloat(montoManual).toFixed(2)} USD<br>
-                        <strong>Referencia:</strong> ${ref}<br>
-                        <strong>Fecha:</strong> ${fecha}
-                    </div>
-                `;
-                btnConfirmar.style.display = 'block';
-                btnConfirmar.textContent = 'ENVIAR REPORTE';
-                return;
-            }
-
-            // BDV API
-            const csrf = document.querySelector('input[name="csrf_token"]').value;
-            const url = `api_verificar_pago.php?id_banco=${selectedBankId}&referencia=${encodeURIComponent(ref)}&fecha_pago=${fecha}&metodo_pago=${encodeURIComponent(selectedMethod)}&id_contrato=${encodeURIComponent(document.querySelector('input[name="id_contrato"]').value)}&csrf_token=${csrf}`;
-
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'verified') {
-                        statusIcon.innerHTML = '<i class="fas fa-check-circle text-success fa-3x animate-fade"></i>';
-                        title.textContent = '¡Pago Verificado!';
-                        details.textContent = 'Hemos validado tu transacción de forma exitosa.';
-                        
-                        // Guardar el monto USD conciliado
-                        document.getElementById('input_monto_usd').value = data.monto_usd;
-
-                        detailsBox.style.display = 'block';
-                        detailsBox.innerHTML = `
-                            <div class="p-3 rounded mb-3" style="background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981;">
-                                <div class="mb-2"><strong>Monto encontrado:</strong> Bs ${data.monto_bs.toLocaleString('es-VE', {minimumFractionDigits: 2})}</div>
-                                <div class="mb-2"><strong>Equivalente en USD:</strong> $${data.monto_usd.toFixed(2)} USD</div>
-                                <div class="mb-2"><strong>Tu deuda actual:</strong> $${data.deuda_usd.toFixed(2)} USD</div>
-                                <div class="mt-2 pt-2 border-top border-secondary small text-light font-italic">${data.descripcion}</div>
-                            </div>
-                        `;
-                        btnConfirmar.style.display = 'block';
-                        btnConfirmar.textContent = 'APLICAR PAGO Y ACTIVAR';
-                    } else if (data.status === 'manual') {
-                        statusIcon.innerHTML = '<i class="fas fa-info-circle text-info fa-3x"></i>';
-                        title.textContent = 'Verificación Manual';
-                        details.textContent = data.message;
-                        
-                        btnConfirmar.style.display = 'block';
-                        btnConfirmar.textContent = 'ENVIAR REPORTE';
-                    } else {
-                        statusIcon.innerHTML = '<i class="fas fa-times-circle text-danger fa-3x animate-fade"></i>';
-                        title.textContent = 'Pago No Encontrado';
-                        details.textContent = data.message;
-                    }
-                })
-                .catch(err => {
-                    statusIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-warning fa-3x"></i>';
-                    title.textContent = 'Error de Red';
-                    details.textContent = 'No pudimos conectar con el servidor de validación. Por favor, reintenta.';
-                });
-        }
-
-        function copyText(id, event) {
-            const text = document.getElementById(id).textContent;
-            navigator.clipboard.writeText(text);
-            const btn = event.currentTarget;
-            const original = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-check"></i>';
-            btn.classList.add('text-success');
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.classList.remove('text-success');
-            }, 2000);
-        }
-
-        function previewImage(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('image-preview');
-                    preview.classList.remove('d-none');
-                    preview.querySelector('img').src = e.target.result;
-                    
-                    // Optimización: Redimensionar imagen para ahorrar ancho de banda
-                    resizeImage(file, 1024, 1024).then(resizedBlob => {
-                        const resizedFile = new File([resizedBlob], file.name, { type: 'image/jpeg' });
-                        
-                        // Reemplazar el archivo en el input usando DataTransfer
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(resizedFile);
-                        input.files = dataTransfer.files;
-                        console.log("Imagen redimensionada con éxito: ", Math.round(resizedBlob.size / 1024), "KB");
-                    });
-                }
-                reader.readAsDataURL(file);
-            }
-        }
-
-        async function resizeImage(file, maxWidth, maxHeight) {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.src = URL.createObjectURL(file);
-                img.onload = () => {
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > maxWidth) {
-                            height *= maxWidth / width;
-                            width = maxWidth;
-                        }
-                    } else {
-                        if (height > maxHeight) {
-                            width *= maxHeight / height;
-                            height = maxHeight;
-                        }
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    canvas.toBlob((blob) => {
-                        resolve(blob);
-                    }, 'image/jpeg', 0.7); // 0.7 calidad para buen balance peso/calidad
-                };
-            });
-        }
-
-        // Initialize theme
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        
-        // Initial summary
-        updateSummary();
-
-        // Loading modal on form submit
-        document.getElementById('paymentForm').addEventListener('submit', function() {
-            document.getElementById('loadingOverlay').style.display = 'flex';
-        });
-    </script>
-
-    <!-- Loading Overlay -->
     <div id="loadingOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;justify-content:center;align-items:center;flex-direction:column;">
         <div style="width:50px;height:50px;border:4px solid rgba(255,255,255,0.2);border-top-color:#3b82f6;border-radius:50%;animation:loadingSpin 0.8s linear infinite;"></div>
-        <p style="color:#fff;font-size:1.2rem;font-weight:600;margin-top:20px;">Procesando pago...</p>
-        <p style="color:#94a3b8;font-size:0.9rem;margin-top:5px;">Por favor espera, esto puede tomar unos segundos.</p>
+        <p style="color:#fff;font-size:1.2rem;font-weight:600;margin-top:20px;">Procesando...</p>
     </div>
 
-    <style>
-        @keyframes loadingSpin {
-            to { transform: rotate(360deg); }
+    <script src="../js/bootstrap.bundle.min.js"></script>
+    <script>
+    const tasaBcv = <?php echo $tasa_bcv; ?>;
+    const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
+    const csrfToken = '<?php echo htmlspecialchars(generate_csrf_token()); ?>';
+    const idContrato = '<?php echo $wisp_service_id; ?>';
+    let selectedMetodo = '';
+    let selectedBanco = null;
+    let verificacionData = null;
+
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    document.getElementById('themeToggleBtn').addEventListener('click', function() {
+        const html = document.documentElement;
+        const current = html.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    });
+
+    function toggleAll(master) {
+        document.querySelectorAll('.invoice-check').forEach(cb => cb.checked = master.checked);
+        recalcTotal();
+    }
+
+    function recalcTotal() {
+        let total = 0;
+        const checks = document.querySelectorAll('.invoice-check:checked');
+        checks.forEach(cb => {
+            const row = cb.closest('tr');
+            const txt = row.querySelector('td:nth-child(4)').textContent.replace('$', '').replace(',', '');
+            total += parseFloat(txt) || 0;
+        });
+        document.getElementById('total_usd').textContent = '$' + total.toFixed(2);
+        document.getElementById('total_bs').textContent = 'Bs ' + (total * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
+        document.getElementById('input_monto_usd').value = total.toFixed(2);
+
+        const maxTotal = <?php echo $deuda_total; ?>;
+        const pct = maxTotal > 0 ? Math.min(100, (total / maxTotal) * 100) : 0;
+        document.getElementById('progress_bar').style.width = pct + '%';
+
+        document.getElementById('btn_verificar').disabled = total <= 0;
+        ocultarResultado();
+    }
+
+    function selectMetodo(metodo, el) {
+        selectedMetodo = metodo;
+        document.getElementById('input_metodo').value = metodo;
+        document.querySelectorAll('.metodo-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+
+        const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(metodo) && b.activo !== false);
+        if (filtrados.length > 0) {
+            selectedBanco = filtrados[0];
+            mostrarBanco(selectedBanco);
         }
+
+        // Para Zelle, mostrar campo de monto manual
+        if (metodo === 'Zelle') {
+            document.getElementById('monto_manual_group').classList.remove('d-none');
+            document.getElementById('btn_verificar').classList.add('d-none');
+            document.getElementById('btn_submit_zelle').classList.remove('d-none');
+            document.getElementById('btn_confirmar').classList.add('d-none');
+            document.getElementById('panel-resultado').classList.add('d-none');
+        } else {
+            document.getElementById('monto_manual_group').classList.add('d-none');
+            document.getElementById('btn_verificar').classList.remove('d-none');
+            document.getElementById('btn_submit_zelle').classList.add('d-none');
+            document.getElementById('btn_confirmar').classList.add('d-none');
+        }
+        ocultarResultado();
+    }
+
+    function mostrarBanco(bank) {
+        document.getElementById('panel-banco').classList.remove('d-none');
+        document.getElementById('banco_nombre').textContent = bank.nombre_banco;
+        document.getElementById('input_banco').value = bank.id_banco;
+
+        const div = document.getElementById('banco_detalles');
+        const lines = [];
+        if (selectedMetodo === 'Pago Móvil') {
+            lines.push({label:'Teléfono', val:bank.numero_cuenta});
+            lines.push({label:'Cédula/RIF', val:bank.cedula_propietario});
+        } else if (selectedMetodo === 'Transferencia') {
+            lines.push({label:'N° Cuenta', val:bank.numero_cuenta});
+            lines.push({label:'Titular', val:bank.nombre_propietario});
+            lines.push({label:'RIF', val:bank.cedula_propietario});
+        } else if (selectedMetodo === 'Zelle') {
+            lines.push({label:'Correo', val:bank.numero_cuenta});
+            lines.push({label:'Titular', val:bank.nombre_propietario});
+        }
+        div.innerHTML = lines.map(l =>
+            `<div class="d-flex justify-content-between align-items-center mb-2">
+                <small class="text-muted">${l.label}</small>
+                <span class="fw-bold">${l.val}</span>
+            </div>`
+        ).join('');
+    }
+
+    function verificarPago() {
+        const fecha = document.querySelector('input[name="fecha_pago"]').value;
+        const referencia = document.querySelector('input[name="referencia"]').value.trim();
+        const montoUsd = document.getElementById('input_monto_usd').value;
+
+        if (!fecha || !referencia || referencia.length < 6) {
+            alert('Completa la fecha y la referencia (min. 6 caracteres).');
+            return;
+        }
+        if (!selectedMetodo || !selectedBanco) {
+            alert('Selecciona un método de pago.');
+            return;
+        }
+
+        const checks = document.querySelectorAll('.invoice-check:checked');
+        if (checks.length === 0) {
+            alert('Selecciona al menos una factura.');
+            return;
+        }
+
+        const invoiceIds = Array.from(checks).map(cb => cb.value);
+        document.getElementById('loadingOverlay').style.display = 'flex';
+
+        const params = new URLSearchParams();
+        params.append('csrf_token', csrfToken);
+        params.append('id_banco', selectedBanco.id_banco);
+        params.append('referencia', referencia);
+        params.append('fecha_pago', fecha);
+        params.append('metodo_pago', selectedMetodo);
+        params.append('id_contrato', idContrato);
+        invoiceIds.forEach(id => params.append('invoice_ids[]', id));
+
+        fetch('api_verificar_pago.php', {method:'POST', body:params})
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                if (data.status === 'verified') {
+                    verificacionData = data;
+                    mostrarResultado(data);
+                } else if (data.status === 'manual') {
+                    alert('Este método requiere verificación manual. Usa "Confirmar Pago" para reportar.');
+                } else {
+                    alert(data.message || 'Error al verificar el pago.');
+                }
+            })
+            .catch(e => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert('Error de conexión. Intenta de nuevo.');
+            });
+    }
+
+    function mostrarResultado(data) {
+        const mov = data.movimiento || {};
+        const tbody = document.getElementById('resultado_body');
+        tbody.innerHTML = '';
+        const rows = [
+            ['Referencia Bancaria', mov.referencia_banco || data.referencia],
+            ['Importe en Bs', 'Bs ' + (mov.importe_bs || data.monto_bs).toLocaleString('es-VE', {minimumFractionDigits:2})],
+            ['Importe en USD', '$' + (mov.importe_usd || data.monto_usd).toFixed(2)],
+            ['Tipo de Movimiento', mov.tipo_movimiento || 'CRÉDITO'],
+            ['Observación', mov.observacion || '-'],
+            ['Fecha', mov.fecha || document.querySelector('input[name="fecha_pago"]').value],
+        ];
+        rows.forEach(r => {
+            tbody.innerHTML += `<tr><td class="text-muted">${r[0]}</td><td class="fw-bold">${r[1]}</td></tr>`;
+        });
+
+        document.getElementById('descripcion_pago').innerHTML = data.descripcion || '';
+        document.getElementById('panel-resultado').classList.remove('d-none');
+        document.getElementById('btn_verificar').classList.add('d-none');
+        document.getElementById('btn_confirmar').classList.remove('d-none');
+
+        document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
+        document.getElementById('input_verificacion_data').value = JSON.stringify(data);
+    }
+
+    function ocultarResultado() {
+        document.getElementById('panel-resultado').classList.add('d-none');
+        document.getElementById('btn_verificar').classList.remove('d-none');
+        document.getElementById('btn_confirmar').classList.add('d-none');
+        verificacionData = null;
+    }
+
+    function confirmarPago() {
+        if (!verificacionData) return;
+        // Setear montos reales del banco antes de submit
+        document.getElementById('input_monto_usd').value = verificacionData.monto_usd || 0;
+        document.getElementById('input_monto_usd_real').value = verificacionData.monto_usd || 0;
+        document.getElementById('paymentForm').submit();
+    }
+
+    // Zelle: submit directo sin verificacion
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        // Si es Zelle, validar monto manual
+        if (selectedMetodo === 'Zelle') {
+            const manual = document.querySelector('input[name="monto_manual_usd"]');
+            if (!manual || !manual.value || parseFloat(manual.value) <= 0) {
+                e.preventDefault();
+                alert('Ingresa el monto en USD para Zelle.');
+                return;
+            }
+            document.getElementById('input_monto_usd').value = parseFloat(manual.value).toFixed(2);
+            document.getElementById('input_monto_usd_real').value = parseFloat(manual.value).toFixed(2);
+        }
+        document.getElementById('loadingOverlay').style.display = 'flex';
+    });
+
+    recalcTotal();
+    </script>
+
+    <style>
+        @keyframes loadingSpin { to { transform: rotate(360deg); } }
+        .progress { background: var(--border-glass); border-radius: 2px; }
+        .progress-bar { border-radius: 2px; transition: width 0.3s ease; }
+        .table-premium td, .table-premium th { padding: 12px 16px; }
+        input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
+        #loadingOverlay { display:none; }
     </style>
 </body>
 </html>

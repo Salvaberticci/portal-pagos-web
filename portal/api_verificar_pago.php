@@ -19,6 +19,12 @@ if (!verify_csrf_token($csrf_token)) {
     exit;
 }
 
+// Rate limiting
+if (!check_rate_limit('api_verificar_pago', 10, 60)) {
+    echo json_encode(['status' => 'error', 'message' => 'Demasiadas solicitudes. Espera un momento.']);
+    exit;
+}
+
 // Inputs
 $id_banco = isset($_REQUEST['id_banco']) ? intval($_REQUEST['id_banco']) : 0;
 $referencia = isset($_REQUEST['referencia']) ? trim($_REQUEST['referencia']) : '';
@@ -26,6 +32,7 @@ $fecha_pago = isset($_REQUEST['fecha_pago']) ? trim($_REQUEST['fecha_pago']) : '
 $metodo_pago = isset($_REQUEST['metodo_pago']) ? trim($_REQUEST['metodo_pago']) : '';
 $tasa_dolar = obtener_tasa_bcv();
 $wisp_service_id = isset($_REQUEST['id_contrato']) ? trim($_REQUEST['id_contrato']) : '';
+$invoice_ids = isset($_REQUEST['invoice_ids']) ? $_REQUEST['invoice_ids'] : [];
 
 if (empty($referencia) || empty($fecha_pago) || empty($id_banco)) {
     echo json_encode(['status' => 'error', 'message' => 'Todos los campos son obligatorios.']);
@@ -47,7 +54,6 @@ if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 
 $api_cfg = obtener_config_api_banco($id_banco);
 if ($api_cfg === null) {
-    // Banco sin API (ej: Zelle o transferencia de otro banco no integrado)
     echo json_encode([
         'status' => 'manual',
         'message' => 'Este método requiere verificación manual por administración.'
@@ -135,38 +141,59 @@ $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
 $wispClient = new \Services\WispHubClient($wispConfig);
 
 $deuda_usd = 0.00;
+$selected_deuda_usd = 0.00;
 if (!empty($wisp_service_id)) {
     $invoices = $wispClient->getPendingInvoices($wisp_service_id);
     foreach ($invoices as $inv) {
-        $deuda_usd += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+        $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+        $deuda_usd += $inv_monto;
+        // Si hay invoice_ids seleccionados, sumar solo esas
+        if (!empty($invoice_ids) && in_array(strval($inv['id'] ?? ''), $invoice_ids, true)) {
+            $selected_deuda_usd += $inv_monto;
+        }
     }
 }
+
+// Si se seleccionaron facturas especificas, usar esa deuda
+$deuda_referencia = !empty($invoice_ids) ? $selected_deuda_usd : $deuda_usd;
 
 // Si es el usuario de prueba, usar montos de prueba
 if ($cedula === TEST_USER_CEDULA) {
     $deuda_usd = 1.00 / $tasa_dolar;
+    $deuda_referencia = $deuda_usd;
 }
 
 // Comparar montos para determinar acción
-$diferencia = round($monto_usd - $deuda_usd, 2);
+$diferencia = round($monto_usd - $deuda_referencia, 2);
 if ($diferencia < 0) {
     $tipo_pago = 'abono';
-    $descripcion = "Estás realizando un ABONO de $" . number_format($monto_usd, 2) . " USD a tu deuda. Tu saldo pendiente quedará en $" . number_format(abs($diferencia), 2) . " USD.";
+    $descripcion = "Estás realizando un ABONO de $" . number_format($monto_usd, 2) . " USD. El saldo pendiente de las facturas seleccionadas quedará en $" . number_format(abs($diferencia), 2) . " USD.";
 } elseif ($diferencia == 0) {
     $tipo_pago = 'completo';
-    $descripcion = "Estás PAGANDO POR COMPLETO tu deuda de $" . number_format($deuda_usd, 2) . " USD.";
+    $descripcion = "Estás PAGANDO POR COMPLETO las facturas seleccionadas por $" . number_format($deuda_referencia, 2) . " USD.";
 } else {
     $tipo_pago = 'saldo_favor';
-    $descripcion = "Estás PAGANDO POR COMPLETO tu deuda de $" . number_format($deuda_usd, 2) . " USD y te quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD para tu próxima factura.";
+    $descripcion = "Pagas las facturas seleccionadas ($" . number_format($deuda_referencia, 2) . " USD) y quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
 }
 
+// Enviar respuesta con detalles del movimiento
 echo json_encode([
-    'status' => 'verified',
-    'monto_bs' => $monto_mov,
-    'monto_usd' => $monto_usd,
-    'deuda_usd' => $deuda_usd,
-    'tipo_pago' => $tipo_pago,
+    'status'     => 'verified',
+    'movimiento' => [
+        'referencia_banco' => $mov_ref['referencia'] ?? '',
+        'importe_bs'       => $monto_mov,
+        'importe_usd'      => $monto_usd,
+        'tipo_movimiento'  => $mov_ref['mov'] ?? $mov_ref['Tipo'] ?? '',
+        'observacion'      => $mov_ref['concepto'] ?? '',
+        'fecha'            => $fecha_pago,
+    ],
+    'monto_bs'    => $monto_mov,
+    'monto_usd'   => $monto_usd,
+    'deuda_usd'   => $deuda_usd,
+    'deuda_seleccionada_usd' => $deuda_referencia,
+    'tipo_pago'   => $tipo_pago,
     'descripcion' => $descripcion,
-    'referencia' => $referencia
+    'referencia'  => $referencia,
+    'invoice_ids' => $invoice_ids,
 ]);
 exit;

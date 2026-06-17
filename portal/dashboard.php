@@ -249,7 +249,7 @@ $ultimo_pago = null;
         <?php if (isset($_SESSION['pago_msg'])): ?>
             <div class="alert alert-success glass-panel mb-4" id="alert-pago-ok">
                 <i class="fas fa-check-circle me-2"></i>
-                <?php echo htmlspecialchars($_SESSION['pago_msg'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['pago_msg']); ?>
+                <?php echo strip_tags($_SESSION['pago_msg'] ?? '', '<strong><span><br>'); unset($_SESSION['pago_msg']); ?>
             </div>
             <script>
                 setTimeout(() => {
