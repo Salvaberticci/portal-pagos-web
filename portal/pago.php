@@ -48,13 +48,6 @@ if ($monto_plan <= 0 && count($invoices) > 0) {
 }
 if ($monto_plan <= 0) $monto_plan = 15.0;
 
-$usuario_ws = $c_perfil['usuario'] ?? '';
-
-$ultimo_pago = null;
-if (!empty($usuario_ws)) {
-    $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
-}
-
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
 $cache_time = 3600;
@@ -166,22 +159,6 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                     <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
                 </div>
             </div>
-            <?php if ($ultimo_pago): ?>
-            <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
-                <div class="col-12">
-                    <div class="ultimo-pago-card glass-panel p-3 d-flex align-items-center justify-content-between">
-                        <div>
-                            <small class="text-muted d-block"><i class="fas fa-check-circle text-success me-1"></i> Último Pago</small>
-                            <span class="fw-bold">$<?php echo number_format($ultimo_pago['monto'], 2); ?></span>
-                        </div>
-                        <div class="text-end">
-                            <small class="text-muted d-block">Fecha</small>
-                            <span class="fw-bold"><?php echo date('d/m/Y', strtotime($ultimo_pago['fecha_pago'])); ?></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
         </div>
 
         <form id="paymentForm" action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data">

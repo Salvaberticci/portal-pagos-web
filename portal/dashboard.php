@@ -62,6 +62,13 @@ foreach ($invoices as $inv) {
     $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
 }
 
+// Último pago
+$ultimo_pago = null;
+$usuario_ws = $c_perfil['usuario'] ?? '';
+if (!empty($usuario_ws)) {
+    $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
+}
+
 // Estado del servicio
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
 if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
@@ -247,6 +254,22 @@ if (count($invoices) > 0) {
                     <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
                 </div>
             </div>
+            <?php if ($ultimo_pago): ?>
+            <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
+                <div class="col-12">
+                    <div class="ultimo-pago-card glass-panel p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted d-block"><i class="fas fa-check-circle text-success me-1"></i> Último Pago</small>
+                            <span class="fw-bold">$<?php echo number_format($ultimo_pago['monto'], 2); ?></span>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted d-block">Fecha</small>
+                            <span class="fw-bold"><?php echo date('d/m/Y', strtotime($ultimo_pago['fecha_pago'])); ?></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- Recibos Pendientes -->
