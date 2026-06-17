@@ -88,20 +88,50 @@ $mockInvoices = [
     ],
 ];
 
-// Factura pagada mock
-$mockPaidInvoice = [
-    'id_factura'      => 9001,
-    'folio'           => 9001,
-    'fecha_emision'   => '2026-04-01',
-    'fecha_vencimiento'=> '2026-04-05',
-    'fecha_pago'      => '2026-04-02T14:30:00Z',
-    'estado'          => 'Pagada',
-    'tipo'            => 1,
-    'total'           => 17.50,
-    'total_cobrado'   => 17.50,
-    'sub_total'       => 17.50,
-    'referencia'      => 'ABC123',
-    'cliente'         => $mockClienteData,
+// Facturas pagadas mock
+$mockPaidInvoices = [
+    [
+        'id_factura'      => 9001,
+        'folio'           => 9001,
+        'fecha_emision'   => '2026-04-01',
+        'fecha_vencimiento'=> '2026-04-05',
+        'fecha_pago'      => '2026-04-02T14:30:00Z',
+        'estado'          => 'Pagada',
+        'tipo'            => 1,
+        'total'           => 17.50,
+        'total_cobrado'   => 17.50,
+        'sub_total'       => 17.50,
+        'referencia'      => 'ABC123',
+        'cliente'         => $mockClienteData,
+    ],
+    [
+        'id_factura'      => 9002,
+        'folio'           => 9002,
+        'fecha_emision'   => '2026-03-01',
+        'fecha_vencimiento'=> '2026-03-05',
+        'fecha_pago'      => '2026-03-03T10:15:00Z',
+        'estado'          => 'Pagada',
+        'tipo'            => 1,
+        'total'           => 17.50,
+        'total_cobrado'   => 17.50,
+        'sub_total'       => 17.50,
+        'referencia'      => 'XYZ789',
+        'cliente'         => $mockClienteData,
+    ],
+    [
+        'id_factura'      => 9003,
+        'folio'           => 9003,
+        'fecha_emision'   => '2026-02-01',
+        'fecha_vencimiento'=> '2026-02-05',
+        'fecha_pago'      => '2026-02-10T16:45:00Z',
+        'estado'          => 'Pagada',
+        'tipo'            => 1,
+        'total'           => 17.50,
+        'total_cobrado'   => 17.50,
+        'sub_total'       => 17.50,
+        'referencia'      => 'DEF456',
+        'cliente'         => $mockClienteData,
+    ],
 ];
 
 // Rutas
@@ -190,7 +220,7 @@ switch (true) {
 
         if ($estado == 2) {
             // Facturas pagadas
-            $results = [$mockPaidInvoice];
+            $results = $mockPaidInvoices;
         } elseif ($estado == 1) {
             // Facturas pendientes - devolver las mismas del saldo pero con formato facturas/
             $results = [];
@@ -210,7 +240,7 @@ switch (true) {
                 ];
             }
         } else {
-            $results = [$mockPaidInvoice];
+            $results = $mockPaidInvoices;
         }
 
         mock_json([

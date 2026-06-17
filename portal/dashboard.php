@@ -215,7 +215,7 @@ $ultimo_pago = null;
             <div class="alert alert-info glass-panel mb-4 text-center border-0 shadow-sm" style="background: rgba(14, 165, 233, 0.15); border-left: 4px solid #0ea5e9 !important; border-radius: 12px;">
                 <p class="mb-0 fw-bold text-main" style="letter-spacing: 0.5px; color: #bae6fd;">
                     <i class="fas fa-info-circle me-2 text-info"></i> 
-                    MODO DE PRUEBA: Iniciaste sesión como usuario de prueba. Todos tus pagos serán facturados a exactamente <span class="text-info fs-5">Bs. 1,00</span> para pruebas de la API.
+                    MODO DE PRUEBA: Iniciaste sesión como usuario de prueba. Todos tus pagos serán procesados a exactamente <span class="text-info fs-5">Bs. 1,00</span> para pruebas de la API.
                 </p>
             </div>
         <?php endif; ?>

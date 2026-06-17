@@ -47,8 +47,14 @@ if ($monto_plan <= 0) $monto_plan = 15.0;
 $usuario_ws = $c_perfil['usuario'] ?? '';
 
 $ultimo_pago = null;
+$paid_receipts = [];
 if (!empty($usuario_ws)) {
     $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
+    $paid_receipts = $wispClient->getInvoices([
+        'estado'  => 2,
+        'cliente' => $usuario_ws,
+        'limit'   => 10,
+    ]);
 }
 
 $tasa_bcv = 1;
@@ -129,7 +135,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         <!-- Cabecera del Cliente -->
         <div class="glass-panel p-4 mb-4">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <small class="text-muted d-block">Cliente</small>
                     <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['nombre'] ?? $_SESSION['cliente_nombre']); ?></span>
                 </div>
@@ -138,16 +144,24 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                     <span class="status-badge <?php echo $badge_class; ?>"><?php echo $estado_ws; ?></span>
                 </div>
                 <div class="col-md-3">
-                    <small class="text-muted d-block">Plan</small>
-                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
+                    <small class="text-muted d-block">Email</small>
+                    <span><?php echo htmlspecialchars($c_perfil['correo'] ?? 'N/A'); ?></span>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <small class="text-muted d-block">Teléfono</small>
                     <span><?php echo htmlspecialchars($c_perfil['telefono'] ?? 'N/A'); ?></span>
                 </div>
-                <div class="col-12">
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Zona</small>
+                    <span><?php echo htmlspecialchars($c_perfil['zona']['nombre'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-6">
                     <small class="text-muted d-block">Dirección</small>
                     <span><?php echo htmlspecialchars($c_perfil['direccion'] ?? 'N/A'); ?></span>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Plan</small>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
                 </div>
             </div>
             <?php if ($ultimo_pago): ?>
@@ -188,8 +202,8 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                         <thead>
                             <tr>
                                 <th style="width:40px"><input type="checkbox" id="check_all" checked onchange="toggleAll(this)"></th>
-                                <th>Vencimiento</th>
-                                <th>Concepto</th>
+                                <th>N° Recibo</th>
+                                <th>Período</th>
                                 <th class="text-end">Monto USD</th>
                                 <th class="text-end">Monto Bs</th>
                             </tr>
@@ -198,11 +212,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                             <?php foreach ($invoices as $i => $inv): 
                                 $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
                                 $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                                $inv_periodo = ($inv['fecha_emision'] ?? '') . ' al ' . ($inv['fecha_vencimiento'] ?? '');
                             ?>
                             <tr>
                                 <td><input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="invoice-check" checked onchange="recalcTotal()"></td>
-                                <td><?php echo htmlspecialchars($inv['fecha_vencimiento'] ?? 'N/A'); ?></td>
-                                <td>Mensualidad Internet</td>
+                                <td class="fw-bold"><?php echo $inv_id; ?></td>
+                                <td><?php echo htmlspecialchars($inv_periodo); ?></td>
                                 <td class="text-end fw-bold">$<?php echo number_format($inv_monto, 2); ?></td>
                                 <td class="text-end text-ves">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></td>
                             </tr>
@@ -213,7 +228,57 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                 <?php else: ?>
                 <div class="text-center py-4">
                     <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                    <p class="mb-0">No tienes facturas pendientes.</p>
+                    <p class="mb-0">No tienes recibos pendientes.</p>
+                </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Recibos Pagados -->
+            <div class="glass-panel p-4 mb-4">
+                <h5 class="fw-bold mb-3"><i class="fas fa-check-circle text-success me-2"></i> Recibos Pagados</h5>
+                <?php if (count($paid_receipts) > 0): ?>
+                <div class="table-responsive">
+                    <table class="table table-premium mb-0">
+                        <thead>
+                            <tr>
+                                <th>N° Recibo</th>
+                                <th>Período</th>
+                                <th>Fecha Pago</th>
+                                <th class="text-end">Monto USD</th>
+                                <th>Referencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $total_pagado = 0;
+                            foreach ($paid_receipts as $pr): 
+                                $pr_id = $pr['id_factura'] ?? $pr['folio'] ?? '-';
+                                $pr_monto = floatval($pr['total_cobrado'] ?? $pr['total'] ?? 0);
+                                $total_pagado += $pr_monto;
+                                $pr_fecha_pago = date('d/m/Y', strtotime($pr['fecha_pago'] ?? 'now'));
+                                $pr_periodo = ($pr['fecha_emision'] ?? '') . ' al ' . ($pr['fecha_vencimiento'] ?? '');
+                            ?>
+                            <tr>
+                                <td class="fw-bold"><?php echo $pr_id; ?></td>
+                                <td><?php echo htmlspecialchars($pr_periodo); ?></td>
+                                <td><?php echo $pr_fecha_pago; ?></td>
+                                <td class="text-end fw-bold">$<?php echo number_format($pr_monto, 2); ?></td>
+                                <td><?php echo htmlspecialchars($pr['referencia'] ?? '-'); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr class="fw-bold">
+                                <td colspan="3" class="text-end text-success">Total Pagado</td>
+                                <td class="text-end text-success">$<?php echo number_format($total_pagado, 2); ?></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-3">
+                    <p class="text-muted mb-0">No hay recibos pagados aún.</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -467,7 +532,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
         const checks = document.querySelectorAll('.invoice-check:checked');
         if (checks.length === 0) {
-            alert('Selecciona al menos una factura.');
+            alert('Selecciona al menos un recibo.');
             return;
         }
 

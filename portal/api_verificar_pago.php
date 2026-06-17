@@ -167,13 +167,13 @@ if ($cedula === TEST_USER_CEDULA) {
 $diferencia = round($monto_usd - $deuda_referencia, 2);
 if ($diferencia < 0) {
     $tipo_pago = 'abono';
-    $descripcion = "Estás realizando un ABONO de $" . number_format($monto_usd, 2) . " USD. El saldo pendiente de las facturas seleccionadas quedará en $" . number_format(abs($diferencia), 2) . " USD.";
+    $descripcion = "Estás realizando un ABONO de $" . number_format($monto_usd, 2) . " USD. El saldo pendiente de los recibos seleccionados quedará en $" . number_format(abs($diferencia), 2) . " USD.";
 } elseif ($diferencia == 0) {
     $tipo_pago = 'completo';
-    $descripcion = "Estás PAGANDO POR COMPLETO las facturas seleccionadas por $" . number_format($deuda_referencia, 2) . " USD.";
+    $descripcion = "Estás PAGANDO POR COMPLETO los recibos seleccionados por $" . number_format($deuda_referencia, 2) . " USD.";
 } else {
     $tipo_pago = 'saldo_favor';
-    $descripcion = "Pagas las facturas seleccionadas ($" . number_format($deuda_referencia, 2) . " USD) y quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
+    $descripcion = "Pagas los recibos seleccionados ($" . number_format($deuda_referencia, 2) . " USD) y quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
 }
 
 // Enviar respuesta con detalles del movimiento

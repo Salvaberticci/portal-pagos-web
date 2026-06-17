@@ -163,21 +163,21 @@ try {
         $pagos_count = count($wispResult['payments_registered'] ?? []);
 
         if ($pagos_count > 0) {
-            $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count factura(s).";
+            $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count recibo(s).";
         }
 
         if ($amount_unused > 0) {
-            $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($amount_unused, 2) . " USD</strong> para tu pr&oacute;xima factura.";
+            $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($amount_unused, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
         }
 
         if ($amount_applied < $monto_usd && $amount_unused <= 0) {
             $msg_parts[] = "Se aplic&oacute; <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
         }
 
-        // Si se seleccionaron facturas pero no se aplico a todas
+        // Si se seleccionaron recibos pero no se aplico a todas
         $selected_count = count($invoice_ids);
         if ($selected_count > 0 && $pagos_count < $selected_count) {
-            $msg_parts[] = "Nota: solo se pagaron $pagos_count de $selected_count factura(s) seleccionada(s) con el monto disponible.";
+            $msg_parts[] = "Nota: solo se pagaron $pagos_count de $selected_count recibo(s) seleccionado(s) con el monto disponible.";
         }
 
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
