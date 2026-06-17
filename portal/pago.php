@@ -197,61 +197,85 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
 
             <!-- Recibos Pendientes -->
             <div class="glass-panel p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
-                    <?php if (count($invoices) > 1): ?>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="check_all" checked onchange="toggleAll(this)">
-                        <label class="form-check-label small text-muted" for="check_all">Seleccionar todos</label>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
+                        <?php if (count($invoices) > 0): ?>
+                        <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar</small>
+                        <?php endif; ?>
                     </div>
+                    <?php if (count($invoices) > 1): ?>
+                    <button type="button" class="btn btn-sm btn-glass" onclick="toggleAllBtn(this)" id="btn_select_all">
+                        <i class="fas fa-check-double me-1"></i> Todos
+                    </button>
                     <?php endif; ?>
                 </div>
                 <?php if (count($invoices) > 0): ?>
-                <div class="row g-3">
-                    <?php foreach ($invoices as $i => $inv): 
-                        $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                        $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                        $descripcion = '';
+                <div class="recibos-list">
+                    <?php foreach ($invoices as $i => $inv):
+                        $inv_id       = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                        $inv_monto    = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                        $inv_monto_bs = $inv_monto * $tasa_bcv;
+                        $descripcion  = '';
                         if (!empty($inv['articulos'][0]['descripcion'])) {
-                            $desc_full = $inv['articulos'][0]['descripcion'];
+                            $desc_full   = $inv['articulos'][0]['descripcion'];
                             $descripcion = explode("\n", $desc_full)[0];
-                            if (strlen($descripcion) > 60) $descripcion = substr($descripcion, 0, 60) . '...';
+                            if (strlen($descripcion) > 55) $descripcion = substr($descripcion, 0, 55) . '...';
                         }
-                        $fecha_emi = $inv['fecha_emision'] ?? '';
+                        if (!$descripcion) $descripcion = 'Recibo N° ' . $inv_id;
+                        $fecha_emi  = $inv['fecha_emision'] ?? '';
                         $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                        $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     ?>
-                    <div class="col-12">
-                        <div class="recibo-card glass-panel p-3" onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
-                            <div class="d-flex align-items-start">
-                                <div class="form-check me-3 mt-1">
-                                    <input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>" class="form-check-input invoice-check" checked onchange="event.stopPropagation(); recalcTotal();">
-                                </div>
-                                <div class="flex-fill">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div>
-                                            <span class="recibo-id-badge">#<?php echo $inv_id; ?></span>
-                                            <?php if ($fecha_emi): ?>
-                                            <small class="text-muted ms-2"><?php echo date('d/m/Y', strtotime($fecha_emi)); ?></small>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="text-end">
-                                            <div class="fw-bold text-gradient fs-5">$<?php echo number_format($inv_monto, 2); ?></div>
-                                            <div class="text-ves small">Bs <?php echo number_format($inv_monto * $tasa_bcv, 2, ',', '.'); ?></div>
-                                        </div>
-                                    </div>
-                                    <?php if ($descripcion): ?>
-                                    <div class="recibo-descripcion text-muted small"><?php echo htmlspecialchars($descripcion); ?></div>
+                    <!-- Card recibo -->
+                    <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?> selected"
+                         onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
+
+                        <!-- Checkbox oculto funcional -->
+                        <input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>"
+                               class="invoice-check visually-hidden" checked
+                               onchange="event.stopPropagation(); recalcTotal();">
+
+                        <!-- Indicador visual de selección -->
+                        <div class="recibo-check-indicator">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+
+                        <!-- Icono tipo factura -->
+                        <div class="recibo-icon-wrap">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+
+                        <!-- Cuerpo de la card -->
+                        <div class="recibo-body">
+                            <div class="recibo-top">
+                                <div class="recibo-info">
+                                    <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
+                                    <?php if ($fecha_emi): ?>
+                                    <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($vencida): ?>
+                                    <span class="recibo-badge-vencida"><i class="fas fa-exclamation-triangle me-1"></i>Vencida</span>
                                     <?php endif; ?>
                                 </div>
+                                <div class="recibo-montos">
+                                    <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
+                                    <span class="recibo-bs">Bs <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
+                                </div>
                             </div>
+                            <div class="recibo-desc"><?php echo htmlspecialchars($descripcion); ?></div>
                         </div>
+
+                        <!-- Barra de acento inferior -->
+                        <div class="recibo-accent-bar"></div>
                     </div>
                     <?php endforeach; ?>
                 </div>
                 <?php else: ?>
-                <div class="text-center py-4">
-                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                    <p class="mb-0">No tienes recibos pendientes.</p>
+                <div class="text-center py-5">
+                    <div class="mb-3" style="font-size:3rem;">🎉</div>
+                    <h6 class="fw-bold text-success">¡Sin deudas pendientes!</h6>
+                    <p class="text-muted mb-0 small">No tienes recibos pendientes de pago.</p>
                 </div>
                 <?php endif; ?>
             </div>
@@ -387,11 +411,16 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
 
-    function toggleAll(master) {
+    let allSelected = true;
+    function toggleAllBtn(btn) {
+        allSelected = !allSelected;
         document.querySelectorAll('.invoice-check').forEach(cb => {
-            cb.checked = master.checked;
-            cb.closest('.recibo-card')?.classList.toggle('selected', master.checked);
+            cb.checked = allSelected;
+            cb.closest('.recibo-card')?.classList.toggle('selected', allSelected);
         });
+        btn.innerHTML = allSelected
+            ? '<i class="fas fa-check-double me-1"></i> Todos'
+            : '<i class="far fa-square me-1"></i> Ninguno';
         recalcTotal();
     }
 
@@ -399,6 +428,16 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         const cb = card.querySelector('.invoice-check');
         cb.checked = !cb.checked;
         card.classList.toggle('selected', cb.checked);
+        // Actualizar estado del botón todos
+        const btn = document.getElementById('btn_select_all');
+        if (btn) {
+            const all = document.querySelectorAll('.invoice-check');
+            const checked = document.querySelectorAll('.invoice-check:checked');
+            allSelected = all.length === checked.length;
+            btn.innerHTML = allSelected
+                ? '<i class="fas fa-check-double me-1"></i> Todos'
+                : '<i class="far fa-square me-1"></i> Ninguno';
+        }
         recalcTotal();
     }
 
@@ -649,31 +688,171 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
         #loadingOverlay { display:none; }
 
+        /* ── Recibos: lista de cards ── */
+        .recibos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
         .recibo-card {
-            border: 1px solid var(--border-glass);
-            border-radius: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: 16px;
+            border: 1.5px solid var(--border-glass);
+            background: var(--glass-bg);
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
+            overflow: hidden;
         }
         .recibo-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(59,130,246,0.15);
+            border-color: rgba(59,130,246,0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.12);
         }
         .recibo-card.selected {
             border-color: var(--primary);
-            background: rgba(59,130,246,0.05);
+            background: rgba(59,130,246,0.07);
+            box-shadow: 0 0 0 1px rgba(59,130,246,0.25), 0 4px 16px rgba(59,130,246,0.1);
         }
-        .recibo-id-badge {
-            background: var(--primary);
-            color: #fff;
-            padding: 2px 8px;
-            border-radius: 6px;
+        .recibo-card.recibo-vencida {
+            border-color: rgba(239,68,68,0.4);
+        }
+        .recibo-card.recibo-vencida.selected {
+            border-color: #ef4444;
+            background: rgba(239,68,68,0.06);
+        }
+        /* Icono de check de selección */
+        .recibo-check-indicator {
+            position: absolute;
+            top: 12px;
+            right: 14px;
+            font-size: 1rem;
+            color: var(--primary);
+            opacity: 0;
+            transform: scale(0.6);
+            transition: all 0.2s ease;
+        }
+        .recibo-card.selected .recibo-check-indicator {
+            opacity: 1;
+            transform: scale(1);
+        }
+        /* Barra de acento inferior */
+        .recibo-accent-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+            border-radius: 0 0 16px 16px;
+        }
+        .recibo-card.selected .recibo-accent-bar {
+            transform: scaleX(1);
+        }
+        .recibo-card.recibo-vencida .recibo-accent-bar {
+            background: linear-gradient(90deg, #ef4444, #f97316);
+        }
+        /* Icono de la card */
+        .recibo-icon-wrap {
+            flex-shrink: 0;
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: rgba(59,130,246,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            color: var(--primary);
+            transition: background 0.25s;
+        }
+        .recibo-card.selected .recibo-icon-wrap {
+            background: rgba(59,130,246,0.18);
+        }
+        .recibo-card.recibo-vencida .recibo-icon-wrap {
+            background: rgba(239,68,68,0.1);
+            color: #ef4444;
+        }
+        /* Cuerpo */
+        .recibo-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .recibo-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .recibo-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .recibo-num {
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
+            color: var(--text-primary);
         }
-        .recibo-descripcion {
-            line-height: 1.4;
+        .recibo-fecha {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .recibo-badge-vencida {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #ef4444;
+            background: rgba(239,68,68,0.1);
+            padding: 1px 7px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .recibo-montos {
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .recibo-usd {
+            display: block;
+            font-size: 1.15rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .recibo-bs {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+        }
+        .recibo-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Botón seleccionar todos */
+        .btn-glass {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .btn-glass:hover {
+            background: rgba(59,130,246,0.12);
+            border-color: var(--primary);
+            color: var(--primary);
         }
     </style>
 </body>
