@@ -223,12 +223,12 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                         $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     ?>
                     <!-- Card recibo -->
-                    <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?> selected"
-                         onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
+                    <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>"
+                          onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
 
                         <!-- Checkbox oculto funcional -->
                         <input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>"
-                               class="invoice-check visually-hidden" checked
+                               class="invoice-check visually-hidden"
                                onchange="event.stopPropagation(); recalcTotal();">
 
                         <!-- Icono tipo factura -->
