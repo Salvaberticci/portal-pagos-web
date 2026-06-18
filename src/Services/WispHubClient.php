@@ -382,6 +382,15 @@ class WispHubClient
     }
 
     /**
+     * Obtiene el detalle completo del servicio (zona, plan_internet, estado, etc.).
+     * Endpoint: GET /clientes/{id_servicio}/
+     */
+    public function getServiceDetail(string $serviceId): array
+    {
+        return $this->request('GET', "clientes/{$serviceId}/");
+    }
+
+    /**
      * Obtiene el saldo/deuda de un cliente.
      * Endpoint: GET /clientes/{id_servicio}/saldo/
      */

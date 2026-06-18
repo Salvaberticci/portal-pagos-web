@@ -55,6 +55,12 @@ if (!$wisp_service_id) {
 $profileRes = $wispClient->getServiceProfile($wisp_service_id);
 $c_perfil = $profileRes['data'] ?? [];
 
+// Obtener detalle completo del servicio (zona, plan_internet, estado, etc.)
+$detailRes = $wispClient->getServiceDetail($wisp_service_id);
+if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
+    $c_perfil = array_merge($c_perfil, $detailRes['data']);
+}
+
 // Obtener recibos pendientes
 $invoices = $wispClient->getPendingInvoices($wisp_service_id);
 $deuda_total = 0;
@@ -238,7 +244,7 @@ if (count($invoices) > 0) {
                 </div>
                 <div class="col-md-3">
                     <small class="text-muted d-block">Email</small>
-                    <span><?php echo htmlspecialchars($c_perfil['correo'] ?? 'N/A'); ?></span>
+                    <span><?php echo htmlspecialchars($c_perfil['email'] ?? 'N/A'); ?></span>
                 </div>
                 <div class="col-md-2">
                     <small class="text-muted d-block">Teléfono</small>
@@ -254,7 +260,7 @@ if (count($invoices) > 0) {
                 </div>
                 <div class="col-6">
                     <small class="text-muted d-block">Plan</small>
-                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet_nombre'] ?? 'N/A'); ?></span>
+                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet']['nombre'] ?? 'N/A'); ?></span>
                 </div>
             </div>
             <?php if ($ultimo_pago): ?>
