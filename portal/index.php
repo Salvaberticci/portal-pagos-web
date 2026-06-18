@@ -51,7 +51,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 <body>
     <div class="login-wrapper">
         <div class="login-box glass-panel animate-fade text-center">
-            <div class="d-flex justify-content-end mb-2">
+            <div style="text-align: right; margin-bottom: 8px;">
                 <button class="theme-toggle" id="themeToggleBtn" title="Cambiar Tema">
                     <i class="fas fa-sun"></i>
                 </button>
@@ -119,8 +119,9 @@ if (isset($_SESSION['cliente_cedula'])) {
         });
 
         // Theme Toggle Logic
-        document.addEventListener('DOMContentLoaded', function() {
+        (function() {
             const themeBtn = document.getElementById('themeToggleBtn');
+            if (!themeBtn) return;
             const html = document.documentElement;
             const themeIcon = themeBtn.querySelector('i');
 
@@ -142,7 +143,7 @@ if (isset($_SESSION['cliente_cedula'])) {
                 localStorage.setItem('theme', newTheme);
                 updateThemeIcon(newTheme);
             });
-        });
+        })();
     </script>
 </body>
 </html>
