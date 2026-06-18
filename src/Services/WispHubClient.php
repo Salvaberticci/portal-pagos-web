@@ -493,7 +493,20 @@ class WispHubClient
     {
         $result = $this->request('GET', "clientes/{$serviceId}/saldo/");
         if ($result['status'] === 200 && !empty($result['data'])) {
-            return floatval($result['data']['saldo'] ?? $result['data']['saldo_favor'] ?? 0);
+            $saldoFavor = $result['data']['saldo_favor'] ?? null;
+            if ($saldoFavor !== null) {
+                return floatval($saldoFavor);
+            }
+            $saldo = floatval($result['data']['saldo'] ?? 0);
+            $facturas = $result['data']['facturas'] ?? [];
+            $totalFacturas = 0;
+            foreach ($facturas as $f) {
+                $totalFacturas += floatval($f['total'] ?? $f['monto_pendiente'] ?? 0);
+            }
+            if ($saldo > 0 && $totalFacturas > 0 && $saldo <= $totalFacturas) {
+                return 0.0;
+            }
+            return $saldo > $totalFacturas ? $saldo - $totalFacturas : 0.0;
         }
         return 0.0;
     }

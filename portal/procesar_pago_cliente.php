@@ -188,6 +188,12 @@ try {
 
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
         $_SESSION['pago_msg'] = implode(' ', $msg_parts);
+        $_SESSION['pago_data'] = [
+            'referencia' => $referencia,
+            'monto_usd'  => $monto_usd,
+            'monto_bs'   => $monto_bs,
+            'service_id' => $id_contrato_asociado,
+        ];
         unset($_SESSION['pago_err']);
 
         // Log
