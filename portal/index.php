@@ -19,7 +19,7 @@ if (isset($_SESSION['cliente_cedula'])) {
     <!-- Bootstrap CSS -->
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
     <!-- Estilos Premium -->
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -51,7 +51,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 <body>
     <div class="login-wrapper">
         <div class="login-box glass-panel animate-fade text-center">
-            <div style="text-align: right; margin-bottom: 8px;">
+            <div style="text-align: right; margin-bottom: 8px; position: relative; z-index: 3;">
                 <button class="theme-toggle" id="themeToggleBtn" title="Cambiar Tema">
                     <i class="fas fa-sun"></i>
                 </button>
