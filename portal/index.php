@@ -77,11 +77,11 @@ if (isset($_SESSION['cliente_cedula'])) {
                             <label class="label-premium mb-1">Tipo</label>
                             <div class="select-wrapper">
                                 <select id="tipo_cedula" class="form-select glass-input select-tipo" style="cursor: pointer;">
-                                    <option value="V" selected>Venezolano</option>
-                                    <option value="E">Extranjero</option>
-                                    <option value="J">Jurídico</option>
-                                    <option value="P">Pasaporte</option>
-                                    <option value="G">Gubernamental</option>
+                                    <option value="V" selected>V</option>
+                                    <option value="E">E</option>
+                                    <option value="J">J</option>
+                                    <option value="P">P</option>
+                                    <option value="G">G</option>
                                 </select>
                                 <i class="fas fa-chevron-down select-arrow"></i>
                             </div>

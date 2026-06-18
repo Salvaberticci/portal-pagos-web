@@ -9,3 +9,4 @@
  */
 
 define('TEST_USER_CEDULA', 'V20788775'); // '' para deshabilitar modo pruebas
+define('DEV_MODE', true); // true = usa datos mock para el cliente de prueba; false = API real siempre

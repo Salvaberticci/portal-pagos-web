@@ -1,11 +1,20 @@
 <?php
 require_once 'security_helper.php';
 
+@include_once '../config/test_mode.php';
+if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+if (!defined('DEV_MODE')) define('DEV_MODE', false);
+
 // Cargar cliente WispHub
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-$wispClient = new \Services\WispHubClient($wispConfig);
+if (DEV_MODE) {
+    require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
+    $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+} else {
+    $wispClient = new \Services\WispHubClient($wispConfig);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cedula = isset($_POST['cedula']) ? trim($_POST['cedula']) : '';

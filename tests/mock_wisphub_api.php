@@ -56,13 +56,22 @@ $mockClienteData = [
     'rfc'           => '',
 ];
 
-// Facturas mock pendientes con IDs realistas
+// Helper para generar fechas relativas a hoy
+$mockToday = date('Y-m-d');
+$mockYesterday = date('Y-m-d', strtotime('-1 day'));
+$mockDaysAgo5 = date('Y-m-d', strtotime('-5 days'));
+$mockDaysAgo10 = date('Y-m-d', strtotime('-10 days'));
+$mockDaysAgo15 = date('Y-m-d', strtotime('-15 days'));
+$mockDaysPlus3 = date('Y-m-d', strtotime('+3 days'));
+$mockDaysPlus10 = date('Y-m-d', strtotime('+10 days'));
+
+// Facturas mock pendientes con escenarios variados
 $mockInvoices = [
     [
-        'id'              => 9681,
-        'folio'           => 9681,
-        'fecha_emision'   => '2026-06-15',
-        'fecha_vencimiento'=> '2026-06-17',
+        'id'              => 9701,
+        'folio'           => 9701,
+        'fecha_emision'   => $mockDaysAgo15,
+        'fecha_vencimiento'=> $mockDaysAgo10,
         'fecha_pago'      => null,
         'estado'          => 'Pendiente de Pago',
         'tipo'            => 1,
@@ -74,17 +83,39 @@ $mockInvoices = [
         'articulos'       => [
             [
                 'id'          => 1,
-                'descripcion' => 'Renta y mantenimiento de la red: ZONA KM23  Plan de Internet: Plan Basico KM23 FTTH 20.00 $  Periodo del 15/Jun/2026 al 15/Jul/2026',
+                'descripcion' => 'Renta y mantenimiento de la red: ZONA KM23 Plan de Internet: Plan Basico KM23 FTTH 20.00 $ Periodo del 01/Jun/2026 al 30/Jun/2026',
                 'precio'      => '20.00',
                 'cantidad'    => 1,
             ],
         ],
     ],
     [
-        'id'              => 9656,
-        'folio'           => 9656,
-        'fecha_emision'   => '2026-06-11',
-        'fecha_vencimiento'=> '2026-06-11',
+        'id'              => 9702,
+        'folio'           => 9702,
+        'fecha_emision'   => $mockDaysAgo5,
+        'fecha_vencimiento'=> $mockYesterday,
+        'fecha_pago'      => null,
+        'estado'          => 'Pendiente de Pago',
+        'tipo'            => 1,
+        'total'           => 20.00,
+        'monto_pendiente' => 20.00,
+        'sub_total'       => 20.00,
+        'saldo'           => 20.00,
+        'total_cobrado'   => 0,
+        'articulos'       => [
+            [
+                'id'          => 2,
+                'descripcion' => 'Renta y mantenimiento de la red: ZONA KM23 Plan de Internet: Plan Basico KM23 FTTH 20.00 $ Periodo del 15/Jun/2026 al 15/Jul/2026',
+                'precio'      => '20.00',
+                'cantidad'    => 1,
+            ],
+        ],
+    ],
+    [
+        'id'              => 9703,
+        'folio'           => 9703,
+        'fecha_emision'   => $mockToday,
+        'fecha_vencimiento'=> $mockToday,
         'fecha_pago'      => null,
         'estado'          => 'Pendiente de Pago',
         'tipo'            => 1,
@@ -95,9 +126,76 @@ $mockInvoices = [
         'total_cobrado'   => 0,
         'articulos'       => [
             [
-                'id'          => 2,
+                'id'          => 3,
                 'descripcion' => 'Instalacion Equipo en COMODATO (Prestado) Vsol AX1500. Monto Total: 35$',
                 'precio'      => '35.00',
+                'cantidad'    => 1,
+            ],
+        ],
+    ],
+    [
+        'id'              => 9704,
+        'folio'           => 9704,
+        'fecha_emision'   => $mockToday,
+        'fecha_vencimiento'=> $mockDaysPlus3,
+        'fecha_pago'      => null,
+        'estado'          => 'Pendiente de Pago',
+        'tipo'            => 1,
+        'total'           => 20.00,
+        'monto_pendiente' => 20.00,
+        'sub_total'       => 20.00,
+        'saldo'           => 20.00,
+        'total_cobrado'   => 0,
+        'articulos'       => [
+            [
+                'id'          => 4,
+                'descripcion' => 'Renta y mantenimiento de la red: ZONA KM23 Plan de Internet: Plan Basico KM23 FTTH 20.00 $ Periodo del 01/Jul/2026 al 31/Jul/2026',
+                'precio'      => '20.00',
+                'cantidad'    => 1,
+            ],
+        ],
+    ],
+    [
+        'id'              => 9705,
+        'folio'           => 9705,
+        'fecha_emision'   => $mockToday,
+        'fecha_vencimiento'=> $mockDaysPlus10,
+        'fecha_pago'      => null,
+        'estado'          => 'Pendiente de Pago',
+        'tipo'            => 1,
+        'total'           => 20.00,
+        'monto_pendiente' => 20.00,
+        'sub_total'       => 20.00,
+        'saldo'           => 20.00,
+        'total_cobrado'   => 0,
+        'articulos'       => [
+            [
+                'id'          => 5,
+                'descripcion' => 'Renta y mantenimiento de la red: ZONA KM23 Plan de Internet: Plan Basico KM23 FTTH 20.00 $ Periodo del 01/Ago/2026 al 31/Ago/2026',
+                'precio'      => '20.00',
+                'cantidad'    => 1,
+            ],
+        ],
+    ],
+    // Factura parcialmente pagada (abono)
+    [
+        'id'              => 9706,
+        'folio'           => 9706,
+        'fecha_emision'   => $mockDaysAgo5,
+        'fecha_vencimiento'=> $mockDaysPlus3,
+        'fecha_pago'      => null,
+        'estado'          => 'Pendiente de Pago',
+        'tipo'            => 1,
+        'total'           => 50.00,
+        'monto_pendiente' => 30.00,
+        'sub_total'       => 50.00,
+        'saldo'           => 30.00,
+        'total_cobrado'   => 20.00,
+        'articulos'       => [
+            [
+                'id'          => 6,
+                'descripcion' => 'Instalacion de Red FTTH y Equipo ONT. Monto Total: 50$ (Abonado: 20$)',
+                'precio'      => '50.00',
                 'cantidad'    => 1,
             ],
         ],
@@ -109,43 +207,43 @@ $mockPaidInvoices = [
     [
         'id_factura'      => 9001,
         'folio'           => 9001,
-        'fecha_emision'   => '2026-04-01',
-        'fecha_vencimiento'=> '2026-04-05',
-        'fecha_pago'      => '2026-04-02T14:30:00Z',
+        'fecha_emision'   => date('Y-m-d', strtotime('-60 days')),
+        'fecha_vencimiento'=> date('Y-m-d', strtotime('-55 days')),
+        'fecha_pago'      => date('Y-m-d', strtotime('-58 days')) . 'T14:30:00Z',
         'estado'          => 'Pagada',
         'tipo'            => 1,
-        'total'           => 17.50,
-        'total_cobrado'   => 17.50,
-        'sub_total'       => 17.50,
-        'referencia'      => 'ABC123',
+        'total'           => 20.00,
+        'total_cobrado'   => 20.00,
+        'sub_total'       => 20.00,
+        'referencia'      => 'BDV123456',
         'cliente'         => $mockClienteData,
     ],
     [
         'id_factura'      => 9002,
         'folio'           => 9002,
-        'fecha_emision'   => '2026-03-01',
-        'fecha_vencimiento'=> '2026-03-05',
-        'fecha_pago'      => '2026-03-03T10:15:00Z',
+        'fecha_emision'   => date('Y-m-d', strtotime('-30 days')),
+        'fecha_vencimiento'=> date('Y-m-d', strtotime('-25 days')),
+        'fecha_pago'      => date('Y-m-d', strtotime('-28 days')) . 'T10:15:00Z',
         'estado'          => 'Pagada',
         'tipo'            => 1,
-        'total'           => 17.50,
-        'total_cobrado'   => 17.50,
-        'sub_total'       => 17.50,
-        'referencia'      => 'XYZ789',
+        'total'           => 20.00,
+        'total_cobrado'   => 20.00,
+        'sub_total'       => 20.00,
+        'referencia'      => 'BDV789012',
         'cliente'         => $mockClienteData,
     ],
     [
         'id_factura'      => 9003,
         'folio'           => 9003,
-        'fecha_emision'   => '2026-02-01',
-        'fecha_vencimiento'=> '2026-02-05',
-        'fecha_pago'      => '2026-02-10T16:45:00Z',
+        'fecha_emision'   => $mockDaysAgo15,
+        'fecha_vencimiento'=> $mockDaysAgo10,
+        'fecha_pago'      => $mockDaysAgo10 . 'T16:45:00Z',
         'estado'          => 'Pagada',
         'tipo'            => 1,
-        'total'           => 17.50,
-        'total_cobrado'   => 17.50,
-        'sub_total'       => 17.50,
-        'referencia'      => 'DEF456',
+        'total'           => 20.00,
+        'total_cobrado'   => 20.00,
+        'sub_total'       => 20.00,
+        'referencia'      => 'BDV345678',
         'cliente'         => $mockClienteData,
     ],
 ];
@@ -193,7 +291,7 @@ switch (true) {
                 'notificacion_sms'        => 1,
                 'aviso_pantalla'          => 1,
                 'notificaciones_push'     => 1,
-                'saldo'                   => 0.00,
+                'saldo'                   => 15.00,  // $15 saldo a favor
                 'descuento'               => 0.00,
                 'aplicar_mora'            => false,
                 'aplicar_reconexion'      => false,
@@ -219,21 +317,19 @@ switch (true) {
     case preg_match('#^clientes/([^/]+)/saldo/?$#', $uri) === 1 && $method === 'GET':
         preg_match('#^clientes/([^/]+)/saldo/?$#', $uri, $m);
         $serviceId = $m[1];
-        // Calcular saldo a favor: sobrepago en facturas pendientes
-        $saldo_favor_calc = 0;
+        // Calcular total deuda: suma de montos pendientes
+        $total_deuda_calc = 0;
+        $saldo_favor_calc = 15.00; // Saldo a favor fijo de $15 para pruebas
         foreach ($mockInvoices as $inv) {
-            $cobrado = floatval($inv['total_cobrado'] ?? 0);
-            $total   = floatval($inv['total'] ?? 0);
-            if ($cobrado > $total) {
-                $saldo_favor_calc += ($cobrado - $total);
-            }
+            $monto_pend = floatval($inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+            $total_deuda_calc += $monto_pend;
         }
         mock_json([
             'status' => 200,
             'data' => [
                 'facturas'    => $mockInvoices,
-                'total_deuda' => 55.00,
-                'saldo'       => 0.00,
+                'total_deuda' => $total_deuda_calc,
+                'saldo'       => $saldo_favor_calc,
                 'saldo_favor' => $saldo_favor_calc,
             ],
         ]);
@@ -368,7 +464,7 @@ switch (true) {
         if ($found) {
             mock_json($found);
         }
-        mock_json(['status' => 404, 'message' => 'Factura no encontrada'], 404);
+        mock_json(['status' => 404, 'message' => "Factura $invoiceId no encontrada"], 404);
 
     // POST /facturas/{id}/registrar-pago/
     case preg_match('#^facturas/(\d+)/registrar-pago/?$#', $uri) === 1 && $method === 'POST':

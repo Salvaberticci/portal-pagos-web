@@ -140,7 +140,12 @@ $monto_usd = round($monto_mov / $tasa_dolar, 2);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-$wispClient = new \Services\WispHubClient($wispConfig);
+if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
+    require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
+    $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+} else {
+    $wispClient = new \Services\WispHubClient($wispConfig);
+}
 
 $deuda_usd = 0.00;
 $selected_deuda_usd = 0.00;

@@ -7,6 +7,7 @@ if (!isset($_SESSION['cliente_cedula'])) {
 
 @include_once '../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+if (!defined('DEV_MODE')) define('DEV_MODE', false);
 
 $cedula = $_SESSION['cliente_cedula'];
 $nombre = $_SESSION['cliente_nombre'];
@@ -43,7 +44,12 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-$wispClient = new \Services\WispHubClient($wispConfig);
+if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
+    require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
+    $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+} else {
+    $wispClient = new \Services\WispHubClient($wispConfig);
+}
 
 $wisp_service_id = $_SESSION['wisp_service_id'] ?? null;
 if (!$wisp_service_id) {

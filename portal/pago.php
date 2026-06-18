@@ -8,6 +8,7 @@ if (!isset($_SESSION['cliente_cedula'])) {
 
 @include_once '../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+if (!defined('DEV_MODE')) define('DEV_MODE', false);
 
 $pago_err = $_SESSION['pago_err'] ?? '';
 unset($_SESSION['pago_err']);
@@ -27,7 +28,12 @@ if (empty($wisp_service_id)) {
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
-$wispClient = new \Services\WispHubClient($wispConfig);
+if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
+    require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
+    $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+} else {
+    $wispClient = new \Services\WispHubClient($wispConfig);
+}
 
 $profileRes = $wispClient->getServiceProfile($wisp_service_id);
 if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
@@ -168,13 +174,8 @@ $monto_bs = $monto_a_pagar * $tasa_bcv;
             <input type="hidden" name="meses_adelanto" value="0">
             <input type="hidden" name="fecha_pago" value="<?php echo date('Y-m-d'); ?>">
 
-            <!-- N Contrato -->
-            <div class="pago-field-top glass-panel px-4 py-3 mb-3">
-                <input type="text" class="pago-input-top" value="<?php echo htmlspecialchars($wisp_service_id); ?>" readonly>
-            </div>
-
             <!-- Monto a Pagar (Colapsable) -->
-            <div class="glass-panel mb-3 pago-monto-panel">
+            <div class="glass-panel mb-3 pago-monto-panel p-4">
                 <div class="pago-monto-header" onclick="toggleMonto()">
                     <div>
                         <small class="text-muted">Monto a Pagar</small>
@@ -529,7 +530,6 @@ $monto_bs = $monto_a_pagar * $tasa_bcv;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            padding: 4px 0;
         }
         .pago-monto-header small { display: block; margin-bottom: 2px; }
         .pago-monto-bs {

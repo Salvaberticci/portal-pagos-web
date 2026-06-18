@@ -9,6 +9,7 @@
 require_once __DIR__ . '/../paginas/principal/banco_api_router.php'; // incluye bdv_api_helper
 @include_once __DIR__ . '/../config/test_mode.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+if (!defined('DEV_MODE')) define('DEV_MODE', false);
 
 /**
  * Intenta verificar y aprobar automáticamente un pago cuyo banco sea BDV y registrar en WispHub.
@@ -161,7 +162,12 @@ function verificar_y_aprobar_pago_bdv(
             require_once dirname(__DIR__) . '/vendor/autoload.php';
             require_once dirname(__DIR__) . '/src/Services/WispHubClient.php';
             $wispConfig = include dirname(__DIR__) . '/config/wisp_hub.php';
-            $wispClient = new \Services\WispHubClient($wispConfig);
+            if (DEV_MODE && ($_SESSION['cliente_cedula'] ?? '') === TEST_USER_CEDULA) {
+                require_once dirname(__DIR__) . '/src/Services/WispHubDevModeClient.php';
+                $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+            } else {
+                $wispClient = new \Services\WispHubClient($wispConfig);
+            }
 
             $wispDate = date('Y-m-d H:i', strtotime($fecha_pago));
 
