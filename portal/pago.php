@@ -300,8 +300,6 @@ $monto_bs = $monto_a_pagar * $tasa_bcv;
     let verificacionData = null;
     let montoExpandido = true;
 
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
     document.getElementById('themeToggleBtn').addEventListener('click', function() {
         const html = document.documentElement;
         const current = html.getAttribute('data-theme');
