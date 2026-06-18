@@ -188,8 +188,8 @@ foreach ($ordenMetodos as $m) {
             <!-- Seleccionar Recibos -->
             <div class="glass-panel mb-3 recibo-select-panel p-0">
                 <div class="recibo-select-header p-4 pb-0">
-                    <h6 class="fw-bold mb-2">Seleccionar Recibos a Pagar</h6>
-                    <small class="text-muted">Marca los recibos que deseas cancelar</small>
+                    <h6 class="fw-bold mb-2">Seleccionar Recibo a Pagar</h6>
+                    <small class="text-muted">Selecciona el recibo que deseas cancelar</small>
                 </div>
                 <div class="recibo-select-body" id="reciboBody">
                     <?php if (empty($invoices_json)): ?>
@@ -201,7 +201,7 @@ foreach ($ordenMetodos as $m) {
                     <?php foreach ($invoices_json as $inv): ?>
                     <div class="recibo-select-item<?php echo $inv['vencida'] ? ' vencida' : ''; ?>" data-id="<?php echo $inv['id']; ?>">
                         <label class="recibo-select-label">
-                            <input type="checkbox" class="recibo-select-check" data-id="<?php echo $inv['id']; ?>" onchange="toggleRecibo(this)"<?php echo $inv['preseleccionado'] ? ' checked' : ''; ?>>
+                            <input type="radio" class="recibo-select-check" name="recibo" data-id="<?php echo $inv['id']; ?>" onchange="toggleRecibo(this)"<?php echo $inv['preseleccionado'] ? ' checked' : ''; ?>>
                             <div class="recibo-select-content">
                                 <div class="recibo-select-top">
                                     <span class="recibo-select-folio">Recibo #<?php echo htmlspecialchars($inv['folio']); ?></span>
@@ -396,7 +396,7 @@ foreach ($ordenMetodos as $m) {
     const metodosBancos = <?php echo json_encode($metodosFiltrados); ?>;
     let selectedIds = [];
     for (var i = 0; i < recibos.length; i++) {
-        if (recibos[i].preseleccionado) selectedIds.push(recibos[i].id);
+        if (recibos[i].preseleccionado) { selectedIds = [recibos[i].id]; break; }
     }
     let selectedMetodo = '';
     let selectedBanco = null;
@@ -410,13 +410,9 @@ foreach ($ordenMetodos as $m) {
         this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
 
-    function toggleRecibo(cb) {
-        var id = parseInt(cb.dataset.id);
-        if (cb.checked) {
-            if (selectedIds.indexOf(id) === -1) selectedIds.push(id);
-        } else {
-            selectedIds = selectedIds.filter(function(v) { return v !== id; });
-        }
+    function toggleRecibo(radio) {
+        var id = parseInt(radio.dataset.id);
+        selectedIds = radio.checked ? [id] : [];
         actualizarInvoiceIds();
         actualizarTotal();
         updatePagarBtn();
