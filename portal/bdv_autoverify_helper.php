@@ -144,7 +144,7 @@ function verificar_y_aprobar_pago_bdv(
     }
     // Obtener monto real del banco
     $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
-    $monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
+    $monto_mov = floatval(str_replace(',', '.', str_replace('.', '', preg_replace('/[^\d,.]/', '', $monto_mov_raw))));
     
     // Verificar que coincida con el monto reportado por el formulario para seguridad
     if (abs($monto_mov - $monto_bs) > 10) { // tolerancia 10 Bs

@@ -234,7 +234,7 @@ function buscar_movimiento_bdv(array $movimientos, string $referencia, float $mo
             continue;
         }
 
-        $importe_banco = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $mov['importe'] ?? '0')));
+        $importe_banco = floatval(str_replace(',', '.', str_replace('.', '', preg_replace('/[^\d,.]/', '', $mov['importe'] ?? '0'))));
         if (abs($importe_banco - $monto_bs) <= $tolerancia) {
             return $mov;
         }

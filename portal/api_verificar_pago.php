@@ -125,7 +125,7 @@ if (!$mov_ref) {
 
 // Obtener monto real del banco
 $monto_mov_raw = $mov_ref['importe'] ?? $mov_ref['monto'] ?? '0';
-$monto_mov = floatval(str_replace(',', '.', preg_replace('/[^\d,.]/', '', $monto_mov_raw)));
+$monto_mov = floatval(str_replace(',', '.', str_replace('.', '', preg_replace('/[^\d,.]/', '', $monto_mov_raw))));
 
 if ($monto_mov <= 0) {
     echo json_encode(['status' => 'error', 'message' => 'El monto del movimiento bancario es inválido.']);
