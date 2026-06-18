@@ -217,7 +217,8 @@ function buscar_movimiento_bdv(array $movimientos, string $referencia, float $mo
 
     foreach ($movimientos as $mov) {
         $tipo = strtoupper($mov['mov'] ?? '');
-        if ($tipo !== 'CREDITO') {
+        $desc = strtoupper($mov['descripcion'] ?? '');
+        if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) {
             continue;
         }
 

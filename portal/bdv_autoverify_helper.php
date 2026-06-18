@@ -101,7 +101,8 @@ function verificar_y_aprobar_pago_bdv(
         // Transferencia: match exacto con la referencia completa
         foreach ($resultado['movs'] as $mov) {
             $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-            if ($tipo !== 'CREDITO') continue;
+            $desc = strtoupper($mov['descripcion'] ?? '');
+            if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
             if (!isset($mov['referencia'])) continue;
             if (preg_replace('/\D/', '', $mov['referencia']) === $ref_user_clean) {
                 $mov_ref = $mov;
@@ -118,7 +119,8 @@ function verificar_y_aprobar_pago_bdv(
 
         foreach ($resultado['movs'] as $mov) {
             $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-            if ($tipo !== 'CREDITO') continue;
+            $desc = strtoupper($mov['descripcion'] ?? '');
+            if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
             if (!isset($mov['referencia'])) continue;
 
             $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);

@@ -15,30 +15,35 @@ echo json_encode([
         'movs' => [
             [
                 'mov' => 'CREDITO',
+                'descripcion' => 'Nota de Crédito',
                 'referencia' => '999111',
                 'importe' => '100,00',
                 'concepto' => 'PAGO MOVIL PRUEBA'
             ],
             [
                 'mov' => 'CREDITO',
+                'descripcion' => 'Nota de Crédito',
                 'referencia' => '999222',
                 'importe' => '1,00',
                 'concepto' => 'PAGO MOVIL PRUEBA'
             ],
             [
                 'mov' => 'CREDITO',
+                'descripcion' => 'Nota de Crédito',
                 'referencia' => '999333',
                 'importe' => '5,50',
                 'concepto' => 'PAGO MOVIL PRUEBA'
             ],
             [
                 'mov' => 'DEBITO',
+                'descripcion' => 'Nota de Débito',
                 'referencia' => '2026060400999444',
                 'importe' => '2,00',
                 'concepto' => 'COMISION PAGO MOVIL'
             ],
             [
                 'mov' => 'CREDITO',
+                'descripcion' => 'Nota de Crédito',
                 'referencia' => '2026060400999444',
                 'importe' => '10,00',
                 'concepto' => 'PAGO MOVIL PRUEBA'

@@ -82,7 +82,8 @@ $ref_user_clean = preg_replace('/\D/', '', $referencia);
 if ($metodo_pago === 'Transferencia') {
     foreach ($resultado['movs'] as $mov) {
         $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-        if ($tipo !== 'CREDITO') continue;
+        $desc = strtoupper($mov['descripcion'] ?? '');
+        if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
         if (!isset($mov['referencia'])) continue;
         if (preg_replace('/\D/', '', $mov['referencia']) === $ref_user_clean) {
             $mov_ref = $mov;
@@ -96,10 +97,11 @@ if ($metodo_pago === 'Transferencia') {
     $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
     $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
 
-    foreach ($resultado['movs'] as $mov) {
-        $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-        if ($tipo !== 'CREDITO') continue;
-        if (!isset($mov['referencia'])) continue;
+        foreach ($resultado['movs'] as $mov) {
+            $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
+            $desc = strtoupper($mov['descripcion'] ?? '');
+            if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
+            if (!isset($mov['referencia'])) continue;
 
         $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
         $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
