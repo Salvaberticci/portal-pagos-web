@@ -235,6 +235,11 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 10px 40px rgba(0,0,0,0.08);
 }
 
+[data-theme="light"] .login-box.glass-panel {
+    background: rgba(180, 185, 200, 0.92);
+    border: 1px solid rgba(180, 185, 200, 0.4);
+}
+
 .login-box img {
     border-radius: 16px !important;
 }
