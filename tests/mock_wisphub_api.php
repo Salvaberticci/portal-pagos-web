@@ -199,13 +199,22 @@ switch (true) {
     case preg_match('#^clientes/([^/]+)/saldo/?$#', $uri) === 1 && $method === 'GET':
         preg_match('#^clientes/([^/]+)/saldo/?$#', $uri, $m);
         $serviceId = $m[1];
+        // Calcular saldo a favor: sobrepago en facturas pendientes
+        $saldo_favor_calc = 0;
+        foreach ($mockInvoices as $inv) {
+            $cobrado = floatval($inv['total_cobrado'] ?? 0);
+            $total   = floatval($inv['total'] ?? 0);
+            if ($cobrado > $total) {
+                $saldo_favor_calc += ($cobrado - $total);
+            }
+        }
         mock_json([
             'status' => 200,
             'data' => [
                 'facturas'    => $mockInvoices,
                 'total_deuda' => 55.00,
                 'saldo'       => 0.00,
-                'saldo_favor' => 5.00,
+                'saldo_favor' => $saldo_favor_calc,
             ],
         ]);
 
