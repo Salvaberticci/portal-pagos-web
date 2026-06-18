@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'security_helper.php';
 enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
@@ -36,7 +36,6 @@ if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
 }
 $c_perfil = $profileRes['data'];
 
-// Obtener detalle completo del servicio (zona, plan_internet, estado, etc.)
 $detailRes = $wispClient->getServiceDetail($wisp_service_id);
 if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
     $c_perfil = array_merge($c_perfil, $detailRes['data']);
@@ -44,23 +43,29 @@ if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
 
 $invoices = $wispClient->getPendingInvoices($wisp_service_id);
 $deuda_total = 0;
+$reciboSeleccionado = null;
 foreach ($invoices as $inv) {
-    $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $deuda_total += $inv_monto;
+    if ($recibo_id_sel > 0 && ($inv['id'] ?? $inv['id_factura'] ?? 0) == $recibo_id_sel) {
+        $reciboSeleccionado = $inv;
+    }
 }
 
-$monto_plan = floatval($c_perfil['plan_internet_precio'] ?? 0);
-if ($monto_plan <= 0 && count($invoices) > 0) {
-    $monto_plan = floatval($invoices[0]['monto'] ?? 0);
-}
-if ($monto_plan <= 0) $monto_plan = 15.0;
-
-// Saldo a favor
 $saldo_favor = $wispClient->getClientBalance($wisp_service_id);
+
+$monto_a_pagar = $deuda_total;
+if ($reciboSeleccionado) {
+    $monto_a_pagar = floatval($reciboSeleccionado['monto'] ?? $reciboSeleccionado['monto_pendiente'] ?? $reciboSeleccionado['total'] ?? 0);
+}
+if ($cedula === TEST_USER_CEDULA) {
+    $monto_a_pagar = 1.00;
+    $deuda_total = 1.00;
+}
 
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
 $cache_time = 3600;
-
 if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
     $data_cache = json_decode(file_get_contents($cache_file), true);
     $tasa_bcv = $data_cache['tasa'] ?? 1;
@@ -81,22 +86,38 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     curl_close($ch);
 }
 
-if ($cedula === TEST_USER_CEDULA) {
-    $deuda_total = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-    $monto_plan = 1.00 / ($tasa_bcv > 0 ? $tasa_bcv : 1);
-}
-
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');
 $bancosArr = json_decode($json_bancos, true) ?: [];
 
-$estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
-if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
-if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
-$badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
+$metodosDisponibles = [];
+foreach ($bancosArr as $b) {
+    if ($b['activo'] !== false) {
+        foreach ($b['metodos_pago'] as $m) {
+            if (!isset($metodosDisponibles[$m])) {
+                $metodosDisponibles[$m] = [];
+            }
+            $metodosDisponibles[$m][] = $b;
+        }
+    }
+}
+$ordenMetodos = array('Pago Móvil', 'Transferencia', 'Zelle');
+$metodosFiltrados = array();
+foreach ($ordenMetodos as $m) {
+    if (isset($metodosDisponibles[$m])) {
+        $metodosFiltrados[$m] = $metodosDisponibles[$m];
+    }
+}
+
+$deuda_bs = $deuda_total * $tasa_bcv;
+$monto_bs = $monto_a_pagar * $tasa_bcv;
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
+    <script>
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pagar - Wireless Supply</title>
@@ -120,261 +141,143 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         </div>
     </header>
 
-    <div class="container main-container animate-fade py-4">
+    <div class="container main-container animate-fade py-4" style="max-width:520px;">
 
         <?php if (!empty($pago_err)): ?>
             <div class="alert alert-danger glass-panel mb-4"><?php echo $pago_err; ?></div>
         <?php endif; ?>
-
         <?php if (!empty($pago_exito)): ?>
             <div class="alert alert-success glass-panel mb-4"><?php echo $pago_exito; ?></div>
         <?php endif; ?>
-
         <?php if ($cedula === TEST_USER_CEDULA): ?>
             <div class="alert alert-info glass-panel mb-4 text-center">
                 <i class="fas fa-info-circle me-2"></i> Modo de prueba: montos demo.
             </div>
         <?php endif; ?>
 
-        <!-- Cabecera del Cliente -->
-        <div class="glass-panel p-4 mb-4">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <small class="text-muted d-block">Cliente</small>
-                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['nombre'] ?? $_SESSION['cliente_nombre']); ?></span>
-                </div>
-                <div class="col-md-2">
-                    <small class="text-muted d-block">Estado</small>
-                    <span class="status-badge <?php echo $badge_class; ?>"><?php echo $estado_ws; ?></span>
-                </div>
-                <div class="col-md-3">
-                    <small class="text-muted d-block">Email</small>
-                    <span><?php echo htmlspecialchars($c_perfil['email'] ?? 'N/A'); ?></span>
-                </div>
-                <div class="col-md-2">
-                    <small class="text-muted d-block">Teléfono</small>
-                    <span><?php echo htmlspecialchars($c_perfil['telefono'] ?? 'N/A'); ?></span>
-                </div>
-                <div class="col-md-2">
-                    <small class="text-muted d-block">Zona</small>
-                    <span><?php echo htmlspecialchars($c_perfil['zona']['nombre'] ?? 'N/A'); ?></span>
-                </div>
-                <div class="col-6">
-                    <small class="text-muted d-block">Dirección</small>
-                    <span><?php echo htmlspecialchars($c_perfil['direccion'] ?? 'N/A'); ?></span>
-                </div>
-                <div class="col-6">
-                    <small class="text-muted d-block">Plan</small>
-                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet']['nombre'] ?? 'N/A'); ?></span>
-                </div>
-            </div>
-        </div>
-
         <form id="paymentForm" action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
             <input type="hidden" name="id_contrato" value="<?php echo $wisp_service_id; ?>">
             <input type="hidden" name="tasa_dolar" value="<?php echo $tasa_bcv; ?>">
-            <input type="hidden" name="monto_usd" id="input_monto_usd" value="0">
+            <input type="hidden" name="monto_usd" id="input_monto_usd" value="<?php echo number_format($monto_a_pagar, 2, '.', ''); ?>">
             <input type="hidden" name="metodo_pago" id="input_metodo" value="">
             <input type="hidden" name="id_banco_destino" id="input_banco" value="">
             <input type="hidden" name="monto_usd_real" id="input_monto_usd_real" value="0">
             <input type="hidden" name="verificacion_data" id="input_verificacion_data" value="">
+            <input type="hidden" name="invoice_ids[]" value="<?php echo $recibo_id_sel > 0 ? $recibo_id_sel : ''; ?>">
             <input type="hidden" name="meses_adelanto" value="0">
+            <input type="hidden" name="fecha_pago" value="<?php echo date('Y-m-d'); ?>">
 
-            <!-- Recibos Pendientes -->
-            <div class="glass-panel p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+            <!-- N Contrato -->
+            <div class="pago-field-top glass-panel px-4 py-3 mb-3">
+                <input type="text" class="pago-input-top" value="<?php echo htmlspecialchars($wisp_service_id); ?>" readonly>
+            </div>
+
+            <!-- Monto a Pagar (Colapsable) -->
+            <div class="glass-panel mb-3 pago-monto-panel">
+                <div class="pago-monto-header" onclick="toggleMonto()">
                     <div>
-                        <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
-                        <?php if (count($invoices) > 0): ?>
-                        <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar. Selecciona uno para pagar.</small>
-                        <?php endif; ?>
+                        <small class="text-muted">Monto a Pagar</small>
+                        <div class="pago-monto-bs" id="monto_bs_display">Bs. <?php echo number_format($monto_bs, 2, ',', '.'); ?></div>
                     </div>
+                    <i class="fas fa-chevron-up pago-monto-chevron" id="monto_chevron"></i>
                 </div>
-                <?php if (count($invoices) > 0): ?>
-                <div class="recibos-list">
-                    <?php foreach ($invoices as $i => $inv):
-                        $inv_id       = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                        $inv_monto    = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                        $inv_monto_bs = $inv_monto * $tasa_bcv;
-                        $descripcion  = '';
-                        if (!empty($inv['articulos'][0]['descripcion'])) {
-                            $desc_full   = $inv['articulos'][0]['descripcion'];
-                            $descripcion = explode("\n", $desc_full)[0];
-                            if (strlen($descripcion) > 55) $descripcion = substr($descripcion, 0, 55) . '...';
-                        }
-                        if (!$descripcion) $descripcion = 'Recibo N° ' . $inv_id;
-                        $fecha_emi  = $inv['fecha_emision'] ?? '';
-                        $fecha_venc = $inv['fecha_vencimiento'] ?? '';
-                        $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
-                    ?>
-                    <!-- Card recibo -->
-                    <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>"
-                          onclick="toggleRecibo(this, <?php echo $inv_id; ?>)">
-
-                        <!-- Checkbox oculto funcional -->
-                        <input type="checkbox" name="invoice_ids[]" value="<?php echo $inv_id; ?>"
-                               class="invoice-check visually-hidden"
-                               onchange="event.stopPropagation(); recalcTotal();">
-
-                        <!-- Icono tipo factura -->
-                        <div class="recibo-icon-wrap">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                        </div>
-
-                        <!-- Cuerpo de la card -->
-                        <div class="recibo-body">
-                            <div class="recibo-top">
-                                <div class="recibo-info">
-                                    <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
-                                    <?php if ($fecha_emi): ?>
-                                    <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($vencida): ?>
-                                    <span class="recibo-badge-vencida"><i class="fas fa-exclamation-triangle me-1"></i>Vencida</span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="recibo-montos">
-                                    <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
-                                    <span class="recibo-bs">Bs <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
-                                    <button type="button" class="recibo-select-btn" onclick="event.stopPropagation(); toggleRecibo(this.closest('.recibo-card'), <?php echo $inv_id; ?>);">
-                                        <i class="fas fa-check-circle me-1"></i> Seleccionar este
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="recibo-desc"><?php echo htmlspecialchars($descripcion); ?></div>
-                        </div>
-
-                        <!-- Barra de acento inferior -->
-                        <div class="recibo-accent-bar"></div>
+                <div class="pago-monto-body" id="monto_body">
+                    <div class="pago-monto-row">
+                        <span class="text-muted">Deuda Acumulada:</span>
+                        <span class="fw-bold">$<?php echo number_format($deuda_total, 2); ?></span>
                     </div>
+                    <div class="pago-monto-row">
+                        <span class="text-muted">Monto a Favor:</span>
+                        <span class="fw-bold text-success">$<?php echo number_format($saldo_favor, 2); ?></span>
+                    </div>
+                    <div class="pago-monto-row">
+                        <span class="text-muted">Deuda en Bolivares:</span>
+                        <span class="fw-bold">Bs <?php echo number_format($deuda_bs, 2, ',', '.'); ?></span>
+                    </div>
+                    <?php if ($tasa_bcv > 0): ?>
+                    <div class="pago-monto-row mt-2 pt-2 border-top border-white border-opacity-10">
+                        <span class="text-muted small">Tasa BCV:</span>
+                        <span class="small">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?> / $1</span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <!-- Metodo de Pago (Botones) -->
+            <div class="glass-panel p-4 mb-3">
+                <h6 class="fw-bold mb-3 text-center">Metodo de Pago</h6>
+                <div class="metodo-btns-grid">
+                    <?php foreach ($metodosFiltrados as $metodo => $bancosMetodo): ?>
+                    <button type="button" class="metodo-btn" data-metodo="<?php echo htmlspecialchars($metodo); ?>" onclick="selectMetodo('<?php echo htmlspecialchars($metodo); ?>')">
+                        <?php if ($metodo === 'Zelle'): ?>
+                            <i class="fas fa-dollar-sign"></i>
+                        <?php elseif (strpos($metodo, 'vil') !== false): ?>
+                            <i class="fas fa-mobile-alt"></i>
+                        <?php else: ?>
+                            <i class="fas fa-university"></i>
+                        <?php endif; ?>
+                        <span><?php echo htmlspecialchars($metodo); ?></span>
+                    </button>
                     <?php endforeach; ?>
                 </div>
-                <?php else: ?>
-                <div class="text-center py-5">
-                    <div class="mb-3" style="font-size:3rem;">🎉</div>
-                    <h6 class="fw-bold text-success">¡Sin deudas pendientes!</h6>
-                    <p class="text-muted mb-0 small">No tienes recibos pendientes de pago.</p>
-                </div>
-                <?php endif; ?>
             </div>
 
-            <!-- Método de Pago (Dropdown) -->
-            <div class="glass-panel p-4 mb-4">
-                <h5 class="fw-bold mb-3"><i class="fas fa-credit-card me-2 text-primary"></i> Método de Pago</h5>
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="label-premium">Selecciona método de pago</label>
-                        <select id="select_metodo" class="form-select glass-input" onchange="selectMetodo(this.value)">
-                            <option value="">-- Seleccionar --</option>
-                            <?php 
-                            $metodos_unicos = [];
-                            foreach ($bancosArr as $b) {
-                                if ($b['activo'] !== false) {
-                                    foreach ($b['metodos_pago'] as $m) {
-                                        $metodos_unicos[$m] = true;
-                                    }
-                                }
-                            }
-                            $orden = ['Pago Móvil', 'Transferencia', 'Zelle'];
-                            foreach ($orden as $met): if (!isset($metodos_unicos[$met])) continue; ?>
-                            <option value="<?php echo $met; ?>"><?php echo $met; ?></option>
-                            <?php endforeach; ?>
-                        </select>
+            <!-- Datos Banco (inline) -->
+            <div class="glass-panel p-4 mb-3 d-none" id="panel-banco">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="banco-icon-wrap me-3">
+                        <i class="fas fa-university"></i>
                     </div>
-                    <div class="col-md-6 d-none" id="banco_select_group">
-                        <label class="label-premium">Banco destino</label>
-                        <select id="select_banco" class="form-select glass-input" onchange="selectBanco(this.value)">
-                            <option value="">-- Seleccionar banco --</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Datos del Banco Destino (dentro del mismo panel) -->
-                <div class="d-none" id="panel-banco">
-                    <hr class="my-3 border-white border-opacity-10">
-                    <h6 class="fw-bold mb-2"><i class="fas fa-university me-2 text-primary"></i> <span id="banco_nombre"></span></h6>
-                    <div id="banco_detalles"></div>
-                </div>
-            </div>
-
-            <!-- Total a Pagar -->
-            <div class="glass-panel p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <small class="text-muted d-block">Tasa BCV</small>
-                        <span class="fw-bold">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
-                    </div>
-                    <div class="text-end">
-                        <small class="text-muted d-block">Total a Pagar</small>
-                        <span class="fs-4 fw-bold text-gradient" id="total_usd">$0.00</span>
-                        <span class="d-block text-ves" id="total_bs">Bs 0,00</span>
+                        <div class="fw-bold" id="banco_nombre"></div>
+                        <small class="text-muted" id="banco_titular"></small>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <div class="progress" style="height:4px;">
-                        <div class="progress-bar bg-primary" id="progress_bar" style="width:0%"></div>
-                    </div>
+                <div id="banco_detalles"></div>
+                <div class="mt-2 text-end">
+                    <button type="button" class="btn btn-sm btn-glass copy-btn" id="btn_copiar" onclick="copiarDatos()">
+                        <i class="far fa-copy me-1"></i> Copiar Datos
+                    </button>
                 </div>
             </div>
 
-            <?php if ($saldo_favor > 0): ?>
-            <!-- Usar Saldo a Favor -->
-            <div class="glass-panel p-3 mb-4">
-                <div class="form-check d-flex align-items-center mb-0">
-                    <input class="form-check-input me-3" type="checkbox" id="usar_saldo" onchange="toggleSaldo()" style="transform:scale(1.3);">
-                    <label class="form-check-label" for="usar_saldo">
-                        <span class="fw-bold">Usar saldo a favor</span>
-                        <span class="text-success ms-2 fw-bold">$<?php echo number_format($saldo_favor, 2); ?></span>
-                        <small class="text-muted d-block">Aplica tu saldo disponible al total a pagar</small>
-                    </label>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Datos del Reporte -->
-            <div class="glass-panel p-4 mb-4">
-                <h5 class="fw-bold mb-3"><i class="fas fa-pen me-2 text-primary"></i> Datos del Reporte</h5>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="label-premium">Fecha de Operación</label>
-                        <input type="date" name="fecha_pago" class="form-control glass-input" value="<?php echo date('Y-m-d'); ?>" max="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="label-premium">Número de Referencia</label>
-                        <input type="text" name="referencia" class="form-control glass-input" placeholder="Últimos 6 dígitos o completo" required>
-                    </div>
-                    <div class="col-md-4 d-none" id="monto_manual_group">
-                        <label class="label-premium">Monto en USD</label>
-                        <input type="number" step="0.01" min="0.01" name="monto_manual_usd" class="form-control glass-input" placeholder="0.00">
-                    </div>
-                </div>
+            <!-- Monto Zelle (solo para Zelle) -->
+            <div class="glass-panel p-4 mb-3 d-none" id="panel-zelle-monto">
+                <label class="label-premium">Monto en USD</label>
+                <input type="number" step="0.01" min="0.01" name="monto_manual_usd" class="form-control glass-input" placeholder="0.00" id="input_zelle_monto">
             </div>
 
-            <!-- Acciones -->
-            <div class="d-flex gap-2 mb-4">
-                <button type="button" class="btn btn-premium flex-fill py-3" id="btn_verificar" onclick="verificarPago()" disabled>
-                    <i class="fas fa-search me-2"></i> Verificar Pago
+            <!-- Referencia -->
+            <div class="glass-panel p-4 mb-3">
+                <label class="label-premium">Numero de Referencia</label>
+                <input type="text" name="referencia" class="form-control glass-input" placeholder="Ingresa tu referencia" id="input_referencia" required>
+            </div>
+
+            <!-- Boton Activar -->
+            <div class="mb-4">
+                <button type="button" class="btn btn-activar w-100 py-3" id="btn_activar" onclick="activarPago()" disabled>
+                    <i class="fas fa-bolt me-2"></i> Activar
                 </button>
-                <button type="button" class="btn btn-glass flex-fill py-3 d-none" id="btn_confirmar" onclick="confirmarPago()">
-                    <i class="fas fa-check-circle me-2"></i> Confirmar Pago
-                </button>
-                <button type="submit" class="btn btn-premium flex-fill py-3 d-none" id="btn_submit_zelle">
-                    <i class="fas fa-check-circle me-2"></i> Confirmar Pago
-                </button>
-            </div>
-
-            <!-- Resultado de Verificación -->
-            <div class="glass-panel p-4 mb-4 d-none" id="panel-resultado">
-                <h5 class="fw-bold mb-3 text-success"><i class="fas fa-check-circle me-2"></i> Datos de Reporte</h5>
-                <div class="table-responsive">
-                    <table class="table table-premium mb-0">
-                        <tbody id="resultado_body"></tbody>
-                    </table>
-                </div>
-                <div class="mt-3 p-3 rounded" style="background:rgba(16,185,129,0.08);border-left:4px solid var(--success);" id="descripcion_pago"></div>
             </div>
         </form>
+
+        <!-- Resultado Verificacion -->
+        <div class="glass-panel p-4 mb-4 d-none" id="panel-resultado">
+            <h5 class="fw-bold mb-3 text-success"><i class="fas fa-check-circle me-2"></i> Datos de Reporte</h5>
+            <div class="table-responsive">
+                <table class="table table-premium mb-0">
+                    <tbody id="resultado_body"></tbody>
+                </table>
+            </div>
+            <div class="mt-3 p-3 rounded" style="background:rgba(16,185,129,0.08);border-left:4px solid var(--success);" id="descripcion_pago"></div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-premium w-100 py-3" id="btn_confirmar" onclick="confirmarPago()">
+                    <i class="fas fa-check-circle me-2"></i> Confirmar Pago
+                </button>
+            </div>
+        </div>
+
     </div>
 
     <div id="loadingOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;justify-content:center;align-items:center;flex-direction:column;">
@@ -388,15 +291,17 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
     const todosLosBancos = <?php echo json_encode($bancosArr); ?>;
     const csrfToken = '<?php echo htmlspecialchars(generate_csrf_token()); ?>';
     const idContrato = '<?php echo $wisp_service_id; ?>';
-    const reciboSel = <?php echo $recibo_id_sel; ?>;
     const saldoFavor = <?php echo $saldo_favor; ?>;
+    const deudaUSD = <?php echo $deuda_total; ?>;
+    const montoUSD = <?php echo $monto_a_pagar; ?>;
+    const metodosBancos = <?php echo json_encode($metodosFiltrados); ?>;
     let selectedMetodo = '';
     let selectedBanco = null;
     let verificacionData = null;
+    let montoExpandido = true;
 
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
-
     document.getElementById('themeToggleBtn').addEventListener('click', function() {
         const html = document.documentElement;
         const current = html.getAttribute('data-theme');
@@ -406,267 +311,183 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
 
-    function toggleSaldo() {
-        recalcTotal();
-    }
-
-    function toggleRecibo(card, invId) {
-        const cb = card.querySelector('.invoice-check');
-        // Si ya está seleccionado, no hacemos nada (no se puede deseleccionar)
-        if (cb.checked) return;
-
-        // Deseleccionar todos los demás
-        document.querySelectorAll('.invoice-check:checked').forEach(other => {
-            other.checked = false;
-            const otherCard = other.closest('.recibo-card');
-            if (otherCard) {
-                otherCard.classList.remove('selected');
-                const otherBtn = otherCard.querySelector('.recibo-select-btn');
-                if (otherBtn) otherBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
-            }
-        });
-
-        // Seleccionar este
-        cb.checked = true;
-        card.classList.add('selected');
-        const btn = card.querySelector('.recibo-select-btn');
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionado';
+    function toggleMonto() {
+        montoExpandido = !montoExpandido;
+        const body = document.getElementById('monto_body');
+        const chevron = document.getElementById('monto_chevron');
+        if (montoExpandido) {
+            body.classList.remove('d-none');
+            chevron.className = 'fas fa-chevron-up pago-monto-chevron';
+        } else {
+            body.classList.add('d-none');
+            chevron.className = 'fas fa-chevron-down pago-monto-chevron';
         }
-        recalcTotal();
-    }
-
-    function recalcTotal() {
-        let total = 0;
-        const checks = document.querySelectorAll('.invoice-check:checked');
-        checks.forEach(cb => {
-            const card = cb.closest('.recibo-card');
-            if (card) {
-                card.classList.add('selected');
-                const btn = card.querySelector('.recibo-select-btn');
-                if (btn) btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionado';
-            }
-            const montoEl = card ? card.querySelector('.recibo-usd') : null;
-            if (montoEl) {
-                total += parseFloat(montoEl.textContent.replace('$', '').replace(',', '')) || 0;
-            }
-        });
-        document.querySelectorAll('.invoice-check:not(:checked)').forEach(cb => {
-            const card = cb.closest('.recibo-card');
-            if (card) {
-                card.classList.remove('selected');
-                const btn = card.querySelector('.recibo-select-btn');
-                if (btn) btn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Seleccionar este';
-            }
-        });
-        document.getElementById('total_usd').textContent = '$' + total.toFixed(2);
-        document.getElementById('total_bs').textContent = 'Bs ' + (total * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
-        document.getElementById('input_monto_usd').value = total.toFixed(2);
-
-        const usarSaldo = document.getElementById('usar_saldo')?.checked;
-        if (usarSaldo && saldoFavor > 0) {
-            const descuento = Math.min(saldoFavor, total);
-            const neto = total - descuento;
-            document.getElementById('total_usd').textContent = '$' + neto.toFixed(2);
-            document.getElementById('total_bs').textContent = 'Bs ' + (neto * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
-            document.getElementById('input_monto_usd').value = neto.toFixed(2);
-        }
-
-        const maxTotal = <?php echo $deuda_total; ?>;
-        const pct = maxTotal > 0 ? Math.min(100, (total / maxTotal) * 100) : 0;
-        document.getElementById('progress_bar').style.width = pct + '%';
-
-        document.getElementById('btn_verificar').disabled = total <= 0;
-        ocultarResultado();
     }
 
     function selectMetodo(metodo) {
+        document.querySelectorAll('.metodo-btn').forEach(function(b) { b.classList.remove('active'); });
+        var btn = document.querySelector('.metodo-btn[data-metodo="' + metodo + '"]');
+        if (btn) btn.classList.add('active');
+
         selectedMetodo = metodo;
         document.getElementById('input_metodo').value = metodo;
 
-        const filtrados = todosLosBancos.filter(b => (b.metodos_pago || []).includes(metodo) && b.activo !== false);
-        const bancoGroup = document.getElementById('banco_select_group');
-        const selectBancoEl = document.getElementById('select_banco');
+        var bancosMetodo = metodosBancos[metodo] || [];
+        var panelBanco = document.getElementById('panel-banco');
 
-        if (filtrados.length > 0) {
-            bancoGroup.classList.remove('d-none');
-            selectBancoEl.innerHTML = '<option value="">-- Seleccionar banco --</option>';
-            filtrados.forEach(b => {
-                selectBancoEl.innerHTML += '<option value="' + b.id_banco + '">' + b.nombre_banco + '</option>';
-            });
-            if (filtrados.length === 1) {
-                selectBancoEl.value = filtrados[0].id_banco;
-                selectBanco(filtrados[0].id_banco);
-            } else {
-                document.getElementById('panel-banco').classList.add('d-none');
-                selectedBanco = null;
-                document.getElementById('input_banco').value = '';
-            }
+        if (bancosMetodo.length > 0) {
+            var banco = bancosMetodo[0];
+            selectedBanco = banco;
+            document.getElementById('input_banco').value = banco.id_banco;
+            mostrarBanco(banco);
+            panelBanco.classList.remove('d-none');
         } else {
-            bancoGroup.classList.add('d-none');
-            document.getElementById('panel-banco').classList.add('d-none');
+            panelBanco.classList.add('d-none');
             selectedBanco = null;
             document.getElementById('input_banco').value = '';
         }
 
+        var panelZelle = document.getElementById('panel-zelle-monto');
         if (metodo === 'Zelle') {
-            document.getElementById('monto_manual_group').classList.remove('d-none');
-            document.getElementById('btn_verificar').classList.add('d-none');
-            document.getElementById('btn_submit_zelle').classList.remove('d-none');
-            document.getElementById('btn_confirmar').classList.add('d-none');
+            panelZelle.classList.remove('d-none');
         } else {
-            document.getElementById('monto_manual_group').classList.add('d-none');
-            document.getElementById('btn_verificar').classList.remove('d-none');
-            document.getElementById('btn_submit_zelle').classList.add('d-none');
-            document.getElementById('btn_confirmar').classList.add('d-none');
+            panelZelle.classList.add('d-none');
         }
-        ocultarResultado();
-    }
 
-    function selectBanco(bancoId) {
-        const bank = todosLosBancos.find(b => b.id_banco === bancoId);
-        if (!bank) {
-            document.getElementById('panel-banco').classList.add('d-none');
-            selectedBanco = null;
-            document.getElementById('input_banco').value = '';
-            return;
-        }
-        selectedBanco = bank;
-        mostrarBanco(bank);
+        ocultarResultado();
+        updateActivarBtn();
     }
 
     function mostrarBanco(bank) {
-        document.getElementById('panel-banco').classList.remove('d-none');
         document.getElementById('banco_nombre').textContent = bank.nombre_banco;
-        document.getElementById('input_banco').value = bank.id_banco;
+        document.getElementById('banco_titular').textContent = bank.nombre_propietario + ' - ' + bank.cedula_propietario;
 
-        const div = document.getElementById('banco_detalles');
+        var div = document.getElementById('banco_detalles');
         div.innerHTML = '';
-
-        let lines = [];
-        if (selectedMetodo === 'Pago Móvil') {
-            lines = [
-                {label:'Teléfono', val:bank.numero_cuenta},
-                {label:'Cédula/RIF', val:bank.cedula_propietario},
-            ];
+        var lines = [];
+        if (selectedMetodo.indexOf('vil') !== -1) {
+            lines = [bank.numero_cuenta, bank.cedula_propietario];
         } else if (selectedMetodo === 'Transferencia') {
-            lines = [
-                {label:'N° Cuenta', val:bank.numero_cuenta},
-                {label:'Titular', val:bank.nombre_propietario},
-                {label:'RIF', val:bank.cedula_propietario},
-            ];
+            lines = [bank.numero_cuenta, bank.nombre_propietario];
         } else if (selectedMetodo === 'Zelle') {
-            lines = [
-                {label:'Correo', val:bank.numero_cuenta},
-                {label:'Titular', val:bank.nombre_propietario},
-            ];
+            lines = [bank.numero_cuenta, bank.nombre_propietario];
         }
-
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'btn btn-sm btn-glass copy-btn mb-3';
-        copyBtn.innerHTML = '<i class="far fa-copy me-1"></i> Copiar Todos los Datos';
-        copyBtn.onclick = function () {
-            const text = lines.map(l => l.label + ': ' + l.val).join('\n');
-            navigator.clipboard.writeText(text).then(() => {
-                const orig = this.innerHTML;
-                this.innerHTML = '<i class="fas fa-check me-1"></i> Copiado';
-                this.classList.add('text-success');
-                setTimeout(() => { this.innerHTML = orig; this.classList.remove('text-success'); }, 2000);
-            });
-        };
-        const wrap = document.createElement('div');
-        wrap.className = 'text-end';
-        wrap.appendChild(copyBtn);
-        div.appendChild(wrap);
-
-        lines.forEach(l => {
-            const row = document.createElement('div');
-            row.className = 'd-flex justify-content-between align-items-center mb-2';
-            row.innerHTML = '<div><small class="text-muted">' + l.label + '</small><div class="fw-bold">' + l.val + '</div></div>';
+        lines.forEach(function(val) {
+            var row = document.createElement('div');
+            row.className = 'banco-detail-row';
+            row.textContent = val;
             div.appendChild(row);
         });
     }
 
-    function verificarPago() {
-        const fecha = document.querySelector('input[name="fecha_pago"]').value;
-        const referencia = document.querySelector('input[name="referencia"]').value.trim();
-        const montoUsd = document.getElementById('input_monto_usd').value;
+    function copiarDatos() {
+        if (!selectedBanco) return;
+        var text = selectedBanco.numero_cuenta + '\n' + selectedBanco.nombre_propietario + '\n' + selectedBanco.cedula_propietario;
+        navigator.clipboard.writeText(text).then(function() {
+            var btn = document.getElementById('btn_copiar');
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Copiado';
+            btn.classList.add('text-success');
+            setTimeout(function() { btn.innerHTML = '<i class="far fa-copy me-1"></i> Copiar Datos'; btn.classList.remove('text-success'); }, 2000);
+        });
+    }
 
-        if (!fecha || !referencia || referencia.length < 6) {
-            alert('Completa la fecha y la referencia (min. 6 caracteres).');
+    function updateActivarBtn() {
+        var ref = document.getElementById('input_referencia').value.trim();
+        var btn = document.getElementById('btn_activar');
+        btn.disabled = !selectedMetodo || ref.length < 6;
+    }
+
+    document.getElementById('input_referencia').addEventListener('input', updateActivarBtn);
+
+    function activarPago() {
+        var referencia = document.getElementById('input_referencia').value.trim();
+        if (!referencia || referencia.length < 6) {
+            alert('Ingresa una referencia valida (min. 6 caracteres).');
             return;
         }
         if (!selectedMetodo || !selectedBanco) {
-            alert('Selecciona un método de pago y banco destino.');
+            alert('Selecciona un metodo de pago.');
             return;
         }
 
-        const checks = document.querySelectorAll('.invoice-check:checked');
-        if (checks.length === 0) {
-            alert('Selecciona al menos un recibo.');
+        if (selectedMetodo === 'Zelle') {
+            var montoZelle = document.getElementById('input_zelle_monto').value;
+            if (!montoZelle || parseFloat(montoZelle) <= 0) {
+                alert('Ingresa el monto en USD para Zelle.');
+                return;
+            }
+            document.getElementById('input_monto_usd').value = parseFloat(montoZelle).toFixed(2);
+            document.getElementById('input_monto_usd_real').value = parseFloat(montoZelle).toFixed(2);
+            document.getElementById('paymentForm').submit();
+            document.getElementById('loadingOverlay').style.display = 'flex';
             return;
         }
 
-        const invoiceIds = Array.from(checks).map(cb => cb.value);
+        if (selectedBanco.api_config && selectedBanco.api_config.habilitada) {
+            verificarBDV(referencia);
+        } else {
+            document.getElementById('paymentForm').submit();
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+    }
+
+    function verificarBDV(referencia) {
         document.getElementById('loadingOverlay').style.display = 'flex';
 
-        const params = new URLSearchParams();
+        var params = new URLSearchParams();
         params.append('csrf_token', csrfToken);
         params.append('id_banco', selectedBanco.id_banco);
         params.append('referencia', referencia);
-        params.append('fecha_pago', fecha);
+        params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
         params.append('metodo_pago', selectedMetodo);
         params.append('id_contrato', idContrato);
-        invoiceIds.forEach(id => params.append('invoice_ids[]', id));
 
         fetch('api_verificar_pago.php', {method:'POST', body:params})
-            .then(r => r.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 document.getElementById('loadingOverlay').style.display = 'none';
                 if (data.status === 'verified') {
                     verificacionData = data;
                     mostrarResultado(data);
                 } else if (data.status === 'manual') {
-                    alert('Este método requiere verificación manual. Usa "Confirmar Pago" para reportar.');
+                    document.getElementById('paymentForm').submit();
+                    document.getElementById('loadingOverlay').style.display = 'flex';
                 } else {
                     alert(data.message || 'Error al verificar el pago.');
                 }
             })
-            .catch(e => {
+            .catch(function(e) {
                 document.getElementById('loadingOverlay').style.display = 'none';
-                alert('Error de conexión. Intenta de nuevo.');
+                alert('Error de conexion. Intenta de nuevo.');
             });
     }
 
     function mostrarResultado(data) {
-        const mov = data.movimiento || {};
-        const tbody = document.getElementById('resultado_body');
+        var mov = data.movimiento || {};
+        var tbody = document.getElementById('resultado_body');
         tbody.innerHTML = '';
-        const rows = [
+        var rows = [
             ['Referencia Bancaria', mov.referencia_banco || data.referencia],
             ['Importe en Bs', 'Bs ' + (mov.importe_bs || data.monto_bs).toLocaleString('es-VE', {minimumFractionDigits:2})],
             ['Importe en USD', '$' + (mov.importe_usd || data.monto_usd).toFixed(2)],
-            ['Tipo de Movimiento', mov.tipo_movimiento || 'CRÉDITO'],
-            ['Observación', mov.observacion || '-'],
-            ['Fecha', mov.fecha || document.querySelector('input[name="fecha_pago"]').value],
+            ['Tipo de Movimiento', mov.tipo_movimiento || 'CREDITO'],
+            ['Observacion', mov.observacion || '-'],
+            ['Fecha', mov.fecha || '<?php echo date('Y-m-d'); ?>']
         ];
-        rows.forEach(r => {
-            tbody.innerHTML += `<tr><td class="text-muted">${r[0]}</td><td class="fw-bold">${r[1]}</td></tr>`;
+        rows.forEach(function(r) {
+            tbody.innerHTML += '<tr><td class="text-muted">' + r[0] + '</td><td class="fw-bold">' + r[1] + '</td></tr>';
         });
-
         document.getElementById('descripcion_pago').innerHTML = data.descripcion || '';
         document.getElementById('panel-resultado').classList.remove('d-none');
-        document.getElementById('btn_verificar').classList.add('d-none');
-        document.getElementById('btn_confirmar').classList.remove('d-none');
-
+        document.getElementById('btn_activar').classList.add('d-none');
         document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
         document.getElementById('input_verificacion_data').value = JSON.stringify(data);
     }
 
     function ocultarResultado() {
         document.getElementById('panel-resultado').classList.add('d-none');
-        document.getElementById('btn_verificar').classList.remove('d-none');
-        document.getElementById('btn_confirmar').classList.add('d-none');
+        document.getElementById('btn_activar').classList.remove('d-none');
+        document.getElementById('btn_activar').disabled = false;
         verificacionData = null;
     }
 
@@ -675,195 +496,157 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         document.getElementById('input_monto_usd').value = verificacionData.monto_usd || 0;
         document.getElementById('input_monto_usd_real').value = verificacionData.monto_usd || 0;
         document.getElementById('paymentForm').submit();
+        document.getElementById('loadingOverlay').style.display = 'flex';
     }
 
-    document.getElementById('paymentForm').addEventListener('submit', function(e) {
-        if (selectedMetodo === 'Zelle') {
-            const manual = document.querySelector('input[name="monto_manual_usd"]');
-            if (!manual || !manual.value || parseFloat(manual.value) <= 0) {
-                e.preventDefault();
-                alert('Ingresa el monto en USD para Zelle.');
-                return;
-            }
-            document.getElementById('input_monto_usd').value = parseFloat(manual.value).toFixed(2);
-            document.getElementById('input_monto_usd_real').value = parseFloat(manual.value).toFixed(2);
-        }
+    document.getElementById('paymentForm').addEventListener('submit', function() {
         document.getElementById('loadingOverlay').style.display = 'flex';
     });
 
-    recalcTotal();
+    updateActivarBtn();
     </script>
 
     <style>
         @keyframes loadingSpin { to { transform: rotate(360deg); } }
-        .progress { background: var(--border-glass); border-radius: 2px; }
-        .progress-bar { border-radius: 2px; transition: width 0.3s ease; }
         .table-premium td, .table-premium th { padding: 12px 16px; }
-        input[type="checkbox"] { transform: scale(1.2); cursor: pointer; }
         #loadingOverlay { display:none; }
 
-        /* ── Recibos: lista de cards ── */
-        .recibos-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .recibo-card {
-            position: relative;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 16px 18px;
-            border-radius: 16px;
+        .pago-input-top {
+            width: 100%;
+            background: var(--input-bg);
             border: 1.5px solid var(--border-glass);
-            background: var(--glass-bg);
-            cursor: pointer;
-            transition: all 0.25s ease;
-            overflow: hidden;
-        }
-        .recibo-card:hover {
-            border-color: rgba(59,130,246,0.5);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(59,130,246,0.12);
-        }
-        .recibo-card.selected {
-            border-color: #22c55e;
-            background: rgba(34,197,94,0.06);
-            box-shadow: 0 0 0 1px rgba(34,197,94,0.25), 0 4px 16px rgba(34,197,94,0.1);
-        }
-        .recibo-card.recibo-vencida {
-            border-color: rgba(239,68,68,0.4);
-        }
-        .recibo-card.recibo-vencida.selected {
-            border-color: #22c55e;
-            background: rgba(34,197,94,0.06);
-            box-shadow: 0 0 0 1px rgba(34,197,94,0.25), 0 4px 16px rgba(34,197,94,0.1);
-        }
-        /* Barra de acento inferior */
-        .recibo-accent-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #22c55e, #16a34a);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.3s ease;
-            border-radius: 0 0 16px 16px;
-        }
-        .recibo-card.selected .recibo-accent-bar {
-            transform: scaleX(1);
-        }
-        .recibo-card.recibo-vencida .recibo-accent-bar {
-            background: linear-gradient(90deg, #ef4444, #f97316);
-        }
-        /* Icono de la card */
-        .recibo-icon-wrap {
-            flex-shrink: 0;
-            width: 46px;
-            height: 46px;
             border-radius: 12px;
-            background: rgba(34,197,94,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            color: #22c55e;
-            transition: background 0.25s;
+            padding: 14px 16px;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 1px;
+            outline: none;
         }
-        .recibo-card.selected .recibo-icon-wrap {
-            background: rgba(34,197,94,0.18);
-        }
-        .recibo-card.recibo-vencida .recibo-icon-wrap {
-            background: rgba(239,68,68,0.1);
-            color: #ef4444;
-        }
-        /* Cuerpo */
-        .recibo-body {
-            flex: 1;
-            min-width: 0;
-        }
-        .recibo-top {
+
+        .pago-monto-panel { overflow: hidden; }
+        .pago-monto-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-            margin-bottom: 4px;
+            align-items: center;
+            cursor: pointer;
+            padding: 4px 0;
         }
-        .recibo-info {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .recibo-num {
-            font-weight: 700;
-            font-size: 0.95rem;
-            color: var(--text-primary);
-        }
-        .recibo-fecha {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-        .recibo-badge-vencida {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #ef4444;
-            background: rgba(239,68,68,0.1);
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
-        }
-        .recibo-montos {
-            text-align: right;
-            flex-shrink: 0;
-        }
-        .recibo-usd {
-            display: block;
-            font-size: 1.15rem;
+        .pago-monto-header small { display: block; margin-bottom: 2px; }
+        .pago-monto-bs {
+            font-size: 1.4rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            background: linear-gradient(135deg, #f59e0b, #f97316);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .recibo-bs {
-            display: block;
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            margin-top: 1px;
+        .pago-monto-chevron { color: var(--text-muted); transition: transform 0.3s ease; font-size: 1.1rem; }
+        .pago-monto-body {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-glass);
         }
-        .recibo-desc {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .pago-monto-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            font-size: 0.9rem;
         }
-        /* Botón "Seleccionar este" en cada card */
-        .recibo-select-btn {
-            display: block;
-            margin-top: 6px;
-            padding: 3px 10px;
-            font-size: 0.72rem;
+
+        .metodo-btns-grid { display: flex; gap: 10px; }
+        .metodo-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 16px 8px;
+            border-radius: 12px;
+            border: 2px solid var(--border-glass);
+            background: rgba(255,255,255,0.04);
+            color: var(--text-muted);
+            font-size: 0.75rem;
             font-weight: 600;
-            border: 1px solid #22c55e;
-            border-radius: 20px;
-            background: transparent;
-            color: #22c55e;
             cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
+            transition: all 0.25s ease;
         }
-        .recibo-select-btn:hover {
-            background: rgba(34,197,94,0.12);
+        .metodo-btn i { font-size: 1.4rem; }
+        .metodo-btn:hover {
+            border-color: rgba(59,130,246,0.4);
+            color: var(--primary);
+            transform: translateY(-1px);
         }
-        .recibo-card.selected .recibo-select-btn {
-            background: #22c55e;
+        .metodo-btn.active {
+            border-color: var(--primary);
+            background: rgba(59,130,246,0.12);
+            color: var(--primary);
+            box-shadow: 0 0 0 1px rgba(59,130,246,0.25);
+        }
+
+        .banco-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(59,130,246,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .banco-detail-row {
+            padding: 8px 0;
+            font-weight: 600;
+            font-size: 0.95rem;
+            border-bottom: 1px solid var(--border-glass);
+            color: var(--text-main);
+        }
+        .banco-detail-row:last-child { border-bottom: none; }
+
+        .btn-activar {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 14px;
             color: #fff;
-            border-color: #22c55e;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
         }
-        /* Botón seleccionar todos */
+        .btn-activar:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59,130,246,0.3);
+        }
+        .btn-activar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .label-premium {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .glass-input {
+            background: var(--input-bg);
+            border: 1.5px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .glass-input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+        }
         .btn-glass {
             background: rgba(255,255,255,0.06);
             border: 1px solid var(--border-glass);
