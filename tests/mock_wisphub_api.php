@@ -89,10 +89,10 @@ $mockInvoices = [
         'estado'          => 'Pendiente de Pago',
         'tipo'            => 1,
         'total'           => 35.00,
-        'monto_pendiente' => 25.00,
+        'monto_pendiente' => 35.00,
         'sub_total'       => 35.00,
-        'saldo'           => 25.00,
-        'total_cobrado'   => 10.00,
+        'saldo'           => 35.00,
+        'total_cobrado'   => 0,
         'articulos'       => [
             [
                 'id'          => 2,
@@ -203,7 +203,7 @@ switch (true) {
             'status' => 200,
             'data' => [
                 'facturas'    => $mockInvoices,
-                'total_deuda' => 45.00,
+                'total_deuda' => 55.00,
                 'saldo'       => 0.00,
                 'saldo_favor' => 5.00,
             ],
