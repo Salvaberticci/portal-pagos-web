@@ -56,9 +56,9 @@ if (isset($_SESSION['cliente_cedula'])) {
                     <i class="fas fa-sun"></i>
                 </button>
             </div>
-            
-            <img src="../images/logo-galanet.png" alt="Logo Galanet" class="img-fluid mb-4" style="max-height: 100px; border-radius: 12px;">
-            
+            <div class="login-logo-wrap">
+                <img src="../images/logo-galanet.png" alt="Logo Galanet" style="width: 100%; height: auto; display: block;">
+            </div>
             <h3 class="mb-2 font-weight-bold text-gradient">Portal de Clientes</h3>
             <p class="text-muted mb-4">Consulta tus contratos y paga tus mensualidades fácilmente.</p>
 
