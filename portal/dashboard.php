@@ -69,6 +69,9 @@ if (!empty($usuario_ws)) {
     $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
 }
 
+// Saldo a favor
+$saldo_favor = $wispClient->getClientBalance($wisp_service_id);
+
 // Estado del servicio
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
 if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
@@ -279,8 +282,20 @@ if (count($invoices) > 0) {
                     <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
                     <?php if (count($invoices) > 0): ?>
                     <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar</small>
-                    <?php endif; ?>
+            <?php endif; ?>
+            <?php if ($saldo_favor > 0): ?>
+            <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
+                <div class="col-12">
+                    <div class="glass-panel p-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted d-block"><i class="fas fa-wallet text-success me-1"></i> Saldo a Favor</small>
+                            <span class="fw-bold text-success">$<?php echo number_format($saldo_favor, 2); ?></span>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <?php endif; ?>
+        </div>
             </div>
             <?php if (count($invoices) > 0): ?>
             <div class="recibos-list">
@@ -300,6 +315,7 @@ if (count($invoices) > 0) {
                     $fecha_emi  = $inv['fecha_emision'] ?? '';
                     $fecha_venc = $inv['fecha_vencimiento'] ?? '';
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
+                    $abonado    = floatval($inv['total_cobrado'] ?? 0);
                 ?>
                 <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
 
@@ -318,6 +334,9 @@ if (count($invoices) > 0) {
                                 <?php endif; ?>
                                 <?php if ($vencida): ?>
                                 <span class="recibo-badge-vencida"><i class="fas fa-exclamation-triangle me-1"></i>Vencida</span>
+                                <?php endif; ?>
+                                <?php if ($abonado > 0): ?>
+                                <span class="recibo-badge-abonado"><i class="fas fa-check me-1"></i>Abonado: $<?php echo number_format($abonado, 2); ?></span>
                                 <?php endif; ?>
                             </div>
                             <div class="recibo-montos">
@@ -429,6 +448,15 @@ if (count($invoices) > 0) {
             font-weight: 600;
             color: #ef4444;
             background: rgba(239,68,68,0.1);
+            padding: 1px 7px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .recibo-badge-abonado {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #fbbf24;
+            background: rgba(251,191,36,0.12);
             padding: 1px 7px;
             border-radius: 20px;
             display: inline-block;

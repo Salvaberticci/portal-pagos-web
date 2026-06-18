@@ -472,5 +472,21 @@ class WispHubClient
     {
         return $this->request('GET', "tasks/{$taskId}/");
     }
+
+    /**
+     * Obtiene el saldo a favor disponible del cliente en WispHub.
+     * Endpoint: GET /clientes/{serviceId}/saldo/
+     *
+     * @param string $serviceId ID del servicio
+     * @return float Saldo a favor en USD
+     */
+    public function getClientBalance(string $serviceId): float
+    {
+        $result = $this->request('GET', "clientes/{$serviceId}/saldo/");
+        if ($result['status'] === 200 && !empty($result['data'])) {
+            return floatval($result['data']['saldo'] ?? $result['data']['saldo_favor'] ?? 0);
+        }
+        return 0.0;
+    }
 }
 ?>

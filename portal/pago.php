@@ -48,6 +48,9 @@ if ($monto_plan <= 0 && count($invoices) > 0) {
 }
 if ($monto_plan <= 0) $monto_plan = 15.0;
 
+// Saldo a favor
+$saldo_favor = $wispClient->getClientBalance($wisp_service_id);
+
 $tasa_bcv = 1;
 $cache_file = 'tasa_cache.json';
 $cache_time = 3600;
@@ -309,6 +312,20 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
                 </div>
             </div>
 
+            <?php if ($saldo_favor > 0): ?>
+            <!-- Usar Saldo a Favor -->
+            <div class="glass-panel p-3 mb-4">
+                <div class="form-check d-flex align-items-center mb-0">
+                    <input class="form-check-input me-3" type="checkbox" id="usar_saldo" onchange="toggleSaldo()" style="transform:scale(1.3);">
+                    <label class="form-check-label" for="usar_saldo">
+                        <span class="fw-bold">Usar saldo a favor</span>
+                        <span class="text-success ms-2 fw-bold">$<?php echo number_format($saldo_favor, 2); ?></span>
+                        <small class="text-muted d-block">Aplica tu saldo disponible al total a pagar</small>
+                    </label>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <!-- Datos del Reporte -->
             <div class="glass-panel p-4 mb-4">
                 <h5 class="fw-bold mb-3"><i class="fas fa-pen me-2 text-primary"></i> Datos del Reporte</h5>
@@ -366,6 +383,7 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
     const csrfToken = '<?php echo htmlspecialchars(generate_csrf_token()); ?>';
     const idContrato = '<?php echo $wisp_service_id; ?>';
     const reciboSel = <?php echo $recibo_id_sel; ?>;
+    const saldoFavor = <?php echo $saldo_favor; ?>;
     let selectedMetodo = '';
     let selectedBanco = null;
     let verificacionData = null;
@@ -381,6 +399,10 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         localStorage.setItem('theme', next);
         this.querySelector('i').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
     });
+
+    function toggleSaldo() {
+        recalcTotal();
+    }
 
     function toggleRecibo(card, invId) {
         const cb = card.querySelector('.invoice-check');
@@ -434,6 +456,15 @@ $badge_class = $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended';
         document.getElementById('total_usd').textContent = '$' + total.toFixed(2);
         document.getElementById('total_bs').textContent = 'Bs ' + (total * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
         document.getElementById('input_monto_usd').value = total.toFixed(2);
+
+        const usarSaldo = document.getElementById('usar_saldo')?.checked;
+        if (usarSaldo && saldoFavor > 0) {
+            const descuento = Math.min(saldoFavor, total);
+            const neto = total - descuento;
+            document.getElementById('total_usd').textContent = '$' + neto.toFixed(2);
+            document.getElementById('total_bs').textContent = 'Bs ' + (neto * tasaBcv).toLocaleString('es-VE', {minimumFractionDigits: 2});
+            document.getElementById('input_monto_usd').value = neto.toFixed(2);
+        }
 
         const maxTotal = <?php echo $deuda_total; ?>;
         const pct = maxTotal > 0 ? Math.min(100, (total / maxTotal) * 100) : 0;

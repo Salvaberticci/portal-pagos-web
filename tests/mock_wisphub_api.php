@@ -89,10 +89,10 @@ $mockInvoices = [
         'estado'          => 'Pendiente de Pago',
         'tipo'            => 1,
         'total'           => 35.00,
-        'monto_pendiente' => 35.00,
+        'monto_pendiente' => 25.00,
         'sub_total'       => 35.00,
-        'saldo'           => 35.00,
-        'total_cobrado'   => 0,
+        'saldo'           => 25.00,
+        'total_cobrado'   => 10.00,
         'articulos'       => [
             [
                 'id'          => 2,
@@ -195,15 +195,17 @@ switch (true) {
             ],
         ]);
 
-    // GET /clientes/{id}/saldo/  (facturas pendientes)
+    // GET /clientes/{id}/saldo/  (facturas pendientes + saldo a favor)
     case preg_match('#^clientes/([^/]+)/saldo/?$#', $uri) === 1 && $method === 'GET':
         preg_match('#^clientes/([^/]+)/saldo/?$#', $uri, $m);
         $serviceId = $m[1];
         mock_json([
             'status' => 200,
             'data' => [
-                'facturas'   => $mockInvoices,
-                'total_deuda'=> 35.00,
+                'facturas'    => $mockInvoices,
+                'total_deuda' => 45.00,
+                'saldo'       => 0.00,
+                'saldo_favor' => 5.00,
             ],
         ]);
 
