@@ -41,6 +41,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
+    if (strlen($numeroSolo) < 5) {
+        $_SESSION['login_error'] = "El número de cédula debe tener al menos 5 dígitos.";
+        header('Location: index.php');
+        exit;
+    }
+
     // Buscar en la API de WispHub por cédula
     $clientInfo = $wispClient->getClientByDocument($cedula);
     if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {

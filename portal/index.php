@@ -127,8 +127,15 @@ if (isset($_SESSION['cliente_cedula'])) {
         const cedulaNumero = document.getElementById('cedula_numero');
         const cedulaHidden = document.getElementById('cedula_hidden');
 
-        form.addEventListener('submit', function() {
-            cedulaHidden.value = tipoCedula.value + cedulaNumero.value;
+        form.addEventListener('submit', function(e) {
+            var num = cedulaNumero.value;
+            if (num.length < 5) {
+                e.preventDefault();
+                document.getElementById('modal-error-msg').textContent = 'El n\u00famero de c\u00e9dula debe tener al menos 5 d\u00edgitos.';
+                document.getElementById('login-error-modal').style.display = 'flex';
+                return;
+            }
+            cedulaHidden.value = tipoCedula.value + num;
             document.getElementById('login-loading').style.display = 'flex';
         });
 

@@ -424,7 +424,7 @@ class WispHubClient
      * @param int    $maxPages M├íximo de p├íginas a recorrer (default 50)
      * @return array ['status' => 200|404, 'data' => [...datos del cliente...]]
      */
-    public function findClientByDocument(string $document, int $maxPages = 50): array
+    public function findClientByDocument(string $document, int $maxPages = 8): array
     {
         $cleanDoc = preg_replace('/^[A-Z]/i', '', $document);
         for ($page = 1; $page <= $maxPages; $page++) {

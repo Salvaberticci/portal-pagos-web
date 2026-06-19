@@ -213,7 +213,7 @@ class WispHubDevModeClient extends WispHubClient
         ];
     }
 
-    public function findClientByDocument(string $document, int $maxPages = 50): array
+    public function findClientByDocument(string $document, int $maxPages = 8): array
     {
         $cleanDoc = preg_replace('/^[A-Z]/i', '', $document);
         if ($cleanDoc !== '20788775') {
