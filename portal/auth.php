@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         session_regenerate_id(true);
         $_SESSION['cliente_cedula'] = $cedula;
         // WispHub usualmente tiene 'nombre' o 'nombre_completo'
-        $_SESSION['cliente_nombre'] = $cliente['nombre'] ?? 'Cliente';
+        $_SESSION['cliente_nombre'] = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
         $_SESSION['cliente_telefono'] = $cliente['telefono'] ?? '';
         $_SESSION['wisp_service_id'] = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
         

@@ -246,7 +246,7 @@ if (count($invoices) > 0) {
             <div class="row g-3">
                 <div class="col-md-3">
                     <small class="text-muted d-block">Cliente</small>
-                    <span class="fw-bold"><?php echo htmlspecialchars($c_perfil['nombre'] ?? $nombre); ?></span>
+                    <span class="fw-bold"><?php echo htmlspecialchars(trim(($c_perfil['nombre'] ?? '') . ' ' . ($c_perfil['apellidos'] ?? '')) ?: $nombre); ?></span>
                 </div>
                 <div class="col-md-2">
                     <small class="text-muted d-block">Estado</small>
