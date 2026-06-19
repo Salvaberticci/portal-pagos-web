@@ -120,6 +120,24 @@ if (isset($_SESSION['cliente_cedula'])) {
         </div>
     </div>
 
+    <div id="login-error-modal" class="modal-overlay">
+        <div class="modal-backdrop-custom" onclick="document.getElementById('login-error-modal').style.display='none'"></div>
+        <div class="modal-glass glass-panel animate-fade">
+            <div class="mb-3" style="font-size: 3rem; color: var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5 class="fw-bold mb-1">USUARIO NO ENCONTRADO</h5>
+            <p class="text-muted mb-4" id="modal-error-msg">No se encontr&oacute; ning&uacute;n contrato con esta c&eacute;dula.</p>
+            <button class="btn btn-premium px-5" onclick="document.getElementById('login-error-modal').style.display='none'">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="login-loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Cargando...</div>
+        <div class="loading-sub">Consultando tus datos</div>
+    </div>
+
     <script>
         // Concatenar el tipo de cédula y el número al enviar el formulario
         const form = document.querySelector('form');
@@ -179,27 +197,6 @@ if (isset($_SESSION['cliente_cedula'])) {
                 document.getElementById('login-error-modal').style.display = 'flex';
             }
         })();
-        function cerrarModalError() {
-            document.getElementById('login-error-modal').style.display = 'none';
-        }
     </script>
-
-    <div id="login-error-modal" class="modal-overlay">
-        <div class="modal-backdrop-custom" onclick="cerrarModalError()"></div>
-        <div class="modal-glass glass-panel animate-fade">
-            <div class="mb-3" style="font-size: 3rem; color: var(--danger);">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h5 class="fw-bold mb-1">USUARIO NO ENCONTRADO</h5>
-            <p class="text-muted mb-4" id="modal-error-msg">No se encontr&oacute; ning&uacute;n contrato con esta c&eacute;dula.</p>
-            <button class="btn btn-premium px-5" onclick="cerrarModalError()">Cerrar</button>
-        </div>
-    </div>
-
-    <div id="login-loading" class="loading-overlay">
-        <div class="spinner"></div>
-        <div class="loading-text">Cargando...</div>
-        <div class="loading-sub">Consultando tus datos</div>
-    </div>
 </body>
 </html>
