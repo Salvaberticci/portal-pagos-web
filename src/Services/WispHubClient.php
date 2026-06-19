@@ -31,7 +31,7 @@ class WispHubClient
 
         $this->http = new Client([
             'base_uri' => $this->baseUrl,
-            'timeout'  => 15,
+            'timeout'  => 5,
             'verify'   => $verifySsl,
             'headers'  => [
                 'Authorization' => "Api-Key {$this->apiKey}",
@@ -408,7 +408,7 @@ class WispHubClient
     public function getClientByDocument(string $document): array
     {
         $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
-        if ($result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
+        if ($result['status'] !== 0 && $result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
             $soloNum = preg_replace('/^[A-Z]/i', '', $document);
             $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($soloNum));
         }

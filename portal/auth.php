@@ -48,10 +48,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Buscar en la API de WispHub por cédula
+    // Intentar conexión con WispHub (máx 5s por intento, 3 intentos ~15s total)
     $clientInfo = $wispClient->getClientByDocument($cedula);
+    if ($clientInfo['status'] === 0) {
+        // Sin conexión con la API – no tiene sentido buscar más
+        $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
+        header('Location: index.php');
+        exit;
+    }
     if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
         $clientInfo = $wispClient->findClientByDocument($cedula);
+        if ($clientInfo['status'] === 0) {
+            $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
+            header('Location: index.php');
+            exit;
+        }
     }
 
     if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
