@@ -67,7 +67,11 @@ class WispHubClient
 
         $opts = [];
         if (!empty($data)) {
-            $opts['body'] = json_encode($data);
+            if ($method === 'GET') {
+                $opts['query'] = $data;
+            } else {
+                $opts['body'] = json_encode($data);
+            }
         }
 
         $maxAttempts = 1;
@@ -251,9 +255,10 @@ class WispHubClient
     public function getLastPaidInvoice(string $usuario): ?array
     {
         $invoices = $this->getInvoices([
-            'estado'  => 2,
-            'cliente' => $usuario,
-            'limit'   => 1,
+            'estado'   => 2,
+            'cliente'  => $usuario,
+            'limit'    => 1,
+            'ordering' => '-id',
         ]);
         if (!empty($invoices[0])) {
             $inv = $invoices[0];
@@ -416,46 +421,74 @@ class WispHubClient
 
     /**
      * Busca un cliente en WispHub por su n├║mero de c├®dula/documento.
-     * Endpoint: GET /v1/clients/by-document/{documento}
+     * Usa el filtro ?cedula= que es el ├║nico que funciona correctamente.
+     * Prueba m├║ltiples formatos (con letra, sin letra, solo d├¡gitos).
      *
      * Retorna el service_id y datos completos del cliente.
      */
     public function getClientByDocument(string $document): array
     {
-        $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($document));
-        if ($result['status'] !== 0 && $result['status'] === 404 && preg_match('/^[A-Z]/i', $document)) {
-            $soloNum = preg_replace('/^[A-Z]/i', '', $document);
-            $result = $this->request('GET', 'v1/clients/by-document/' . urlencode($soloNum));
+        $variantes = [$document];
+        // Con letra → sin letra (V20788775 → 20788775)
+        if (preg_match('/^[A-Z]/i', $document)) {
+            $variantes[] = preg_replace('/^[A-Z]/i', '', $document);
         }
-        return $result;
+        // Solo d├¡gitos (V16533735-9 → 165337359)
+        $soloDigitos = preg_replace('/[^0-9]/', '', $document);
+        if (!in_array($soloDigitos, $variantes) && $soloDigitos !== '') {
+            $variantes[] = $soloDigitos;
+        }
+        // Sin sufijo despu├®s de gui├│n (V16533735-9 → V16533735)
+        $sinSufijo = preg_replace('/-.*$/', '', $document);
+        if (!in_array($sinSufijo, $variantes)) {
+            $variantes[] = $sinSufijo;
+            // Y su versi├│n sin letra
+            if (preg_match('/^[A-Z]/i', $sinSufijo)) {
+                $sinSufijoNum = preg_replace('/^[A-Z]/i', '', $sinSufijo);
+                if (!in_array($sinSufijoNum, $variantes)) {
+                    $variantes[] = $sinSufijoNum;
+                }
+            }
+        }
+        $variantes = array_unique($variantes);
+        foreach ($variantes as $ced) {
+            $result = $this->request('GET', 'clientes/', ['cedula' => $ced]);
+            if ($result['status'] === 200 && !empty($result['data']['results'])) {
+                return ['status' => 200, 'data' => ['data' => $result['data']['results'][0]]];
+            }
+        }
+        return ['status' => 404, 'data' => ['message' => 'Cliente no encontrado']];
     }
 
     /**
      * Busca un cliente en WispHub por su c├®dula/documento recorriendo
-     * p├ígina por p├ígina el endpoint listClients.
+     * p├ígina por p├ígina el endpoint listClients con offset/limit.
      * ├Ütil si la API no expone un endpoint by-document.
      *
      * @param string $document C├®dula (ej: V20788775 o 20788775)
      * @param int    $maxPages M├íximo de p├íginas a recorrer (default 50)
      * @return array ['status' => 200|404, 'data' => [...datos del cliente...]]
      */
-    public function findClientByDocument(string $document, int $maxPages = 8): array
+    public function findClientByDocument(string $document, int $maxPages = 50): array
     {
-        $cleanDoc = preg_replace('/^[A-Z]/i', '', $document);
-        for ($page = 1; $page <= $maxPages; $page++) {
-            $result = $this->request('GET', 'clientes/', ['page' => $page, 'limit' => 100]);
+        $cleanDoc = preg_replace('/[^0-9]/', '', $document);
+        $limit = 300;
+        for ($page = 0; $page < $maxPages; $page++) {
+            $result = $this->request('GET', 'clientes/', ['offset' => $page * $limit, 'limit' => $limit]);
             if ($result['status'] !== 200) {
                 return ['status' => $result['status'], 'data' => $result['data'] ?? null, 'error' => $result['error'] ?? 'Error en listClients'];
             }
             $clients = $result['data']['results'] ?? [];
             foreach ($clients as $c) {
                 $cedula = $c['cedula'] ?? $c['documento'] ?? '';
-                if (preg_replace('/^[A-Z]/i', '', $cedula) === $cleanDoc || $cedula === $document) {
+                $cedulaClean = preg_replace('/[^0-9]/', '', $cedula);
+                $cedulaBase  = preg_replace('/[^0-9]/', '', preg_replace('/-.*$/', '', $cedula));
+                if ($cedulaClean === $cleanDoc || $cedulaBase === $cleanDoc || $cedula === $document) {
                     return ['status' => 200, 'data' => ['data' => $c]];
                 }
             }
-            // Si no hay m├ís p├íginas, salir
-            if (empty($clients) || ($result['data']['current_page'] ?? 0) >= ($result['data']['last_page'] ?? 1)) {
+            // Si devolvi├│ menos resultados que el l├¡mite, no hay m├ís p├íginas
+            if (count($clients) < $limit) {
                 break;
             }
         }

@@ -131,7 +131,7 @@ if ($api_cfg === null) {
 $ts         = strtotime($fecha_pago);
 $fecha_ini  = date('Y-m-d', strtotime('-2 days', $ts));
 $fecha_fin  = date('Y-m-d', strtotime('+1 day', $ts));
-$hoy        = date('Y-m-d');
+$hoy        = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
 if ($fecha_fin > $hoy) $fecha_fin = $hoy;
 
 $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);

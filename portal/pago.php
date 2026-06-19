@@ -57,16 +57,13 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 <?php
 if (ob_get_level()) ob_end_flush(); flush();
 
-$profileRes = $wispClient->getServiceProfile($wisp_service_id);
-if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
+require_once __DIR__ . '/wisp_helper.php';
+$wisp_cached = wisp_get_cached_data($wispClient, $wisp_service_id);
+$c_perfil = $wisp_cached['profile'];
+
+if (empty($c_perfil)) {
     header('Location: dashboard.php');
     exit;
-}
-$c_perfil = $profileRes['data'];
-
-$detailRes = $wispClient->getServiceDetail($wisp_service_id);
-if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
-    $c_perfil = array_merge($c_perfil, $detailRes['data']);
 }
 
 $tasa_bcv = 1;
@@ -92,7 +89,8 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
     curl_close($ch);
 }
 
-$invoices = $wispClient->getPendingInvoices($wisp_service_id);
+$invoices = $wisp_cached['invoices'];
+$saldo_favor = $wisp_cached['balance'];
 $deuda_total = 0;
 $invoices_json = [];
 $totalInvoices = count($invoices);
@@ -101,14 +99,7 @@ foreach ($invoices as $inv) {
     $monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
     $deuda_total += $monto;
     $monto_bs = $monto * $tasa_bcv;
-    $desc = '';
-    if (!empty($inv['articulos'][0]['descripcion'])) {
-        $desc = $inv['articulos'][0]['descripcion'];
-    } elseif (!empty($inv['descripcion'])) {
-        $desc = $inv['descripcion'];
-    } else {
-        $desc = 'Recibo N° ' . $id;
-    }
+    $desc = wisp_extract_desc($inv, $id);
     $descCorta = (mb_strlen($desc) > 60) ? mb_substr($desc, 0, 60) . '...' : $desc;
     $vencida = !empty($inv['fecha_vencimiento']) && strtotime($inv['fecha_vencimiento']) < time();
     $preseleccionado = ($recibo_id_sel > 0 && $id == $recibo_id_sel) || ($totalInvoices === 1 && !$recibo_id_sel);
@@ -128,8 +119,6 @@ foreach ($invoices as $inv) {
         'preseleccionado' => $preseleccionado,
     ];
 }
-
-$saldo_favor = $wispClient->getClientBalance($wisp_service_id);
 $monto_a_pagar = $deuda_total;
 
 $json_bancos = @file_get_contents('../paginas/principal/bancos.json');
@@ -188,6 +177,8 @@ foreach ($ordenMetodos as $m) {
             <input type="hidden" name="metodo_pago" id="input_metodo" value="">
             <input type="hidden" name="id_banco_destino" id="input_banco" value="">
             <input type="hidden" name="monto_usd_real" id="input_monto_usd_real" value="0">
+            <input type="hidden" name="invoice_total" id="input_invoice_total" value="0">
+            <input type="hidden" name="invoice_fecha_emision" id="input_invoice_fecha_emision" value="">
             <input type="hidden" name="verificacion_data" id="input_verificacion_data" value="">
             <div id="invoice_ids_container"></div>
             <input type="hidden" name="meses_adelanto" value="0">
@@ -406,7 +397,12 @@ foreach ($ordenMetodos as $m) {
     const metodosBancos = <?php echo json_encode($metodosFiltrados); ?>;
     let selectedIds = [];
     for (var i = 0; i < recibos.length; i++) {
-        if (recibos[i].preseleccionado) { selectedIds = [recibos[i].id]; break; }
+        if (recibos[i].preseleccionado) {
+            selectedIds = [recibos[i].id];
+            document.getElementById('input_invoice_total').value = recibos[i].total;
+            document.getElementById('input_invoice_fecha_emision').value = recibos[i].fecha_emision;
+            break;
+        }
     }
     let selectedMetodo = '';
     let selectedBanco = null;
@@ -426,6 +422,17 @@ foreach ($ordenMetodos as $m) {
         actualizarInvoiceIds();
         actualizarTotal();
         updatePagarBtn();
+        var total = 0;
+        var fecha = '';
+        for (var i = 0; i < recibos.length; i++) {
+            if (recibos[i].id === id) {
+                total = recibos[i].total;
+                fecha = recibos[i].fecha_emision;
+                break;
+            }
+        }
+        document.getElementById('input_invoice_total').value = total;
+        document.getElementById('input_invoice_fecha_emision').value = fecha;
     }
 
     function actualizarTotal() {
@@ -656,6 +663,8 @@ foreach ($ordenMetodos as $m) {
                 if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto USD</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                 if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                 if (data.service_id) dHtml += '<tr><td class="text-muted">Servicio</td><td class="fw-bold">' + data.service_id + '</td></tr>';
+                if (data.dias_servicio) dHtml += '<tr><td class="text-muted">Servicio cubierto</td><td class="fw-bold">' + data.dias_servicio + ' d&iacute;as</td></tr>';
+                if (data.fecha_fin_servicio) dHtml += '<tr><td class="text-muted">Hasta</td><td class="fw-bold">' + data.fecha_fin_servicio + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
             }

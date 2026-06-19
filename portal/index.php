@@ -127,7 +127,7 @@ if (isset($_SESSION['cliente_cedula'])) {
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <h5 class="fw-bold mb-1">USUARIO NO ENCONTRADO</h5>
-            <p class="text-muted mb-4" id="modal-error-msg">No se encontr&oacute; ning&uacute;n contrato con esta c&eacute;dula.</p>
+            <p class="text-muted mb-4" id="modal-error-msg">Usuario no encontrado</p>
             <button class="btn btn-premium px-5" onclick="document.getElementById('login-error-modal').style.display='none'">Cerrar</button>
         </div>
     </div>
@@ -147,9 +147,8 @@ if (isset($_SESSION['cliente_cedula'])) {
 
         form.addEventListener('submit', function(e) {
             var num = cedulaNumero.value;
-            if (num.length < 5) {
+            if (num.length < 6 || num.length > 8) {
                 e.preventDefault();
-                document.getElementById('modal-error-msg').textContent = 'El n\u00famero de c\u00e9dula debe tener al menos 5 d\u00edgitos.';
                 document.getElementById('login-error-modal').style.display = 'flex';
                 return;
             }

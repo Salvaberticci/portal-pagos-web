@@ -42,8 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
-    if (strlen($numeroSolo) < 5) {
-        $_SESSION['login_error'] = "El número de cédula debe tener al menos 5 dígitos.";
+    if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 8) {
+        $_SESSION['login_error'] = "Usuario no encontrado";
         header('Location: index.php');
         exit;
     }
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php');
         exit;
     }
-    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'])) {
+    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'] ?? $clientInfo['data']['data']['id_servicio'] ?? '')) {
         $clientInfo = $wispClient->findClientByDocument($cedula);
         if ($clientInfo['status'] === 0) {
             $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } else {
         log_security_event('LOGIN_FAILED', "Cédula no encontrada en WispHub: $cedula", $cedula);
-        $_SESSION['login_error'] = "No se encontró ningún contrato con esta cédula.";
+        $_SESSION['login_error'] = "Usuario no encontrado";
         header('Location: index.php');
         exit;
     }

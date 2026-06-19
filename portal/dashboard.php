@@ -80,32 +80,17 @@ if (!$wisp_service_id) {
     exit;
 }
 
-// Obtener perfil del cliente
-$profileRes = $wispClient->getServiceProfile($wisp_service_id);
-$c_perfil = $profileRes['data'] ?? [];
+require_once __DIR__ . '/wisp_helper.php';
+$wisp_cached = wisp_get_cached_data($wispClient, $wisp_service_id);
+$c_perfil = $wisp_cached['profile'];
+$invoices = $wisp_cached['invoices'];
+$saldo_favor = $wisp_cached['balance'];
+$ultimo_pago = $wisp_cached['ultimo_pago'];
 
-// Obtener detalle completo del servicio (zona, plan_internet, estado, etc.)
-$detailRes = $wispClient->getServiceDetail($wisp_service_id);
-if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
-    $c_perfil = array_merge($c_perfil, $detailRes['data']);
-}
-
-// Obtener recibos pendientes
-$invoices = $wispClient->getPendingInvoices($wisp_service_id);
 $deuda_total = 0;
 foreach ($invoices as $inv) {
     $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
 }
-
-// Último pago
-$ultimo_pago = null;
-$usuario_ws = $c_perfil['usuario'] ?? '';
-if (!empty($usuario_ws)) {
-    $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
-}
-
-// Saldo a favor
-$saldo_favor = $wispClient->getClientBalance($wisp_service_id);
 
 // Estado del servicio
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
@@ -324,14 +309,7 @@ if (count($invoices) > 0) {
                     $inv_id    = $inv['id'] ?? $inv['id_factura'] ?? 0;
                     $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
                     $inv_monto_bs = $inv_monto * $tasa_bcv;
-                    $inv_desc  = '';
-                    if (!empty($inv['articulos'][0]['descripcion'])) {
-                        $inv_desc = $inv['articulos'][0]['descripcion'];
-                    } elseif (!empty($inv['descripcion'])) {
-                        $inv_desc = $inv['descripcion'];
-                    } else {
-                        $inv_desc = 'Recibo N° ' . $inv_id;
-                    }
+                    $inv_desc = wisp_extract_desc($inv, $inv_id);
                     if (mb_strlen($inv_desc) > 55) $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
                     $fecha_emi  = $inv['fecha_emision'] ?? '';
                     $fecha_venc = $inv['fecha_vencimiento'] ?? '';

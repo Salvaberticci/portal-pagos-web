@@ -23,6 +23,8 @@ $id_banco_destino = isset($_POST['id_banco_destino']) ? intval($_POST['id_banco_
 $referencia       = isset($_POST['referencia']) ? trim($_POST['referencia']) : '';
 $id_contrato_asociado = isset($_POST['id_contrato']) ? trim($_POST['id_contrato']) : null;
 $invoice_ids      = isset($_POST['invoice_ids']) ? $_POST['invoice_ids'] : [];
+$invoice_total    = isset($_POST['invoice_total']) ? floatval($_POST['invoice_total']) : 0;
+$invoice_fecha_emision = isset($_POST['invoice_fecha_emision']) ? trim($_POST['invoice_fecha_emision']) : '';
 
 $redirect_url = empty($id_contrato_asociado) ? 'dashboard.php' : 'dashboard.php';
 
@@ -194,7 +196,21 @@ try {
             'monto_bs'   => $monto_bs,
             'service_id' => $id_contrato_asociado,
         ];
+
+        // Prorrateo: si es pago parcial, calcular dias de servicio garantizados
+        if ($amount_applied < $invoice_total && $invoice_total > 0) {
+            $diasServicio = round(($amount_applied / $invoice_total) * 30);
+            $baseDate = !empty($invoice_fecha_emision) ? $invoice_fecha_emision : date('Y-m-d');
+            $fechaFin = date('Y-m-d', strtotime($baseDate . " + $diasServicio days"));
+            $_SESSION['pago_data']['dias_servicio'] = $diasServicio;
+            $_SESSION['pago_data']['fecha_fin_servicio'] = date('d M Y', strtotime($fechaFin));
+        }
         unset($_SESSION['pago_err']);
+
+        // Limpiar cache de WispHub para que dashboard refresque datos
+        require_once __DIR__ . '/wisp_helper.php';
+        wisp_clear_cache($id_contrato_asociado);
+        $redirect_url = 'dashboard.php?refreshed=1';
 
         // Log
         $log_dir = __DIR__ . '/../logs';
