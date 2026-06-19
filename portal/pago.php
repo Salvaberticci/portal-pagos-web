@@ -94,6 +94,7 @@ if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time))
 $invoices = $wispClient->getPendingInvoices($wisp_service_id);
 $deuda_total = 0;
 $invoices_json = [];
+$totalInvoices = count($invoices);
 foreach ($invoices as $inv) {
     $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
     $monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
@@ -107,8 +108,9 @@ foreach ($invoices as $inv) {
     } else {
         $desc = 'Recibo N° ' . $id;
     }
-    if (mb_strlen($desc) > 60) $desc = mb_substr($desc, 0, 60) . '...';
+    $descCorta = (mb_strlen($desc) > 60) ? mb_substr($desc, 0, 60) . '...' : $desc;
     $vencida = !empty($inv['fecha_vencimiento']) && strtotime($inv['fecha_vencimiento']) < time();
+    $preseleccionado = ($recibo_id_sel > 0 && $id == $recibo_id_sel) || ($totalInvoices === 1 && !$recibo_id_sel);
     $invoices_json[] = [
         'id' => $id,
         'folio' => $inv['folio'] ?? $id,
@@ -118,10 +120,11 @@ foreach ($invoices as $inv) {
         'total' => floatval($inv['total'] ?? 0),
         'monto_pendiente' => $monto,
         'total_cobrado' => floatval($inv['total_cobrado'] ?? 0),
-        'descripcion' => $desc,
+        'descripcion' => $descCorta,
+        'concepto' => $desc,
         'monto_bs' => round($monto_bs, 2),
         'vencida' => $vencida,
-        'preseleccionado' => ($recibo_id_sel > 0 && $id == $recibo_id_sel),
+        'preseleccionado' => $preseleccionado,
     ];
 }
 
@@ -204,8 +207,9 @@ foreach ($ordenMetodos as $m) {
                     <?php else: ?>
                     <?php foreach ($invoices_json as $inv): ?>
                     <div class="recibo-select-item<?php echo $inv['vencida'] ? ' vencida' : ''; ?>" data-id="<?php echo $inv['id']; ?>">
-                        <label class="recibo-select-label">
-                            <input type="radio" class="recibo-select-check" name="recibo" data-id="<?php echo $inv['id']; ?>" onchange="toggleRecibo(this)"<?php echo $inv['preseleccionado'] ? ' checked' : ''; ?>>
+                        <input type="radio" class="recibo-select-check" name="recibo" id="recibo_<?php echo $inv['id']; ?>" data-id="<?php echo $inv['id']; ?>" onchange="toggleRecibo(this)"<?php echo $inv['preseleccionado'] ? ' checked' : ''; ?>>
+                        <label class="recibo-select-label" for="recibo_<?php echo $inv['id']; ?>">
+                            <span class="recibo-check-visual"></span>
                             <div class="recibo-select-content">
                                 <div class="recibo-select-top">
                                     <span class="recibo-select-folio">Recibo #<?php echo htmlspecialchars($inv['folio']); ?></span>
@@ -222,6 +226,7 @@ foreach ($ordenMetodos as $m) {
                                 </div>
                             </div>
                         </label>
+                        <div class="recibo-concepto"><?php echo htmlspecialchars($inv['concepto']); ?></div>
                     </div>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -723,20 +728,48 @@ foreach ($ordenMetodos as $m) {
         }
         .recibo-select-item:hover { background: rgba(255,255,255,0.03); }
         .recibo-select-item.vencida { border-left: 3px solid var(--danger); }
+
+        /* Radio oculto (nativo) */
+        .recibo-select-check {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
         .recibo-select-label {
             display: flex;
             align-items: flex-start;
-            padding: 14px 16px;
+            padding: 14px 16px 8px;
             cursor: pointer;
             gap: 12px;
             margin: 0;
         }
-        .recibo-select-check {
-            width: 20px;
-            height: 20px;
-            margin-top: 4px;
-            accent-color: var(--primary);
+        /* Checkmark visual */
+        .recibo-check-visual {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-glass);
+            border-radius: 6px;
+            background: transparent;
             flex-shrink: 0;
+            transition: all 0.2s;
+            margin-top: 2px;
+            position: relative;
+        }
+        .recibo-select-check:checked + .recibo-select-label .recibo-check-visual {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .recibo-select-check:checked + .recibo-select-label .recibo-check-visual::after {
+            content: '\2713';
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1;
         }
         .recibo-select-content { flex: 1; min-width: 0; }
         .recibo-select-top {
@@ -771,6 +804,19 @@ foreach ($ordenMetodos as $m) {
         }
         .recibo-select-badge { font-size: 0.7rem; }
         .recibo-select-fecha { font-size: 0.75rem; }
+
+        /* Concepto expandible */
+        .recibo-concepto {
+            display: none;
+            padding: 0 16px 14px 52px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            border-top: none;
+        }
+        .recibo-select-check:checked ~ .recibo-concepto {
+            display: block;
+        }
 
         .recibo-total-bar {
             background: rgba(255,255,255,0.03);
