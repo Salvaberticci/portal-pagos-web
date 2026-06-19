@@ -22,6 +22,7 @@ unset($_SESSION['pago_data']);
 $wisp_service_id = isset($_GET['id_contrato']) ? $_GET['id_contrato'] : '';
 $recibo_id_sel = isset($_GET['recibo_id']) ? intval($_GET['recibo_id']) : 0;
 $cedula = $_SESSION['cliente_cedula'];
+session_write_close();
 
 if (empty($wisp_service_id)) {
     header('Location: dashboard.php');

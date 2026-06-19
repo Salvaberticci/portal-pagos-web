@@ -12,6 +12,12 @@ if (!defined('DEV_MODE')) define('DEV_MODE', false);
 $cedula = $_SESSION['cliente_cedula'];
 $nombre = $_SESSION['cliente_nombre'];
 
+$pago_msg = $_SESSION['pago_msg'] ?? null;
+$pago_err = $_SESSION['pago_err'] ?? null;
+$wisp_service_id = $_SESSION['wisp_service_id'] ?? null;
+unset($_SESSION['pago_msg'], $_SESSION['pago_err']);
+session_write_close();
+
 // Tasa BCV (con cache de 1 hora)
 $tasa_bcv = 1;
 $tasa_fecha = '';
@@ -69,7 +75,6 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     $wispClient = new \Services\WispHubClient($wispConfig);
 }
 
-$wisp_service_id = $_SESSION['wisp_service_id'] ?? null;
 if (!$wisp_service_id) {
     header('Location: auth.php?logout=1');
     exit;
@@ -223,10 +228,10 @@ if (count($invoices) > 0) {
             </p>
         </div>
 
-        <?php if (isset($_SESSION['pago_msg'])): ?>
+        <?php if ($pago_msg): ?>
             <div class="alert alert-success glass-panel mb-4" id="alert-pago-ok">
                 <i class="fas fa-check-circle me-2"></i>
-                <?php echo strip_tags($_SESSION['pago_msg'] ?? '', '<strong><span><br>'); unset($_SESSION['pago_msg']); ?>
+                <?php echo strip_tags($pago_msg, '<strong><span><br>'); ?>
             </div>
             <script>
                 setTimeout(() => {
@@ -235,9 +240,9 @@ if (count($invoices) > 0) {
                 }, 6000);
             </script>
         <?php endif; ?>
-        <?php if (isset($_SESSION['pago_err'])): ?>
+        <?php if ($pago_err): ?>
             <div class="alert alert-danger glass-panel mb-4">
-                <i class="fas fa-times-circle me-2"></i> <?php echo htmlspecialchars($_SESSION['pago_err'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['pago_err']); ?>
+                <i class="fas fa-times-circle me-2"></i> <?php echo htmlspecialchars($pago_err, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
