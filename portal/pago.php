@@ -38,6 +38,24 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     $wispClient = new \Services\WispHubClient($wispConfig);
 }
 
+// Send loading overlay to browser before slow API calls
+?>
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<script>const savedTheme=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',savedTheme);</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pagar - Wireless Supply</title>
+<link href="../css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="page-loading" class="loading-overlay" style="display:flex;"><div class="spinner"></div><div class="loading-text">Cargando...</div><div class="loading-sub">Consultando datos del servicio</div></div>
+<?php
+if (ob_get_level()) ob_end_flush(); flush();
+
 $profileRes = $wispClient->getServiceProfile($wisp_service_id);
 if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
     header('Location: dashboard.php');
@@ -133,21 +151,7 @@ foreach ($ordenMetodos as $m) {
 }
 
 ?>
-<!DOCTYPE html>
-<html lang="es" data-theme="dark">
-<head>
-    <script>
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pagar - Wireless Supply</title>
-    <link href="../css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<div id="page-content" style="display:none;">
 
     <header class="glass-header py-3">
         <div class="container d-flex align-items-center">
@@ -903,5 +907,9 @@ foreach ($ordenMetodos as $m) {
             color: var(--primary);
         }
     </style>
+</div>
+<script>
+(function(){var lo=document.getElementById('page-loading');if(lo)lo.style.display='none';var pc=document.getElementById('page-content');if(pc)pc.style.display='block';})();
+</script>
 </body>
 </html>

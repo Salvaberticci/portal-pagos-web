@@ -179,6 +179,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
+<div id="page-loading" class="loading-overlay" style="display:none;"><div class="spinner"></div><div class="loading-text">Cargando...</div><div class="loading-sub">Procesando solicitud</div></div>
+
 <div class="container">
     <div class="header-title">
         <span class="badge bg-primary px-3 py-2">PRUEBAS</span>
@@ -291,6 +293,7 @@ function logMsg(msg, isError = false) {
 
 function runAction(action) {
     logMsg(`Ejecutando acción: ${action}...`);
+    document.getElementById('page-loading').style.display = 'flex';
     
     const formData = new FormData();
     formData.append('action', action);
@@ -306,6 +309,7 @@ function runAction(action) {
     })
     .then(res => res.json())
     .then(data => {
+        document.getElementById('page-loading').style.display = 'none';
         if (data.status === 'ok') {
             logMsg('ÉXITO: ' + data.message);
             if (data.html) {
@@ -327,6 +331,7 @@ function runAction(action) {
         }
     })
     .catch(err => {
+        document.getElementById('page-loading').style.display = 'none';
         logMsg('ERROR DE RED: ' + err, true);
     });
 }

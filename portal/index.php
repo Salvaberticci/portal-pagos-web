@@ -111,6 +111,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 
         form.addEventListener('submit', function() {
             cedulaHidden.value = tipoCedula.value + cedulaNumero.value;
+            document.getElementById('login-loading').style.display = 'flex';
         });
 
         // Asegurar que solo se ingresen números en el campo
@@ -145,5 +146,11 @@ if (isset($_SESSION['cliente_cedula'])) {
             });
         })();
     </script>
+
+    <div id="login-loading" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Cargando...</div>
+        <div class="loading-sub">Consultando tus datos</div>
+    </div>
 </body>
 </html>

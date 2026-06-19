@@ -127,9 +127,9 @@ if ($api_cfg === null) {
     exit;
 }
 
-// Consultar la API del banco
+// Consultar la API del banco (rango ampliado: -2/+1 días)
 $ts         = strtotime($fecha_pago);
-$fecha_ini  = date('Y-m-d', strtotime('-1 day', $ts));
+$fecha_ini  = date('Y-m-d', strtotime('-2 days', $ts));
 $fecha_fin  = date('Y-m-d', strtotime('+1 day', $ts));
 $hoy        = date('Y-m-d');
 if ($fecha_fin > $hoy) $fecha_fin = $hoy;
@@ -146,12 +146,21 @@ $mov_ref = null;
 $ref_user_clean = preg_replace('/\D/', '', $referencia);
 
 if ($metodo_pago === 'Transferencia') {
+    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
+    $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
     foreach ($resultado['movs'] as $mov) {
         $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
         $desc = strtoupper($mov['descripcion'] ?? '');
         if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
         if (!isset($mov['referencia'])) continue;
-        if (preg_replace('/\D/', '', $mov['referencia']) === $ref_user_clean) {
+        $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
+        $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
+        $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
+        if (
+            $ref_banco_clean === $ref_user_clean ||
+            ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
+            ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
+        ) {
             $mov_ref = $mov;
             break;
         }

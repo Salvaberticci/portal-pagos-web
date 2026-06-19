@@ -117,12 +117,6 @@ function consultar_movimientos_bdv(
         ];
     }
 
-    // La API BDV no acepta fechaFin igual al día actual (aún sin datos)
-    $hoy = date('d/m/Y');
-    if ($fechaFin === $hoy) {
-        $fechaFin = date('d/m/Y', strtotime('-1 day'));
-    }
-
     $payload_arr = [
         'cuenta'     => $cuenta,
         'fechaIni'   => $fechaIni,

@@ -18,6 +18,24 @@ $tasa_fecha = '';
 $cache_file = 'tasa_cache.json';
 $cache_time = 3600;
 
+// Send loading overlay to browser before slow API calls
+?>
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<script>const savedTheme=localStorage.getItem('theme')||'dark';document.documentElement.setAttribute('data-theme',savedTheme);</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mi Panel - Wireless Supply</title>
+<link href="../css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="css/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="page-loading" class="loading-overlay" style="display:flex;"><div class="spinner"></div><div class="loading-text">Cargando...</div><div class="loading-sub">Consultando tus datos</div></div>
+<?php
+if (ob_get_level()) ob_end_flush(); flush();
+
 if (file_exists($cache_file) && (time() - filemtime($cache_file) < $cache_time)) {
     $data_cache = json_decode(file_get_contents($cache_file), true);
     $tasa_bcv = $data_cache['tasa'] ?? 1;
@@ -149,21 +167,7 @@ if (count($invoices) > 0) {
     ];
 }
 ?>
-<!DOCTYPE html>
-<html lang="es" data-theme="dark">
-<head>
-    <script>
-        const savedTheme = localStorage.getItem('theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Panel - Wireless Supply</title>
-    <link href="../css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+<div id="page-content" style="display:none;">
 
     <header class="glass-header py-3 mb-4">
         <div class="container d-flex justify-content-between align-items-center">
@@ -386,7 +390,6 @@ if (count($invoices) > 0) {
     </div>
 
     <script src="../js/bootstrap.bundle.min.js"></script>
-    </script>
 
     <style>
         /* ── Recibos: cards premium en dashboard ── */
@@ -561,5 +564,9 @@ if (count($invoices) > 0) {
         });
     });
     </script>
+</div>
+<script>
+(function(){var lo=document.getElementById('page-loading');if(lo)lo.style.display='none';var pc=document.getElementById('page-content');if(pc)pc.style.display='block';})();
+</script>
 </body>
 </html>
