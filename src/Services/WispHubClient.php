@@ -16,7 +16,9 @@ class WispHubClient
     /** @var float Tiempo del ├║ltimo request (para rate limiting) */
     private $lastRequestTime = 0;
     /** @var int Microsegundos m├¡nimos entre requests */
-    private $minIntervalUs = 200000; // 200ms ÔåÆ ~5 req/segundo
+    private $minIntervalUs = 0;
+    /** @var array Cache per-request para evitar duplicar llamadas GET */
+    private $requestCache = [];
 
     /**
      * Constructor
@@ -47,9 +49,17 @@ class WispHubClient
      */
     private function request(string $method, string $uri, array $data = []): array
     {
-        // Rate limiting: esperar si fue hace menos de minIntervalUs
+        // Per-request cache: deduplica llamadas GET id├®nticas en el mismo proceso
+        $cacheKey = '';
+        if ($method === 'GET') {
+            $cacheKey = md5($method . "\0" . $uri . "\0" . json_encode($data));
+            if (isset($this->requestCache[$cacheKey])) {
+                return $this->requestCache[$cacheKey];
+            }
+        }
+
         $now = microtime(true);
-        $elapsed = ($now - $this->lastRequestTime) * 1_000_000; // a microsegundos
+        $elapsed = ($now - $this->lastRequestTime) * 1_000_000;
         if ($elapsed < $this->minIntervalUs) {
             usleep((int)($this->minIntervalUs - $elapsed));
         }
@@ -60,29 +70,35 @@ class WispHubClient
             $opts['body'] = json_encode($data);
         }
 
-        $maxAttempts = 3;
+        $maxAttempts = 1;
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             try {
                 $response = $this->http->request($method, $uri, $opts);
                 $status = $response->getStatusCode();
                 $body   = (string) $response->getBody();
                 $json   = json_decode($body, true);
-                return ['status' => $status, 'data' => $json];
+                $result = ['status' => $status, 'data' => $json];
+                if ($cacheKey) {
+                    $this->requestCache[$cacheKey] = $result;
+                }
+                return $result;
             } catch (RequestException $e) {
                 if ($e->hasResponse()) {
                     $status = $e->getResponse()->getStatusCode();
                     $body   = (string) $e->getResponse()->getBody();
                     $json   = json_decode($body, true);
-                    // Reintentar solo en 5xx o timeout (sin respuesta)
                     if ($status >= 500 && $status <= 599 && $attempt < $maxAttempts) {
-                        $delay = $attempt * 1000000; // 1s, 2s
+                        $delay = $attempt * 1000000;
                         error_log("[WispHubClient] Reintento $attempt/$maxAttempts tras HTTP $status, esperando " . ($delay/1000000) . "s");
                         usleep($delay);
                         continue;
                     }
-                    return ['status' => $status, 'data' => $json, 'error' => $body];
+                    $result = ['status' => $status, 'data' => $json, 'error' => $body];
+                    if ($cacheKey) {
+                        $this->requestCache[$cacheKey] = $result;
+                    }
+                    return $result;
                 }
-                // Sin respuesta (timeout/red): reintentar
                 if ($attempt < $maxAttempts) {
                     $delay = $attempt * 1000000;
                     error_log("[WispHubClient] Reintento $attempt/$maxAttempts sin respuesta: " . $e->getMessage() . ", esperando " . ($delay/1000000) . "s");
@@ -93,7 +109,6 @@ class WispHubClient
                 return ['status' => 0, 'error' => $e->getMessage()];
             }
         }
-        // Never reached
         return ['status' => 0, 'error' => 'Max retries exceeded'];
     }
 
