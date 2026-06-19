@@ -46,6 +46,27 @@ if (isset($_SESSION['cliente_cedula'])) {
             background: var(--bg-card, #1e293b);
             color: var(--text-main, #e2e8f0);
         }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-backdrop-custom {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+        }
+        .modal-glass {
+            position: relative;
+            max-width: 400px;
+            width: 90%;
+            padding: 36px 28px;
+            z-index: 1;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -62,11 +83,8 @@ if (isset($_SESSION['cliente_cedula'])) {
             <h3 class="mb-2 font-weight-bold text-gradient">Portal de Clientes</h3>
             <p class="text-muted mb-4">Consulta tus contratos y paga tus mensualidades fácilmente.</p>
 
-            <?php if (isset($_SESSION['login_error'])): ?>
-                <div class="alert alert-danger" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border-radius: 12px; font-size: 0.9rem;">
-                    <i class="fas fa-exclamation-circle me-2"></i> <?php echo htmlspecialchars($_SESSION['login_error'] ?? '', ENT_QUOTES, 'UTF-8'); unset($_SESSION['login_error']); ?>
-                </div>
-            <?php endif; ?>
+            <?php $loginError = isset($_SESSION['login_error']) ? $_SESSION['login_error'] : ''; unset($_SESSION['login_error']); ?>
+            <div id="login-error-data" data-msg="<?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?>" style="display:none;"></div>
 
             <form action="auth.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
@@ -145,7 +163,31 @@ if (isset($_SESSION['cliente_cedula'])) {
                 updateThemeIcon(newTheme);
             });
         })();
+
+        // Error Modal
+        (function() {
+            var errDiv = document.getElementById('login-error-data');
+            if (errDiv && errDiv.getAttribute('data-msg')) {
+                document.getElementById('modal-error-msg').textContent = errDiv.getAttribute('data-msg');
+                document.getElementById('login-error-modal').style.display = 'flex';
+            }
+        })();
+        function cerrarModalError() {
+            document.getElementById('login-error-modal').style.display = 'none';
+        }
     </script>
+
+    <div id="login-error-modal" class="modal-overlay">
+        <div class="modal-backdrop-custom" onclick="cerrarModalError()"></div>
+        <div class="modal-glass glass-panel animate-fade">
+            <div class="mb-3" style="font-size: 3rem; color: var(--danger);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5 class="fw-bold mb-1">USUARIO NO ENCONTRADO</h5>
+            <p class="text-muted mb-4" id="modal-error-msg">No se encontr&oacute; ning&uacute;n contrato con esta c&eacute;dula.</p>
+            <button class="btn btn-premium px-5" onclick="cerrarModalError()">Cerrar</button>
+        </div>
+    </div>
 
     <div id="login-loading" class="loading-overlay">
         <div class="spinner"></div>
