@@ -300,25 +300,23 @@ if (count($invoices) > 0) {
             <?php endif; ?>
         </div>
 
-        <!-- Recibos Pendientes -->
+        <!-- Todos los Recibos -->
         <div class="glass-panel p-4 mb-4">
-            <?php
-            // Filtrar facturas realmente pagadas usando datos de la API
-            // Campos confiables: total, total_cobrado, saldo (de GET /facturas/{id}/)
-            $invoices = array_values(array_filter($invoices, function($inv) {
-                $total    = floatval($inv['total'] ?? 0);
-                $cobrado  = floatval($inv['total_cobrado'] ?? 0);
-                $saldo    = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
-                // Si total_cobrado >= total O saldo <= 0, la factura ya está pagada
-                return ($total > 0 && $cobrado < $total && $saldo > 0.005);
-            }));
-            ?>
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
-                    <?php if (count($invoices) > 0): ?>
-                    <small class="text-muted"><?php echo count($invoices); ?> recibo<?php echo count($invoices) > 1 ? 's' : ''; ?> por pagar</small>
-            <?php endif; ?>
+                    <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Mis Recibos</h5>
+                    <?php
+                    $totalInvs = count($invoices);
+                    $unpaid = 0;
+                    foreach ($invoices as $inv) {
+                        $c = floatval($inv['total_cobrado'] ?? 0);
+                        $t = floatval($inv['total'] ?? $inv['monto'] ?? 0);
+                        if ($c < $t) $unpaid++;
+                    }
+                    ?>
+                    <?php if ($totalInvs > 0): ?>
+                    <small class="text-muted"><?php echo $totalInvs; ?> recibo<?php echo $totalInvs > 1 ? 's' : ''; ?> (<?php echo $unpaid; ?> pendiente<?php echo $unpaid > 1 ? 's' : ''; ?>)</small>
+                    <?php endif; ?>
             <?php if ($saldo_favor > 0): ?>
             <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
                 <div class="col-12">
@@ -387,6 +385,9 @@ if (count($invoices) > 0) {
                                 </span>
                                 <?php endif; ?>
                                 <?php if ($abonado > 0): ?>
+                                <?php if ($abonado >= $inv_monto): ?>
+                                <span class="recibo-badge-pagado"><i class="fas fa-check-circle me-1"></i>Pagado: $<?php echo number_format($abonado, 2); ?></span>
+                                <?php else: ?>
                                 <span class="recibo-badge-abonado"><i class="fas fa-check me-1"></i>Abonado: $<?php echo number_format($abonado, 2); ?></span>
                                 <span class="recibo-badge-saldo"><i class="fas fa-hourglass-half me-1"></i>Saldo: $<?php echo number_format($saldo_pend, 2); ?></span>
                                 <?php if ($cobertura_dias > 0): ?>
@@ -395,6 +396,7 @@ if (count($invoices) > 0) {
                                     <i class="fas fa-hourglass-<?php echo $cobertura_vencida ? 'end' : 'start'; ?> me-1"></i>
                                     <?php echo $cobertura_vencida ? abs($cobertura_restantes) . ' d&iacute;as vencida' : $cobertura_restantes . ' d&iacute;as restantes'; ?>
                                 </span>
+                                <?php endif; ?>
                                 <?php endif; ?>
                                 <?php endif; ?>
                             </div>
@@ -515,6 +517,15 @@ if (count($invoices) > 0) {
             font-weight: 600;
             color: #fbbf24;
             background: rgba(251,191,36,0.12);
+            padding: 1px 7px;
+            border-radius: 20px;
+            display: inline-block;
+        }
+        .recibo-badge-pagado {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #10b981;
+            background: rgba(16,185,129,0.15);
             padding: 1px 7px;
             border-radius: 20px;
             display: inline-block;

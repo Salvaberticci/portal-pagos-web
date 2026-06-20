@@ -70,11 +70,27 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $c_perfil = array_merge($c_perfil, $detailRes['data']);
     }
 
-    $invoices = $wispClient->getPendingInvoices($serviceId);
+    $invoicesPending = $wispClient->getPendingInvoices($serviceId);
     $balance = $wispClient->getClientBalance($serviceId);
 
+    // También obtener facturas pagadas recientes
+    $usuario_ws = $c_perfil['usuario'] ?? '';
+    $invoicesPaid = [];
+    if (!empty($usuario_ws)) {
+        $paidRes = $wispClient->getInvoices([
+            'cliente'  => $usuario_ws,
+            'estado'   => 2,
+            'limit'    => 50,
+            'ordering' => '-id',
+        ]);
+        $invoicesPaid = $paidRes;
+    }
+
+    // Fusionar: pendientes + pagadas
+    $allInvoices = array_merge($invoicesPending, $invoicesPaid);
+
     $enriched = [];
-    foreach ($invoices as $inv) {
+    foreach ($allInvoices as $inv) {
         $invId = $inv['id'] ?? 0;
         if ($invId) {
             $full = $wispClient->getInvoiceDetail((string)$invId);
@@ -87,7 +103,6 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     }
     $invoices = $enriched;
 
-    $usuario_ws = $c_perfil['usuario'] ?? '';
     $ultimo_pago = null;
     if (!empty($usuario_ws)) {
         $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);

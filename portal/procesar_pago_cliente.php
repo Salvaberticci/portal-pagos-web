@@ -231,12 +231,22 @@ try {
         if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
             $firstInvoiceId = (int)$invoice_ids[0];
             $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+            $fechaEmi = $invDetail['fecha_emision'] ?? '';
             $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
-            $fechaLimite = !empty($fechaVenc) ? str_replace('-', '/', $fechaVenc) : date('Y/m/d', strtotime('+30 days'));
+            $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
+            $appliedToFirst = floatval($payments[0]['payment_applied'] ?? $amount_applied);
+            if ($totalFactura > 0 && $fechaEmi && $fechaVenc) {
+                $periodoDias = max(1, round((strtotime($fechaVenc) - strtotime($fechaEmi)) / 86400));
+                $proporcion = $appliedToFirst / $totalFactura;
+                $diasExtra = round($periodoDias * $proporcion);
+                $fechaLimite = date('Y/m/d', strtotime($fechaVenc . " + $diasExtra days"));
+            } else {
+                $fechaLimite = !empty($fechaVenc) ? str_replace('-', '/', $fechaVenc) : date('Y/m/d', strtotime('+30 days'));
+            }
             $saldoRestante = round($invoice_total - $amount_applied, 2);
             $promiseResult = $wispClient->addPaymentPromise($firstInvoiceId, $fechaLimite, $saldoRestante);
             if (($promiseResult['status'] ?? 0) === 201) {
-                $msg_parts[] = " Promesa de pago creada por $" . number_format($saldoRestante, 2) . " USD.";
+                $msg_parts[] = " Promesa de pago creada por $" . number_format($saldoRestante, 2) . " USD (vence " . $fechaLimite . ").";
                 $_SESSION['pago_msg'] = implode(' ', $msg_parts);
             }
         }
