@@ -96,6 +96,8 @@ foreach ($invoices as $inv) {
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
 if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
 if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
+if ($estado_ws === 'CANCELLED') $estado_ws = 'CANCELADO';
+if ($estado_ws === 'FREE') $estado_ws = 'GRATIS';
 
 // Mensaje de vencimiento dinámico
 $mensaje_vencimiento = [
@@ -240,7 +242,16 @@ if (count($invoices) > 0) {
                 </div>
                 <div class="col-md-2">
                     <small class="text-muted d-block">Estado</small>
-                    <span class="status-badge <?php echo $estado_ws === 'ACTIVO' ? 'status-active' : 'status-suspended'; ?>"><?php echo $estado_ws; ?></span>
+                    <?php
+                    $statusClass = match($estado_ws) {
+                        'ACTIVO'     => 'status-active',
+                        'SUSPENDIDO' => 'status-suspended',
+                        'GRATIS'     => 'status-free',
+                        'CANCELADO'  => 'status-cancelled',
+                        default      => 'status-suspended',
+                    };
+                    ?>
+                    <span class="status-badge <?php echo $statusClass; ?>"><?php echo $estado_ws; ?></span>
                 </div>
                 <div class="col-md-3">
                     <small class="text-muted d-block">Email</small>

@@ -194,7 +194,7 @@ if ($metodo_pago === 'Transferencia') {
 }
 
 if (!$mov_ref) {
-    echo json_encode(['status' => 'error', 'message' => 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia.']);
+    echo json_encode(['status' => 'error', 'message' => 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.']);
     exit;
 }
 

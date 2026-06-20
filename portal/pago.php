@@ -626,7 +626,7 @@ foreach ($ordenMetodos as $m) {
                     } else if (data.status === 'manual') {
                         document.getElementById('paymentForm').submit();
                     } else {
-                        mostrarModalResultado('error', data.message || 'Error al verificar el pago.');
+                        mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, '!REFERENCIA NO ENCONTRADA!');
                     }
                 })
                 .catch(function() {
@@ -638,7 +638,7 @@ foreach ($ordenMetodos as $m) {
         }
     }
 
-    function mostrarModalResultado(tipo, mensaje, data, onConfirm) {
+    function mostrarModalResultado(tipo, mensaje, data, onConfirm, titulo) {
         var icon = document.getElementById('result_icon');
         var title = document.getElementById('result_title');
         var msg = document.getElementById('result_message');
@@ -698,7 +698,7 @@ foreach ($ordenMetodos as $m) {
             }
         } else {
             icon.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--danger);"></i>';
-            title.textContent = 'Error';
+            title.textContent = titulo || 'Error';
             title.className = 'fw-bold mb-2';
             title.style.color = 'var(--danger)';
             msg.textContent = mensaje;
