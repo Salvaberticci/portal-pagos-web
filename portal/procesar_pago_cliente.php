@@ -45,10 +45,10 @@ if (!verify_csrf_token($csrf_token)) {
     exit;
 }
 
-// 3. Validar referencia
-$referencia_clean = preg_replace('/[^a-zA-Z0-9]/', '', $referencia);
-if (empty($referencia_clean) || strlen($referencia_clean) < 6) {
-    $_SESSION['pago_err'] = "La referencia debe tener al menos 6 caracteres alfanuméricos.";
+// 3. Validar referencia (solo d├¡gitos, 6-10)
+$referencia_clean = preg_replace('/\D/', '', $referencia);
+if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 10) {
+    $_SESSION['pago_err'] = "La referencia debe tener entre 6 y 10 d\u00edgitos.";
     header('Location: ' . $redirect_url);
     exit;
 }

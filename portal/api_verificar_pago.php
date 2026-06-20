@@ -39,10 +39,10 @@ if (empty($referencia) || empty($fecha_pago) || empty($id_banco)) {
     exit;
 }
 
-// Clean reference
-$referencia_clean = preg_replace('/[^a-zA-Z0-9]/', '', $referencia);
-if (empty($referencia_clean) || strlen($referencia_clean) < 6) {
-    echo json_encode(['status' => 'error', 'message' => 'La referencia debe tener al menos 6 caracteres alfanuméricos.']);
+// Clean reference (solo d├¡gitos, 6-10)
+$referencia_clean = preg_replace('/\D/', '', $referencia);
+if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 10) {
+    echo json_encode(['status' => 'error', 'message' => 'La referencia debe tener entre 6 y 10 d\u00edgitos.']);
     exit;
 }
 $referencia = $referencia_clean;

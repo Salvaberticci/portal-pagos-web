@@ -292,7 +292,7 @@ foreach ($ordenMetodos as $m) {
             <!-- Referencia -->
             <div class="glass-panel p-4 mb-3">
                 <label class="label-premium">Numero de Referencia</label>
-                <input type="text" name="referencia" class="form-control glass-input" placeholder="Ingresa tu referencia" id="input_referencia" required>
+                <input type="text" name="referencia" class="form-control glass-input" placeholder="Ingresa tu referencia" id="input_referencia" inputmode="numeric" pattern="[0-9]{6,10}" maxlength="10" required>
             </div>
 
             <!-- Boton Pagar -->
@@ -533,10 +533,13 @@ foreach ($ordenMetodos as $m) {
     function updatePagarBtn() {
         var ref = document.getElementById('input_referencia').value.trim();
         var btn = document.getElementById('btn_pagar');
-        btn.disabled = !selectedMetodo || ref.length < 6 || selectedIds.length === 0;
+        btn.disabled = !selectedMetodo || !/^\d{6,10}$/.test(ref) || selectedIds.length === 0;
     }
 
-    document.getElementById('input_referencia').addEventListener('input', updatePagarBtn);
+    document.getElementById('input_referencia').addEventListener('input', function() {
+        this.value = this.value.replace(/\D/g, '');
+        updatePagarBtn();
+    });
 
     function mostrarModalConfirmacion() {
         if (selectedIds.length === 0) {
@@ -544,8 +547,8 @@ foreach ($ordenMetodos as $m) {
             return;
         }
         var ref = document.getElementById('input_referencia').value.trim();
-        if (!ref || ref.length < 6) {
-            mostrarModalResultado('error', 'La referencia debe tener al menos 6 caracteres.');
+        if (!ref || !/^\d{6,10}$/.test(ref)) {
+            mostrarModalResultado('error', 'La referencia debe tener entre 6 y 10 d\u00edgitos.');
             return;
         }
         if (!selectedMetodo || !selectedBanco) {
