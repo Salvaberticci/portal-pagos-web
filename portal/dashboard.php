@@ -304,7 +304,6 @@ if (count($invoices) > 0) {
         </div>
 
         <!-- Mis Servicios -->
-        <?php if (count($clientServices) > 1): ?>
         <div class="glass-panel p-4 mb-4">
             <h5 class="fw-bold mb-3"><i class="fas fa-server me-2 text-primary"></i> Mis Servicios</h5>
             <div class="services-list">
@@ -360,7 +359,6 @@ if (count($invoices) > 0) {
                 <?php endforeach; ?>
             </div>
         </div>
-        <?php endif; ?>
 
         <!-- Todos los Recibos -->
         <div class="glass-panel p-4 mb-4">
