@@ -247,6 +247,20 @@ class WispHubClient
     }
 
     /**
+     * Verifica si una referencia de pago ya fue usada en WispHub.
+     * Consulta facturas pagadas filtradas por referencia.
+     */
+    public function isReferenceUsed(string $referencia): bool
+    {
+        $invoices = $this->getInvoices([
+            'estado'     => 2,
+            'referencia' => $referencia,
+            'limit'      => 1,
+        ]);
+        return !empty($invoices);
+    }
+
+    /**
      * Obtiene la ├║ltima factura pagada de un cliente por su nombre de usuario.
      *
      * @param string $usuario Nombre de usuario en WispHub (ej. "usuario@empresa")
