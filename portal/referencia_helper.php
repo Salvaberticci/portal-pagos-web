@@ -11,14 +11,20 @@ function getDb(): ?PDO {
         ]);
         $pdo->exec("CREATE DATABASE IF NOT EXISTS portal_pagos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         $pdo->exec("USE portal_pagos");
-        $pdo->exec("CREATE TABLE IF NOT EXISTS referencias_usadas (
+        $pdo->exec("CREATE TABLE IF NOT EXISTS pagos_registrados (
             id INT AUTO_INCREMENT PRIMARY KEY,
+            cliente VARCHAR(100) NOT NULL,
+            ip_servicio VARCHAR(45) NOT NULL DEFAULT '',
+            fecha_pago DATE NOT NULL,
+            estado VARCHAR(30) NOT NULL DEFAULT 'Pagada',
+            zona VARCHAR(100) NOT NULL DEFAULT '',
+            total_cobrado DECIMAL(10,2) NOT NULL DEFAULT 0,
+            forma_pago VARCHAR(30) DEFAULT NULL,
             referencia VARCHAR(10) NOT NULL,
+            total DECIMAL(10,2) NOT NULL DEFAULT 0,
+            accion VARCHAR(30) DEFAULT NULL,
             service_id VARCHAR(50) NOT NULL,
-            monto_usd DECIMAL(10,2) NOT NULL DEFAULT 0,
-            metodo_pago VARCHAR(30) DEFAULT NULL,
             id_banco INT DEFAULT NULL,
-            status VARCHAR(20) NOT NULL DEFAULT 'registrado',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_referencia (referencia)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
@@ -33,7 +39,7 @@ function referenciaYaUsada(string $referencia): bool {
     $pdo = getDb();
     if (!$pdo) return false;
     try {
-        $stmt = $pdo->prepare("SELECT 1 FROM referencias_usadas WHERE referencia = ? AND status IN ('registrado','pendiente') LIMIT 1");
+        $stmt = $pdo->prepare("SELECT 1 FROM pagos_registrados WHERE referencia = ? LIMIT 1");
         $stmt->execute([$referencia]);
         return (bool) $stmt->fetch();
     } catch (PDOException $e) {
@@ -42,12 +48,26 @@ function referenciaYaUsada(string $referencia): bool {
     }
 }
 
-function guardarReferencia(string $referencia, string $serviceId, float $montoUsd, ?string $metodoPago = null, ?int $idBanco = null, string $status = 'registrado'): bool {
+function guardarPago(
+    string $cliente,
+    string $ipServicio,
+    string $fechaPago,
+    string $zona,
+    float  $totalCobrado,
+    string $formaPago,
+    string $referencia,
+    float  $total,
+    ?string $accion,
+    string $serviceId,
+    ?int $idBanco = null
+): bool {
     $pdo = getDb();
     if (!$pdo) return false;
     try {
-        $stmt = $pdo->prepare("INSERT INTO referencias_usadas (referencia, service_id, monto_usd, metodo_pago, id_banco, status) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$referencia, $serviceId, $montoUsd, $metodoPago, $idBanco, $status]);
+        $stmt = $pdo->prepare("INSERT INTO pagos_registrados
+            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, total, accion, service_id, id_banco)
+            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $total, $accion, $serviceId, $idBanco]);
         return true;
     } catch (PDOException $e) {
         error_log('[referencia_helper] insert error: ' . $e->getMessage());

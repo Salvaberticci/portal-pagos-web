@@ -219,9 +219,22 @@ try {
         require_once __DIR__ . '/wisp_helper.php';
         wisp_clear_cache($id_contrato_asociado);
 
-        // Guardar referencia en BD local para evitar duplicados
+        // Obtener datos del perfil (IP, Zona) del cache renovado
+        $wispData = wisp_get_cached_data($wispClient, $id_contrato_asociado);
+        $c_perfil = $wispData['profile'] ?? [];
+        $ipServicio = $c_perfil['ip'] ?? '';
+        $zona = $c_perfil['zona']['nombre'] ?? '';
+
+        // Determinar accion (completo/abono/exceso)
+        $accion = $verificacion_data['tipo_pago'] ?? null;
+        if ($accion === null && $invoice_total > 0) {
+            $diff = round($monto_usd - $invoice_total, 2);
+            $accion = $diff < 0 ? 'abono' : ($diff == 0 ? 'completo' : 'exceso');
+        }
+
+        // Guardar pago en BD local
         require_once __DIR__ . '/referencia_helper.php';
-        guardarReferencia($referencia, $id_contrato_asociado, $monto_usd, $metodo_pago, $id_banco_destino);
+        guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino);
 
         $redirect_url = 'dashboard.php?refreshed=1';
 
