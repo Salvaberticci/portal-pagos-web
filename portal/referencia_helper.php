@@ -4,13 +4,24 @@
 function getDb(): ?PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
+    $cfg = @include __DIR__ . '/../config/database.php';
+    if (!$cfg) {
+        error_log('[referencia_helper] config/database.php no encontrado');
+        return null;
+    }
+    $host     = $cfg['host'] ?? 'localhost';
+    $port     = $cfg['port'] ?? 3306;
+    $dbname   = $cfg['dbname'] ?? 'portal_pagos';
+    $user     = $cfg['user'] ?? 'root';
+    $password = $cfg['password'] ?? '';
+    $charset  = $cfg['charset'] ?? 'utf8mb4';
     try {
-        $pdo = new PDO('mysql:host=localhost;charset=utf8mb4', 'root', '', [
+        $pdo = new PDO("mysql:host={$host};port={$port};charset={$charset}", $user, $password, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
-        $pdo->exec("CREATE DATABASE IF NOT EXISTS portal_pagos CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        $pdo->exec("USE portal_pagos");
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbname}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
+        $pdo->exec("USE `{$dbname}`");
         $pdo->exec("CREATE TABLE IF NOT EXISTS pagos_registrados (
             id INT AUTO_INCREMENT PRIMARY KEY,
             cliente VARCHAR(100) NOT NULL,
@@ -27,7 +38,7 @@ function getDb(): ?PDO {
             id_banco INT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_referencia (referencia)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        ) ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$charset}_unicode_ci");
         return $pdo;
     } catch (PDOException $e) {
         error_log('[referencia_helper] DB connection failed: ' . $e->getMessage());
