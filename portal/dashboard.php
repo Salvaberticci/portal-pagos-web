@@ -345,8 +345,13 @@ if (count($invoices) > 0) {
                                 <?php if ($fecha_emi): ?>
                                 <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
                                 <?php endif; ?>
-                                <?php if ($vencida): ?>
-                                <span class="recibo-badge-vencida"><i class="fas fa-exclamation-triangle me-1"></i>Vencida</span>
+                                <?php if ($fecha_venc):
+                                    $dias_diff = floor((strtotime($fecha_venc) - time()) / 86400);
+                                ?>
+                                <span class="recibo-fecha <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
+                                    <i class="fas fa-clock me-1"></i><?php echo date('d/m/Y', strtotime($fecha_venc)); ?>
+                                    (<?php echo $vencida ? abs($dias_diff) . ' d&iacute;as vencido' : $dias_diff . ' d&iacute;as restantes'; ?>)
+                                </span>
                                 <?php endif; ?>
                                 <?php if ($abonado > 0): ?>
                                 <span class="recibo-badge-abonado"><i class="fas fa-check me-1"></i>Abonado: $<?php echo number_format($abonado, 2); ?></span>
