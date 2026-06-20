@@ -297,14 +297,6 @@ if (count($invoices) > 0) {
 
         <!-- Recibos Pendientes -->
         <div class="glass-panel p-4 mb-4">
-            <?php
-            // Filtrar facturas completamente pagadas
-            $invoices = array_filter($invoices, function($inv) {
-                $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
-                $abonado   = floatval($inv['total_cobrado'] ?? 0);
-                return ($abonado <= 0 || ($inv_monto - $abonado) > 0.005);
-            });
-            ?>
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
@@ -338,14 +330,12 @@ if (count($invoices) > 0) {
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     $abonado    = floatval($inv['total_cobrado'] ?? 0);
                     $saldo_pend = $inv_monto - $abonado;
-                    // Saltar facturas completamente pagadas
-                    if ($abonado > 0 && $saldo_pend <= 0.005) continue;
                     // Cobertura estimada (solo si hay abono parcial)
                     $cobertura_dias = 0;
                     $cobertura_hasta = '';
                     $cobertura_restantes = 0;
                     $cobertura_vencida = false;
-                    if ($abonado > 0 && $inv_monto > 0 && $fecha_emi && $fecha_venc) {
+                    if ($abonado > 0 && $abonado < $inv_monto && $fecha_emi && $fecha_venc) {
                         $ts_emi   = strtotime($fecha_emi);
                         $ts_venc  = strtotime($fecha_venc);
                         $total_dias = max(1, round(($ts_venc - $ts_emi) / 86400));
