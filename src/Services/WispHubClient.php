@@ -253,11 +253,17 @@ class WispHubClient
     public function isReferenceUsed(string $referencia): bool
     {
         $invoices = $this->getInvoices([
-            'estado'     => 2,
-            'referencia' => $referencia,
-            'limit'      => 1,
+            'estado'   => 2,
+            'limit'    => 500,
+            'ordering' => '-id',
         ]);
-        return !empty($invoices);
+        foreach ($invoices as $inv) {
+            $ref = $inv['referencia'] ?? '';
+            if (!empty($ref) && preg_replace('/\D/', '', $ref) === $referencia) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
