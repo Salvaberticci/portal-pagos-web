@@ -204,15 +204,6 @@ try {
             'monto_bs'   => $monto_bs,
             'service_id' => $id_contrato_asociado,
         ];
-
-        // Prorrateo: si es pago parcial, calcular dias de servicio garantizados
-        if ($amount_applied < $invoice_total && $invoice_total > 0) {
-            $diasServicio = round(($amount_applied / $invoice_total) * 30);
-            $baseDate = !empty($invoice_fecha_emision) ? $invoice_fecha_emision : date('Y-m-d');
-            $fechaFin = date('Y-m-d', strtotime($baseDate . " + $diasServicio days"));
-            $_SESSION['pago_data']['dias_servicio'] = $diasServicio;
-            $_SESSION['pago_data']['fecha_fin_servicio'] = date('d M Y', strtotime($fechaFin));
-        }
         unset($_SESSION['pago_err']);
 
         // Limpiar cache de WispHub para que dashboard refresque datos
@@ -235,6 +226,20 @@ try {
         // Guardar pago en BD local
         require_once __DIR__ . '/referencia_helper.php';
         guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino);
+
+        // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
+        if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
+            $firstInvoiceId = (int)$invoice_ids[0];
+            $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+            $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
+            $fechaLimite = !empty($fechaVenc) ? str_replace('-', '/', $fechaVenc) : date('Y/m/d', strtotime('+30 days'));
+            $saldoRestante = round($invoice_total - $amount_applied, 2);
+            $promiseResult = $wispClient->addPaymentPromise($firstInvoiceId, $fechaLimite, $saldoRestante);
+            if (($promiseResult['status'] ?? 0) === 201) {
+                $msg_parts[] = " Promesa de pago creada por $" . number_format($saldoRestante, 2) . " USD.";
+                $_SESSION['pago_msg'] = implode(' ', $msg_parts);
+            }
+        }
 
         $redirect_url = 'dashboard.php?refreshed=1';
 

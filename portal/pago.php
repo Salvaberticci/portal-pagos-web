@@ -666,8 +666,6 @@ foreach ($ordenMetodos as $m) {
                 if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto USD</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                 if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                 if (data.service_id) dHtml += '<tr><td class="text-muted">Servicio</td><td class="fw-bold">' + data.service_id + '</td></tr>';
-                if (data.dias_servicio) dHtml += '<tr><td class="text-muted">Servicio cubierto</td><td class="fw-bold">' + data.dias_servicio + ' d&iacute;as</td></tr>';
-                if (data.fecha_fin_servicio) dHtml += '<tr><td class="text-muted">Hasta</td><td class="fw-bold">' + data.fecha_fin_servicio + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
             }

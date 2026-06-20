@@ -417,6 +417,24 @@ class WispHubClient
     }
 
     /**
+     * Crea una promesa de pago en WispHub para una factura.
+     *
+     * @param int    $idFactura   ID de la factura
+     * @param string $fechaLimite Fecha límite YYYY/mm/dd
+     * @param float  $monto       Monto de la promesa
+     * @param int    $accion      0=registrar, 1=registrar y activar
+     */
+    public function addPaymentPromise(int $idFactura, string $fechaLimite, float $monto, int $accion = 1): array
+    {
+        return $this->request('POST', 'promesa-pago/', [
+            'id_factura'  => $idFactura,
+            'fecha_limite' => $fechaLimite,
+            'comentarios'  => (string)$monto,
+            'accion'       => $accion,
+        ]);
+    }
+
+    /**
      * Obtiene el perfil completo de un cliente/servicio de WispHub.
      */
     public function getServiceProfile(string $serviceId): array
