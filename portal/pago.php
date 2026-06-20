@@ -685,6 +685,7 @@ foreach ($ordenMetodos as $m) {
                 if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto Verificado</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                 if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto en Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                 if (data.deuda_seleccionada_usd) dHtml += '<tr><td class="text-muted">Deuda Seleccionada</td><td class="fw-bold">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
+                if (data.fecha) dHtml += '<tr><td class="text-muted">Fecha de Pago</td><td class="fw-bold">' + data.fecha + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
             }
