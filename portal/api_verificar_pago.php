@@ -47,6 +47,13 @@ if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referen
 }
 $referencia = $referencia_clean;
 
+// Verificar referencia duplicada en BD local
+require_once __DIR__ . '/referencia_helper.php';
+if (referenciaYaUsada($referencia)) {
+    echo json_encode(['status' => 'error', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
+    exit;
+}
+
 // Conectar a Banco API Router
 require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
 @include_once __DIR__ . '/../config/test_mode.php';

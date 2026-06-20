@@ -54,6 +54,14 @@ if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referen
 }
 $referencia = $referencia_clean;
 
+// 3b. Verificar referencia duplicada en BD local
+require_once __DIR__ . '/referencia_helper.php';
+if (referenciaYaUsada($referencia)) {
+    $_SESSION['pago_err'] = "Esta referencia ya fue utilizada anteriormente.";
+    header('Location: ' . $redirect_url);
+    exit;
+}
+
 // 4. Validar metodo y banco
 if (empty($metodo_pago) || empty($id_banco_destino)) {
     $_SESSION['pago_err'] = "Método de pago y banco son obligatorios.";
@@ -210,6 +218,11 @@ try {
         // Limpiar cache de WispHub para que dashboard refresque datos
         require_once __DIR__ . '/wisp_helper.php';
         wisp_clear_cache($id_contrato_asociado);
+
+        // Guardar referencia en BD local para evitar duplicados
+        require_once __DIR__ . '/referencia_helper.php';
+        guardarReferencia($referencia, $id_contrato_asociado, $monto_usd, $metodo_pago, $id_banco_destino);
+
         $redirect_url = 'dashboard.php?refreshed=1';
 
         // Log
