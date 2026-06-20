@@ -266,7 +266,7 @@ class WispHubDevModeClient extends WispHubClient
         if ($clean === '20788775') {
             return [
                 [
-                    'id'       => $this->testServiceId,
+                    'id_servicio' => $this->testServiceId,
                     'nombre'   => 'Cliente OFICINA Prueba',
                     'cedula'   => $this->testCedula,
                     'estado'   => 'activo',

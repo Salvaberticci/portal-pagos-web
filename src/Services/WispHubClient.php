@@ -609,21 +609,24 @@ class WispHubClient
      */
     public function getServicesByCedula(string $cedula): array
     {
-        $clean = preg_replace('/[^0-9]/', '', $cedula);
-        if (empty($clean)) return [];
+        $soloDigitos = preg_replace('/[^0-9]/', '', $cedula);
+        if (empty($soloDigitos)) return [];
 
-        $formats = array_unique([
-            $cedula,
-            "V$clean", "E$clean", "J$clean", "P$clean", "G$clean",
-            $clean,
-        ]);
+        $variantes = [$cedula];
+        if (preg_match('/^[A-Z]/i', $cedula)) {
+            $variantes[] = preg_replace('/^[A-Z]/i', '', $cedula);
+        }
+        $variantes[] = $soloDigitos;
+        $variantes[] = "V$soloDigitos";
+        $variantes[] = "E$soloDigitos";
+        $variantes = array_unique($variantes);
 
         $seen = [];
-        foreach ($formats as $fmt) {
+        foreach ($variantes as $fmt) {
             $result = $this->request('GET', 'clientes/', ['cedula' => $fmt, 'limit' => 100]);
-            if ($result['status'] === 200 && !empty($result['data']['data'])) {
-                foreach ($result['data']['data'] as $client) {
-                    $id = $client['id'] ?? $client['service_id'] ?? 0;
+            if ($result['status'] === 200 && !empty($result['data']['results'])) {
+                foreach ($result['data']['results'] as $client) {
+                    $id = $client['id_servicio'] ?? $client['id'] ?? $client['service_id'] ?? 0;
                     if ($id && !isset($seen[$id])) {
                         $seen[$id] = $client;
                     }

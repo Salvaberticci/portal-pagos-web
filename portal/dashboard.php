@@ -308,7 +308,7 @@ if (count($invoices) > 0) {
             <h5 class="fw-bold mb-3"><i class="fas fa-server me-2 text-primary"></i> Mis Servicios</h5>
             <div class="services-list">
                 <?php foreach ($clientServices as $svc):
-                    $svcId = $svc['id'] ?? $svc['service_id'] ?? 0;
+                    $svcId = $svc['id_servicio'] ?? $svc['id'] ?? $svc['service_id'] ?? 0;
                     $svcEst = strtoupper($svc['estado'] ?? 'ACTIVO');
                     if ($svcEst === 'ACTIVE') $svcEst = 'ACTIVO';
                     if ($svcEst === 'SUSPENDED') $svcEst = 'SUSPENDIDO';
