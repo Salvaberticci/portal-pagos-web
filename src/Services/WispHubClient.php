@@ -255,10 +255,12 @@ class WispHubClient
     public function getLastPaidInvoice(string $usuario): ?array
     {
         $invoices = $this->getInvoices([
-            'estado'   => 2,
-            'cliente'  => $usuario,
-            'limit'    => 1,
-            'ordering' => '-id',
+            'estado'               => 2,
+            'cliente'              => $usuario,
+            'limit'                => 1,
+            'ordering'             => '-id',
+            'fecha_pago__range_0'  => date('Y-m-d', strtotime('-90 days')),
+            'fecha_pago__range_1'  => date('Y-m-d'),
         ]);
         if (!empty($invoices[0])) {
             $inv = $invoices[0];
