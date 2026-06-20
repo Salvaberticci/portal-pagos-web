@@ -150,8 +150,8 @@ class WispHubDevModeClient extends WispHubClient
             [
                 'id'               => 9706,
                 'folio'            => 9706,
-                'fecha_emision'    => $daysAgo5,
-                'fecha_vencimiento'=> $daysPlus3,
+                'fecha_emision'    => date('Y-m-d', strtotime('-25 days')),
+                'fecha_vencimiento'=> date('Y-m-d', strtotime('+5 days')),
                 'fecha_pago'       => null,
                 'estado'           => 'Pendiente de Pago',
                 'tipo'             => 1,
