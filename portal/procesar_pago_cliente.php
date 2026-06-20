@@ -128,12 +128,6 @@ try {
     $verificacion_data = isset($_POST['verificacion_data']) ? json_decode($_POST['verificacion_data'], true) : null;
 
     if ($es_zelle || $verificacion_data) {
-        // Verificar referencia duplicada en WispHub
-        if ($wispClient->isReferenceUsed($referencia)) {
-            $_SESSION['pago_err'] = "Esta referencia ya fue utilizada anteriormente.";
-            header('Location: ' . $redirect_url);
-            exit;
-        }
         // Nuevo flujo: registrar directo con las facturas seleccionadas
         $wispResult = $wispClient->registerPaymentAndActivate(
             $id_contrato_asociado,

@@ -71,12 +71,6 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     $wispClient = new \Services\WispHubClient($wispConfig);
 }
 
-// Verificar referencia duplicada en WispHub (cubre referencias anteriores a la BD local)
-if ($wispClient->isReferenceUsed($referencia)) {
-    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
-    exit;
-}
-
 $deuda_usd = 0.00;
 $selected_deuda_usd = 0.00;
 if (!empty($wisp_service_id)) {
