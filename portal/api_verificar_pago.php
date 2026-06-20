@@ -41,8 +41,8 @@ if (empty($referencia) || empty($fecha_pago) || empty($id_banco)) {
 
 // Clean reference (solo d├¡gitos, 6-10)
 $referencia_clean = preg_replace('/\D/', '', $referencia);
-if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 10) {
-    echo json_encode(['status' => 'error', 'message' => 'La referencia debe tener entre 6 y 10 d\u00edgitos.']);
+if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 15) {
+    echo json_encode(['status' => 'error', 'message' => 'La referencia debe tener entre 6 y 15 d\u00edgitos.']);
     exit;
 }
 $referencia = $referencia_clean;

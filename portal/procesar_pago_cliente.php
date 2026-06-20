@@ -47,8 +47,8 @@ if (!verify_csrf_token($csrf_token)) {
 
 // 3. Validar referencia (solo d├¡gitos, 6-10)
 $referencia_clean = preg_replace('/\D/', '', $referencia);
-if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 10) {
-    $_SESSION['pago_err'] = "La referencia debe tener entre 6 y 10 d\u00edgitos.";
+if (empty($referencia_clean) || strlen($referencia_clean) < 6 || strlen($referencia_clean) > 15) {
+    $_SESSION['pago_err'] = "La referencia debe tener entre 6 y 15 d\u00edgitos.";
     header('Location: ' . $redirect_url);
     exit;
 }
