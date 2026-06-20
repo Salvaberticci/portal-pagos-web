@@ -99,6 +99,10 @@ foreach ($invoices as $inv) {
     $total = floatval($inv['total'] ?? 0);
     $cobrado = floatval($inv['total_cobrado'] ?? 0);
     $monto = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+    // Si la API dice saldo=0 pero la factura tiene abono parcial, calcular manual
+    if ($monto < 0.005 && $cobrado > 0 && $cobrado < $total) {
+        $monto = $total - $cobrado;
+    }
     // Saltar facturas completamente pagadas
     if ($total > 0 && $cobrado >= $total) continue;
     $deuda_total += $monto;
@@ -662,13 +666,20 @@ foreach ($ordenMetodos as $m) {
             title.textContent = 'Pago Exitoso';
             title.className = 'fw-bold mb-2';
             title.style.color = 'var(--success)';
-            msg.textContent = mensaje;
+            if (data && data.accion === 'abono') {
+                msg.innerHTML = 'Usted hizo un <strong>abono</strong> de <strong>Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</strong> (equivalente a <strong>$' + parseFloat(data.monto_usd).toFixed(2) + '</strong>). Su servicio estará vigente hasta el <strong>' + (data.cobertura_hasta || 'próximo vencimiento') + '</strong>.';
+            } else if (data && data.accion === 'completo') {
+                msg.innerHTML = 'Usted hizo un <strong>pago</strong> de <strong>$' + parseFloat(data.monto_usd).toFixed(2) + '</strong>. Su servicio está al día.';
+            } else {
+                msg.innerHTML = mensaje;
+            }
             if (data) {
                 details.classList.remove('d-none');
                 var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
                 if (data.referencia) dHtml += '<tr><td class="text-muted">Referencia</td><td class="fw-bold">' + data.referencia + '</td></tr>';
                 if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto USD</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                 if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td class="text-muted">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
                 if (data.service_id) dHtml += '<tr><td class="text-muted">Servicio</td><td class="fw-bold">' + data.service_id + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
@@ -687,6 +698,7 @@ foreach ($ordenMetodos as $m) {
                 if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto Verificado</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                 if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto en Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                 if (data.deuda_seleccionada_usd) dHtml += '<tr><td class="text-muted">Deuda Seleccionada</td><td class="fw-bold">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
+                if (data.cobertura_hasta) dHtml += '<tr><td class="text-muted">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
                 if (data.fecha) dHtml += '<tr><td class="text-muted">Fecha de Pago</td><td class="fw-bold">' + data.fecha + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;

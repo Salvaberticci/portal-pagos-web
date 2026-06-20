@@ -86,8 +86,17 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $invoicesPaid = $paidRes;
     }
 
-    // Fusionar: pendientes + pagadas
-    $allInvoices = array_merge($invoicesPending, $invoicesPaid);
+    // Fusionar: pendientes + pagadas (deduplicando por ID, pagada prevalece)
+    $byId = [];
+    foreach ($invoicesPending as $inv) {
+        $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+        if ($id) $byId[$id] = $inv;
+    }
+    foreach ($invoicesPaid as $inv) {
+        $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+        if ($id) $byId[$id] = $inv;
+    }
+    $allInvoices = array_values($byId);
 
     $enriched = [];
     foreach ($allInvoices as $inv) {

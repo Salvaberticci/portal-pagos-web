@@ -198,13 +198,6 @@ try {
 
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
         $_SESSION['pago_msg'] = implode(' ', $msg_parts);
-        $_SESSION['pago_data'] = [
-            'referencia' => $referencia,
-            'monto_usd'  => $monto_usd,
-            'monto_bs'   => $monto_bs,
-            'service_id' => $id_contrato_asociado,
-        ];
-        unset($_SESSION['pago_err']);
 
         // Limpiar cache de WispHub para que dashboard refresque datos
         require_once __DIR__ . '/wisp_helper.php';
@@ -223,6 +216,33 @@ try {
             $accion = $diff < 0 ? 'abono' : ($diff == 0 ? 'completo' : 'exceso');
         }
 
+        // Calcular cobertura para abonos
+        $cobertura_hasta = '';
+        if ($accion === 'abono' && !empty($invoice_ids)) {
+            $firstInvoiceId = (int)$invoice_ids[0];
+            $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+            $fechaEmi = $invDetail['fecha_emision'] ?? '';
+            $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
+            $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
+            if ($totalFactura > 0 && $fechaEmi && $fechaVenc && $invoice_total > 0) {
+                $proporcion = $monto_usd / $invoice_total;
+                $diasExtra = round(30 * $proporcion);
+                $cobertura_hasta = date('d/m/Y', strtotime($fechaVenc . ' + ' . ($diasExtra + 1) . ' days'));
+            }
+        }
+
+        // Guardar pago_data en sesión para el modal de resultado
+        $_SESSION['pago_data'] = [
+            'referencia' => $referencia,
+            'monto_usd'  => $monto_usd,
+            'monto_bs'   => $monto_bs,
+            'service_id' => $id_contrato_asociado,
+            'accion'     => $accion,
+            'cobertura_hasta' => $cobertura_hasta,
+            'invoice_total'   => $invoice_total,
+        ];
+        unset($_SESSION['pago_err']);
+
         // Guardar pago en BD local
         require_once __DIR__ . '/referencia_helper.php';
         guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino);
@@ -236,9 +256,8 @@ try {
             $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
             $appliedToFirst = floatval($payments[0]['payment_applied'] ?? $amount_applied);
             if ($totalFactura > 0 && $fechaEmi && $fechaVenc) {
-                $periodoDias = max(1, round((strtotime($fechaVenc) - strtotime($fechaEmi)) / 86400));
                 $proporcion = $appliedToFirst / $totalFactura;
-                $diasExtra = round($periodoDias * $proporcion);
+                $diasExtra = round(30 * $proporcion) + 1; // +1 día de gracia
                 $fechaLimite = date('Y/m/d', strtotime($fechaVenc . " + $diasExtra days"));
             } else {
                 $fechaLimite = !empty($fechaVenc) ? str_replace('-', '/', $fechaVenc) : date('Y/m/d', strtotime('+30 days'));

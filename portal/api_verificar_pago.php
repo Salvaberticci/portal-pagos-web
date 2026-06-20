@@ -101,6 +101,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         $tipo_pago = 'saldo_favor';
         $descripcion = "Modo PRUEBA — Pagas el recibo seleccionado ($" . number_format($deuda_referencia, 2) . " USD) y queda un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
     }
+    $cobertura_hasta = '';
+    if ($tipo_pago === 'abono') {
+        $days = round(30 * ($monto_usd / max(0.01, $deuda_referencia)));
+        $cobertura_hasta = date('d/m/Y', strtotime('+' . ($days + 1) . ' days'));
+    }
     echo json_encode([
         'status'     => 'verified',
         'movimiento' => [
@@ -116,6 +121,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         'deuda_usd'   => $deuda_usd,
         'deuda_seleccionada_usd' => $deuda_referencia,
         'tipo_pago'   => $tipo_pago,
+        'cobertura_hasta' => $cobertura_hasta,
         'descripcion' => $descripcion,
         'referencia'  => $referencia,
         'invoice_ids' => $invoice_ids,
@@ -222,13 +228,29 @@ $monto_usd = round($monto_mov / $tasa_dolar, 2);
 $diferencia = round($monto_usd - $deuda_referencia, 2);
 if ($diferencia < 0) {
     $tipo_pago = 'abono';
-    $descripcion = "Estás realizando un ABONO de $" . number_format($monto_usd, 2) . " USD. El saldo pendiente del recibo seleccionado quedará en $" . number_format(abs($diferencia), 2) . " USD.";
+    $descripcion = "Usted hizo un abono de Bs " . number_format($monto_mov, 2, ',', '.') . " (equivalente a $" . number_format($monto_usd, 2) . ").";
 } elseif ($diferencia == 0) {
     $tipo_pago = 'completo';
-    $descripcion = "Estás PAGANDO POR COMPLETO el recibo seleccionado por $" . number_format($deuda_referencia, 2) . " USD.";
+    $descripcion = "Usted hizo un pago de $" . number_format($monto_usd, 2) . ". Su servicio está al día.";
 } else {
     $tipo_pago = 'saldo_favor';
     $descripcion = "Pagas el recibo seleccionado ($" . number_format($deuda_referencia, 2) . " USD) y quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
+}
+
+// Calcular cobertura para abonos (solo facturas recurrentes con período)
+$cobertura_hasta = '';
+if ($tipo_pago === 'abono' && !empty($invoice_ids) && $deuda_referencia > 0) {
+    $firstId = (int)$invoice_ids[0];
+    $invDetail = $wispClient->getInvoiceDetail((string)$firstId);
+    $fechaEmi = $invDetail['fecha_emision'] ?? '';
+    $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
+    $totalInv = floatval($invDetail['total'] ?? 0);
+    if ($totalInv > 0 && $fechaEmi && $fechaVenc) {
+        $proporcion = $monto_usd / $deuda_referencia;
+        $diasExtra = round(30 * $proporcion);
+        $cobertura_hasta = date('d/m/Y', strtotime($fechaVenc . ' + ' . ($diasExtra + 1) . ' days'));
+        $descripcion .= " Su servicio estará vigente hasta el {$cobertura_hasta}.";
+    }
 }
 
 // Enviar respuesta con detalles del movimiento
@@ -248,6 +270,7 @@ echo json_encode([
     'deuda_usd'   => $deuda_usd,
     'deuda_seleccionada_usd' => $deuda_referencia,
     'tipo_pago'   => $tipo_pago,
+    'cobertura_hasta' => $cobertura_hasta,
     'descripcion' => $descripcion,
     'referencia'  => $referencia,
     'invoice_ids' => $invoice_ids,

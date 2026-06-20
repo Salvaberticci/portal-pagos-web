@@ -108,65 +108,6 @@ if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
 if ($estado_ws === 'CANCELLED') $estado_ws = 'CANCELADO';
 if ($estado_ws === 'FREE') $estado_ws = 'GRATIS';
 
-// Mensaje de vencimiento dinámico
-$mensaje_vencimiento = [
-    'texto' => 'RECUERDA CANCELAR LOS PRIMEROS <span class="text-primary fs-5">5</span> DE CADA MES',
-    'icono' => 'fas fa-bell text-primary',
-    'bg' => 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), rgba(14, 165, 233, 0.1))',
-    'border' => 'var(--primary)',
-];
-
-if (count($invoices) > 0) {
-    $fecha_vencimiento = null;
-    $recibo_vencido_id = null;
-    foreach ($invoices as $inv) {
-        if (!empty($inv['fecha_vencimiento'])) {
-            $fv = strtotime($inv['fecha_vencimiento']);
-            if ($fecha_vencimiento === null || $fv < $fecha_vencimiento) {
-                $fecha_vencimiento = $fv;
-                $recibo_vencido_id = $inv['id'] ?? $inv['id_factura'] ?? null;
-            }
-        }
-    }
-    if ($fecha_vencimiento) {
-        $hoy = strtotime(date('Y-m-d'));
-        $fv_date = strtotime(date('Y-m-d', $fecha_vencimiento));
-        $diferencia_dias = round(($fv_date - $hoy) / 86400);
-        $fecha_str = date('d/m/Y', $fecha_vencimiento);
-        $recibo_str = $recibo_vencido_id ? " #$recibo_vencido_id" : '';
-
-        if ($diferencia_dias < 0) {
-            $dias_abs = abs($diferencia_dias);
-            $mensaje_vencimiento = [
-                'texto' => "¡TU RECIBO$recibo_str ESTÁ VENCIDO DESDE HACE <span class='text-danger fs-5'>$dias_abs</span> DÍA" . ($dias_abs > 1 ? 'S' : '') . "! (Venció el $fecha_str)",
-                'icono' => 'fas fa-exclamation-triangle text-danger',
-                'bg' => 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1))',
-                'border' => 'var(--danger)',
-            ];
-        } elseif ($diferencia_dias <= 5) {
-            $mensaje_vencimiento = [
-                'texto' => "FALTAN <span class='text-warning fs-5'>$diferencia_dias</span> DÍAS PARA QUE VENZA TU RECIBO (Vence el $fecha_str)",
-                'icono' => 'fas fa-calendar-day text-warning',
-                'bg' => 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1))',
-                'border' => 'var(--warning)',
-            ];
-        } else {
-            $mensaje_vencimiento = [
-                'texto' => "PRÓXIMO VENCIMIENTO EN <span class='text-info fs-5'>$diferencia_dias</span> DÍAS (Vence el $fecha_str)",
-                'icono' => 'fas fa-calendar-check text-info',
-                'bg' => 'linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.1))',
-                'border' => 'var(--info)',
-            ];
-        }
-    }
-} else {
-    $mensaje_vencimiento = [
-        'texto' => "¡ESTÁS AL DÍA! NO TIENES RECIBOS PENDIENTES.",
-        'icono' => 'fas fa-check-circle text-success',
-        'bg' => 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1))',
-        'border' => 'var(--success)',
-    ];
-}
 ?>
 <div id="page-content" style="display:none;">
 
@@ -215,14 +156,6 @@ if (count($invoices) > 0) {
                 <span class="badge bg-primary glass-panel p-2 w-100">Tasa BCV: Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
             </div>
         <?php endif; ?>
-
-        <!-- Mensaje Dinámico -->
-        <div class="glass-panel p-3 mb-4 text-center border-0 shadow-sm animate-pulse-slow" style="background: <?php echo $mensaje_vencimiento['bg']; ?>; border-left: 4px solid <?php echo $mensaje_vencimiento['border']; ?> !important;">
-            <p class="mb-0 fw-bold" style="letter-spacing: 0.5px;">
-                <i class="<?php echo $mensaje_vencimiento['icono']; ?> me-2"></i>
-                <?php echo $mensaje_vencimiento['texto']; ?>
-            </p>
-        </div>
 
         <?php if ($pago_msg): ?>
             <div class="alert alert-success glass-panel mb-4" id="alert-pago-ok">
@@ -367,16 +300,19 @@ if (count($invoices) > 0) {
                 <div>
                     <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Mis Recibos</h5>
                     <?php
-                    $totalInvs = count($invoices);
+                    $totalInvs = 0;
                     $unpaid = 0;
                     foreach ($invoices as $inv) {
                         $c = floatval($inv['total_cobrado'] ?? 0);
                         $t = floatval($inv['total'] ?? $inv['monto'] ?? 0);
-                        if ($c < $t) $unpaid++;
+                        if ($c < $t) {
+                            $totalInvs++;
+                            if ($c <= 0) $unpaid++;
+                        }
                     }
                     ?>
                     <?php if ($totalInvs > 0): ?>
-                    <small class="text-muted"><?php echo $totalInvs; ?> recibo<?php echo $totalInvs > 1 ? 's' : ''; ?> (<?php echo $unpaid; ?> pendiente<?php echo $unpaid > 1 ? 's' : ''; ?>)</small>
+                    <small class="text-muted"><?php echo $totalInvs; ?> recibo<?php echo $totalInvs > 1 ? 's' : ''; ?><?php if ($unpaid > 0): ?> (<?php echo $unpaid; ?> pendiente<?php echo $unpaid > 1 ? 's' : ''; ?>)<?php endif; ?></small>
                     <?php endif; ?>
             <?php if ($saldo_favor > 0): ?>
             <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
@@ -392,7 +328,7 @@ if (count($invoices) > 0) {
             <?php endif; ?>
         </div>
             </div>
-            <?php if (count($invoices) > 0): ?>
+            <?php if ($totalInvs > 0): ?>
             <div class="recibos-list">
                 <?php foreach ($invoices as $inv):
                     $inv_id    = $inv['id'] ?? $inv['id_factura'] ?? 0;
@@ -404,28 +340,31 @@ if (count($invoices) > 0) {
                     $fecha_venc = $inv['fecha_vencimiento'] ?? '';
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     $abonado    = floatval($inv['total_cobrado'] ?? 0);
+                    // Saltar facturas completamente pagadas
+                    if ($abonado >= $inv_monto && $inv_monto > 0) continue;
                     $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
                     // Si la API dice saldo=0 pero la factura no está pagada, calcular manual
                     if ($saldo_pend < 0.005 && $abonado > 0 && $abonado < $inv_monto) {
                         $saldo_pend = $inv_monto - $abonado;
                     }
-                    // Cobertura estimada desde fecha_vencimiento (solo facturas con período > 1 día)
+                    // Determinar si es factura recurrente (servicio mensual) vs pago único
+                    $es_recurring = false;
+                    if ($fecha_emi && $fecha_venc) {
+                        $periodo_dias = max(1, round((strtotime($fecha_venc) - strtotime($fecha_emi)) / 86400));
+                        $es_recurring = $periodo_dias > 1;
+                    }
+                    // Cobertura estimada desde fecha_vencimiento (solo facturas recurrentes pagadas)
                     $cobertura_dias = 0;
                     $cobertura_hasta = '';
                     $cobertura_restantes = 0;
                     $cobertura_vencida = false;
-                    if ($abonado > 0 && $abonado < $inv_monto && $fecha_emi && $fecha_venc) {
-                        $ts_emi   = strtotime($fecha_emi);
-                        $ts_venc  = strtotime($fecha_venc);
-                        $total_dias = max(1, round(($ts_venc - $ts_emi) / 86400));
-                        if ($total_dias > 1) {
-                            $ratio    = $abonado / $inv_monto;
-                            $cobertura_dias = (int)round($total_dias * $ratio);
-                            $ts_cob   = $ts_venc + ($cobertura_dias * 86400);
-                            $cobertura_hasta = date('d/m/Y', $ts_cob);
-                            $cobertura_restantes = (int)floor(($ts_cob - time()) / 86400);
-                            $cobertura_vencida = $cobertura_restantes < 0;
-                        }
+                    if ($es_recurring && $abonado > 0) {
+                        $ratio    = min(1.0, $abonado / $inv_monto);
+                        $cobertura_dias = (int)round(30 * $ratio);
+                        $ts_cob   = strtotime($fecha_venc) + ($cobertura_dias * 86400);
+                        $cobertura_hasta = date('d/m/Y', $ts_cob);
+                        $cobertura_restantes = (int)floor(($ts_cob - time()) / 86400);
+                        $cobertura_vencida = $cobertura_restantes < 0;
                     }
                 ?>
                 <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
@@ -452,42 +391,51 @@ if (count($invoices) > 0) {
 
                         <hr class="recibo-divider">
 
-                        <!-- Vencimiento -->
-                        <?php if ($fecha_venc):
-                            $dias_diff = floor((strtotime($fecha_venc) - time()) / 86400);
-                        ?>
-                        <div class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
-                            <span><i class="fas fa-clock me-1"></i>Vence: <?php echo date('d/m/Y', strtotime($fecha_venc)); ?>
-                            (<?php echo $vencida ? abs($dias_diff) . ' d&iacute;as vencido' : $dias_diff . ' d&iacute;as restantes'; ?>)</span>
-                        </div>
-                        <?php endif; ?>
-
-                        <!-- Estado: Pagado / Abonado / Pendiente -->
                         <?php if ($abonado >= $inv_monto): ?>
+                        <!-- Pagado completo -->
                         <div class="recibo-row recibo-status-recibo">
                             <span class="recibo-status-text pagado"><i class="fas fa-check-circle me-1"></i>Pagado: $<?php echo number_format($abonado, 2); ?></span>
                         </div>
-                        <?php elseif ($abonado > 0): ?>
-                        <!-- Sección de abono -->
+                        <?php if ($es_recurring && $cobertura_hasta): ?>
                         <div class="recibo-row">
-                            <span class="recibo-abono-label"><i class="fas fa-check me-1 text-success"></i>Abonaste: <strong>$<?php echo number_format($abonado, 2); ?></strong></span>
+                            <span class="recibo-cobertura-label"><i class="fas fa-shield-alt me-1 text-info"></i>Cobertura hasta: <strong><?php echo $cobertura_hasta; ?></strong></span>
+                        </div>
+                        <?php endif; ?>
+                        <?php elseif ($abonado > 0): ?>
+                        <!-- Abono parcial -->
+                        <?php if ($es_recurring && $fecha_venc): ?>
+                        <div class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
+                            <span><i class="fas fa-clock me-1"></i>Vence: <?php echo date('d/m/Y', strtotime($fecha_venc)); ?></span>
+                        </div>
+                        <?php endif; ?>
+                        <div class="recibo-row">
+                            <span class="recibo-abono-label"><i class="fas fa-check me-1 text-success"></i>Abonaste <strong>$<?php echo number_format($abonado, 2); ?></strong> de <strong>$<?php echo number_format($inv_monto, 2); ?></strong>
+                            (<?php echo round($abonado / $inv_monto * 100); ?>%)</span>
                         </div>
                         <div class="recibo-row">
                             <span class="recibo-saldo-label"><i class="fas fa-hourglass-half me-1 text-warning"></i>Restante: <strong>$<?php echo number_format($saldo_pend, 2); ?></strong></span>
                         </div>
-                        <?php if ($cobertura_dias > 0): ?>
-                        <hr class="recibo-divider">
+                        <?php if ($es_recurring && $cobertura_hasta): ?>
                         <div class="recibo-row">
-                            <span class="recibo-cobertura-label"><i class="fas fa-shield-alt me-1 text-info"></i>Cobertura hasta: <strong><?php echo $cobertura_hasta; ?></strong>
-                            (<?php echo $cobertura_vencida ? '<span class="text-danger">' . abs($cobertura_restantes) . ' d&iacute;as vencida</span>' : '<span class="text-success">' . $cobertura_restantes . ' d&iacute;as restantes</span>'; ?>)</span>
+                            <span class="recibo-cobertura-label"><i class="fas fa-shield-alt me-1 text-info"></i>Cobertura hasta: <strong><?php echo $cobertura_hasta; ?></strong></span>
                         </div>
                         <?php endif; ?>
-                        <?php if ($saldo_pend > 0): ?>
+                        <?php if ($es_recurring && $saldo_pend > 0 && $cobertura_hasta): ?>
                         <div class="recibo-row recibo-aviso">
-                            <span><i class="fas fa-exclamation-triangle me-1 text-warning"></i>Debes pagar <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> antes de que venza la cobertura para no suspender el servicio.</span>
+                            <?php if ($cobertura_vencida): ?>
+                            <span><i class="fas fa-exclamation-triangle me-1 text-danger"></i>Tu cobertura venci&oacute; el <strong><?php echo $cobertura_hasta; ?></strong>. Debes pagar <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> para reactivar tu servicio.</span>
+                            <?php else: ?>
+                            <span><i class="fas fa-exclamation-triangle me-1 text-warning"></i>Debes pagar <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> antes del <strong><?php echo $cobertura_hasta; ?></strong> para no suspender el servicio.</span>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                         <?php else: ?>
+                        <!-- Pendiente sin pago -->
+                        <?php if ($es_recurring && $fecha_venc): ?>
+                        <div class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
+                            <span><i class="fas fa-clock me-1"></i>Vence: <?php echo date('d/m/Y', strtotime($fecha_venc)); ?></span>
+                        </div>
+                        <?php endif; ?>
                         <div class="recibo-row recibo-status-recibo">
                             <span class="recibo-status-text pendiente"><i class="fas fa-clock me-1"></i>Pendiente de pago</span>
                         </div>
