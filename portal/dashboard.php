@@ -94,8 +94,9 @@ $deuda_total = 0;
 foreach ($invoices as $inv) {
     $total   = floatval($inv['total'] ?? 0);
     $cobrado = floatval($inv['total_cobrado'] ?? 0);
-    $saldo   = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
-    if ($total > 0 && $cobrado < $total && $saldo > 0.005) {
+    if ($total > 0 && $cobrado < $total) {
+        $saldo = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+        if ($saldo < 0.005) $saldo = $total - $cobrado;
         $deuda_total += $saldo;
     }
 }
@@ -404,21 +405,27 @@ if (count($invoices) > 0) {
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     $abonado    = floatval($inv['total_cobrado'] ?? 0);
                     $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
-                    // Cobertura estimada desde fecha_vencimiento (como la promesa de pago)
+                    // Si la API dice saldo=0 pero la factura no está pagada, calcular manual
+                    if ($saldo_pend < 0.005 && $abonado > 0 && $abonado < $inv_monto) {
+                        $saldo_pend = $inv_monto - $abonado;
+                    }
+                    // Cobertura estimada desde fecha_vencimiento (solo facturas con período > 1 día)
                     $cobertura_dias = 0;
-                    $cob_hasta = '';
-                    $cob_restantes = 0;
-                    $cob_vencida = false;
+                    $cobertura_hasta = '';
+                    $cobertura_restantes = 0;
+                    $cobertura_vencida = false;
                     if ($abonado > 0 && $abonado < $inv_monto && $fecha_emi && $fecha_venc) {
                         $ts_emi   = strtotime($fecha_emi);
                         $ts_venc  = strtotime($fecha_venc);
                         $total_dias = max(1, round(($ts_venc - $ts_emi) / 86400));
-                        $ratio    = $abonado / $inv_monto;
-                        $cobertura_dias = (int)round($total_dias * $ratio);
-                        $ts_cob   = $ts_venc + ($cobertura_dias * 86400);
-                        $cobertura_hasta = date('d/m/Y', $ts_cob);
-                        $cobertura_restantes = (int)floor(($ts_cob - time()) / 86400);
-                        $cobertura_vencida = $cobertura_restantes < 0;
+                        if ($total_dias > 1) {
+                            $ratio    = $abonado / $inv_monto;
+                            $cobertura_dias = (int)round($total_dias * $ratio);
+                            $ts_cob   = $ts_venc + ($cobertura_dias * 86400);
+                            $cobertura_hasta = date('d/m/Y', $ts_cob);
+                            $cobertura_restantes = (int)floor(($ts_cob - time()) / 86400);
+                            $cobertura_vencida = $cobertura_restantes < 0;
+                        }
                     }
                 ?>
                 <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
@@ -475,9 +482,11 @@ if (count($invoices) > 0) {
                             (<?php echo $cobertura_vencida ? '<span class="text-danger">' . abs($cobertura_restantes) . ' d&iacute;as vencida</span>' : '<span class="text-success">' . $cobertura_restantes . ' d&iacute;as restantes</span>'; ?>)</span>
                         </div>
                         <?php endif; ?>
+                        <?php if ($saldo_pend > 0): ?>
                         <div class="recibo-row recibo-aviso">
                             <span><i class="fas fa-exclamation-triangle me-1 text-warning"></i>Debes pagar <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> antes de que venza la cobertura para no suspender el servicio.</span>
                         </div>
+                        <?php endif; ?>
                         <?php else: ?>
                         <div class="recibo-row recibo-status-recibo">
                             <span class="recibo-status-text pendiente"><i class="fas fa-clock me-1"></i>Pendiente de pago</span>
