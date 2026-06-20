@@ -404,29 +404,24 @@ if (count($invoices) > 0) {
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     $abonado    = floatval($inv['total_cobrado'] ?? 0);
                     $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
-                    // Cobertura estimada (solo si hay abono parcial)
+                    // Cobertura estimada desde fecha_vencimiento (como la promesa de pago)
                     $cobertura_dias = 0;
-                    $cobertura_hasta = '';
-                    $cobertura_restantes = 0;
-                    $cobertura_vencida = false;
+                    $cob_hasta = '';
+                    $cob_restantes = 0;
+                    $cob_vencida = false;
                     if ($abonado > 0 && $abonado < $inv_monto && $fecha_emi && $fecha_venc) {
                         $ts_emi   = strtotime($fecha_emi);
                         $ts_venc  = strtotime($fecha_venc);
                         $total_dias = max(1, round(($ts_venc - $ts_emi) / 86400));
                         $ratio    = $abonado / $inv_monto;
                         $cobertura_dias = (int)round($total_dias * $ratio);
-                        $ts_cob   = $ts_emi + ($cobertura_dias * 86400);
-                        $cobertura_hasta = date('d/m', $ts_cob);
+                        $ts_cob   = $ts_venc + ($cobertura_dias * 86400);
+                        $cobertura_hasta = date('d/m/Y', $ts_cob);
                         $cobertura_restantes = (int)floor(($ts_cob - time()) / 86400);
                         $cobertura_vencida = $cobertura_restantes < 0;
                     }
                 ?>
                 <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
-
-                    <!-- Icono -->
-                    <div class="recibo-icon-wrap">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                    </div>
 
                     <!-- Cuerpo -->
                     <div class="recibo-body">
@@ -436,38 +431,58 @@ if (count($invoices) > 0) {
                                 <?php if ($fecha_emi): ?>
                                 <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
                                 <?php endif; ?>
-                                <?php if ($fecha_venc):
-                                    $dias_diff = floor((strtotime($fecha_venc) - time()) / 86400);
-                                ?>
-                                <span class="recibo-fecha <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
-                                    <i class="fas fa-clock me-1"></i><?php echo date('d/m/Y', strtotime($fecha_venc)); ?>
-                                    (<?php echo $vencida ? abs($dias_diff) . ' d&iacute;as vencido' : $dias_diff . ' d&iacute;as restantes'; ?>)
-                                </span>
-                                <?php endif; ?>
-                                <?php if ($abonado > 0): ?>
-                                <?php if ($abonado >= $inv_monto): ?>
-                                <span class="recibo-badge-pagado"><i class="fas fa-check-circle me-1"></i>Pagado: $<?php echo number_format($abonado, 2); ?></span>
-                                <?php else: ?>
-                                <span class="recibo-badge-abonado"><i class="fas fa-check me-1"></i>Abonado: $<?php echo number_format($abonado, 2); ?></span>
-                                <span class="recibo-badge-saldo"><i class="fas fa-hourglass-half me-1"></i>Saldo: $<?php echo number_format($saldo_pend, 2); ?></span>
-                                <?php if ($cobertura_dias > 0): ?>
-                                <span class="recibo-badge-cobertura"><i class="fas fa-shield-alt me-1"></i>Cobertura: ~<?php echo $cobertura_dias; ?> d&iacute;as (hasta <?php echo $cobertura_hasta; ?>)</span>
-                                <span class="recibo-badge-cobertura-restantes <?php echo $cobertura_vencida ? 'text-danger' : 'text-success'; ?>">
-                                    <i class="fas fa-hourglass-<?php echo $cobertura_vencida ? 'end' : 'start'; ?> me-1"></i>
-                                    <?php echo $cobertura_vencida ? abs($cobertura_restantes) . ' d&iacute;as vencida' : $cobertura_restantes . ' d&iacute;as restantes'; ?>
-                                </span>
-                                <?php endif; ?>
-                                <?php endif; ?>
-                                <?php endif; ?>
                             </div>
                             <div class="recibo-montos">
                                 <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
                                 <span class="recibo-bs">Bs <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
                             </div>
                         </div>
+
+                        <!-- Descripción -->
                         <div class="recibo-desc-row">
                             <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
                         </div>
+
+                        <hr class="recibo-divider">
+
+                        <!-- Vencimiento -->
+                        <?php if ($fecha_venc):
+                            $dias_diff = floor((strtotime($fecha_venc) - time()) / 86400);
+                        ?>
+                        <div class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
+                            <span><i class="fas fa-clock me-1"></i>Vence: <?php echo date('d/m/Y', strtotime($fecha_venc)); ?>
+                            (<?php echo $vencida ? abs($dias_diff) . ' d&iacute;as vencido' : $dias_diff . ' d&iacute;as restantes'; ?>)</span>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Estado: Pagado / Abonado / Pendiente -->
+                        <?php if ($abonado >= $inv_monto): ?>
+                        <div class="recibo-row recibo-status-recibo">
+                            <span class="recibo-status-text pagado"><i class="fas fa-check-circle me-1"></i>Pagado: $<?php echo number_format($abonado, 2); ?></span>
+                        </div>
+                        <?php elseif ($abonado > 0): ?>
+                        <!-- Sección de abono -->
+                        <div class="recibo-row">
+                            <span class="recibo-abono-label"><i class="fas fa-check me-1 text-success"></i>Abonaste: <strong>$<?php echo number_format($abonado, 2); ?></strong></span>
+                        </div>
+                        <div class="recibo-row">
+                            <span class="recibo-saldo-label"><i class="fas fa-hourglass-half me-1 text-warning"></i>Restante: <strong>$<?php echo number_format($saldo_pend, 2); ?></strong></span>
+                        </div>
+                        <?php if ($cobertura_dias > 0): ?>
+                        <hr class="recibo-divider">
+                        <div class="recibo-row">
+                            <span class="recibo-cobertura-label"><i class="fas fa-shield-alt me-1 text-info"></i>Cobertura hasta: <strong><?php echo $cobertura_hasta; ?></strong>
+                            (<?php echo $cobertura_vencida ? '<span class="text-danger">' . abs($cobertura_restantes) . ' d&iacute;as vencida</span>' : '<span class="text-success">' . $cobertura_restantes . ' d&iacute;as restantes</span>'; ?>)</span>
+                        </div>
+                        <?php endif; ?>
+                        <div class="recibo-row recibo-aviso">
+                            <span><i class="fas fa-exclamation-triangle me-1 text-warning"></i>Debes pagar <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> antes de que venza la cobertura para no suspender el servicio.</span>
+                        </div>
+                        <?php else: ?>
+                        <div class="recibo-row recibo-status-recibo">
+                            <span class="recibo-status-text pendiente"><i class="fas fa-clock me-1"></i>Pendiente de pago</span>
+                        </div>
+                        <?php endif; ?>
                     </div>
 
                     <!-- Barra de acento inferior -->
@@ -617,52 +632,54 @@ if (count($invoices) > 0) {
             border-radius: 20px;
             display: inline-block;
         }
-        .recibo-badge-abonado {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #fbbf24;
-            background: rgba(251,191,36,0.12);
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
+        /* Nuevas filas del card rediseñado */
+        .recibo-divider {
+            margin: 6px 0;
+            border-color: var(--border-glass);
+            opacity: 0.4;
         }
-        .recibo-badge-pagado {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #10b981;
-            background: rgba(16,185,129,0.15);
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
+        .recibo-row {
+            font-size: 0.78rem;
+            margin-bottom: 3px;
+            line-height: 1.5;
         }
-        .recibo-badge-saldo {
-            font-size: 0.7rem;
+        .recibo-venc-row {
             font-weight: 600;
-            color: #f97316;
-            background: rgba(249,115,22,0.12);
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
         }
-        .recibo-badge-cobertura {
-            font-size: 0.7rem;
-            font-weight: 600;
+        .recibo-status-recibo {
+            margin-top: 2px;
+        }
+        .recibo-status-text {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+        .recibo-status-text.pagado {
             color: #10b981;
             background: rgba(16,185,129,0.12);
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
         }
-        .recibo-badge-cobertura-restantes {
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 1px 7px;
-            border-radius: 20px;
-            display: inline-block;
-            background: rgba(16,185,129,0.1);
+        .recibo-status-text.pendiente {
+            color: var(--warning);
+            background: rgba(245,158,11,0.12);
         }
-        .recibo-badge-cobertura-restantes.text-danger {
-            background: rgba(239,68,68,0.1);
+        .recibo-abono-label {
+            color: var(--success);
+        }
+        .recibo-saldo-label {
+            color: var(--warning);
+        }
+        .recibo-cobertura-label {
+            color: var(--text-muted);
+        }
+        .recibo-aviso {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            background: rgba(245,158,11,0.06);
+            padding: 4px 8px;
+            border-radius: 8px;
+            margin-top: 4px;
         }
         .recibo-montos { text-align: right; flex-shrink: 0; }
         .recibo-usd {
@@ -690,10 +707,7 @@ if (count($invoices) > 0) {
         .recibo-desc {
             font-size: 0.8rem;
             color: var(--text-muted);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex: 1;
+            line-height: 1.4;
         }
         /* Botón Pagar */
         .btn-pagar {
