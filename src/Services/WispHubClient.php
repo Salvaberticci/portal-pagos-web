@@ -263,6 +263,7 @@ class WispHubClient
         if (!empty($invoices[0])) {
             $inv = $invoices[0];
             return [
+                'id'         => $inv['id'] ?? $inv['id_factura'] ?? 0,
                 'monto'      => floatval($inv['total_cobrado'] ?? $inv['total'] ?? 0),
                 'fecha_pago' => $inv['fecha_pago'] ?? '',
                 'referencia' => $inv['referencia'] ?? '',

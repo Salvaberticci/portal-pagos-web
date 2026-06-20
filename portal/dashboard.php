@@ -280,6 +280,9 @@ if (count($invoices) > 0) {
                     <div class="ultimo-pago-card glass-panel p-3 d-flex align-items-center justify-content-between">
                         <div>
                             <small class="text-muted d-block"><i class="fas fa-check-circle text-success me-1"></i> Último Pago</small>
+                            <?php if (!empty($ultimo_pago['id'])): ?>
+                            <span class="badge bg-success mb-1">Recibo #<?php echo $ultimo_pago['id']; ?></span>
+                            <?php endif; ?>
                             <span class="fw-bold">$<?php echo number_format($ultimo_pago['monto'], 2); ?></span>
                         </div>
                         <div class="text-end">
