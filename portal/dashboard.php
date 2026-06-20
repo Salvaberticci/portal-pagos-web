@@ -89,7 +89,12 @@ $ultimo_pago = $wisp_cached['ultimo_pago'];
 
 $deuda_total = 0;
 foreach ($invoices as $inv) {
-    $deuda_total += floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $total   = floatval($inv['total'] ?? 0);
+    $cobrado = floatval($inv['total_cobrado'] ?? 0);
+    $saldo   = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+    if ($total > 0 && $cobrado < $total && $saldo > 0.005) {
+        $deuda_total += $saldo;
+    }
 }
 
 // Estado del servicio
@@ -297,6 +302,17 @@ if (count($invoices) > 0) {
 
         <!-- Recibos Pendientes -->
         <div class="glass-panel p-4 mb-4">
+            <?php
+            // Filtrar facturas realmente pagadas usando datos de la API
+            // Campos confiables: total, total_cobrado, saldo (de GET /facturas/{id}/)
+            $invoices = array_values(array_filter($invoices, function($inv) {
+                $total    = floatval($inv['total'] ?? 0);
+                $cobrado  = floatval($inv['total_cobrado'] ?? 0);
+                $saldo    = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+                // Si total_cobrado >= total O saldo <= 0, la factura ya está pagada
+                return ($total > 0 && $cobrado < $total && $saldo > 0.005);
+            }));
+            ?>
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Recibos Pendientes</h5>
@@ -321,7 +337,7 @@ if (count($invoices) > 0) {
             <div class="recibos-list">
                 <?php foreach ($invoices as $inv):
                     $inv_id    = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                    $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+                    $inv_monto = floatval($inv['total'] ?? $inv['monto'] ?? $inv['monto_pendiente'] ?? 0);
                     $inv_monto_bs = $inv_monto * $tasa_bcv;
                     $inv_desc = wisp_extract_desc($inv, $inv_id);
                     if (mb_strlen($inv_desc) > 55) $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
@@ -329,7 +345,7 @@ if (count($invoices) > 0) {
                     $fecha_venc = $inv['fecha_vencimiento'] ?? '';
                     $vencida    = $fecha_venc && strtotime($fecha_venc) < time();
                     $abonado    = floatval($inv['total_cobrado'] ?? 0);
-                    $saldo_pend = $inv_monto - $abonado;
+                    $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
                     // Cobertura estimada (solo si hay abono parcial)
                     $cobertura_dias = 0;
                     $cobertura_hasta = '';

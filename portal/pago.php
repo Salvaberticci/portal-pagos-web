@@ -96,7 +96,11 @@ $invoices_json = [];
 $totalInvoices = count($invoices);
 foreach ($invoices as $inv) {
     $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-    $monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+    $total = floatval($inv['total'] ?? 0);
+    $cobrado = floatval($inv['total_cobrado'] ?? 0);
+    $monto = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+    // Saltar facturas completamente pagadas
+    if ($total > 0 && $cobrado >= $total) continue;
     $deuda_total += $monto;
     $monto_bs = $monto * $tasa_bcv;
     $desc = wisp_extract_desc($inv, $id);
