@@ -87,6 +87,9 @@ $invoices = $wisp_cached['invoices'];
 $saldo_favor = $wisp_cached['balance'];
 $ultimo_pago = $wisp_cached['ultimo_pago'];
 
+// Obtener todos los servicios del cliente
+$clientServices = $wispClient->getServicesByCedula($cedula);
+
 $deuda_total = 0;
 foreach ($invoices as $inv) {
     $total   = floatval($inv['total'] ?? 0);
@@ -300,6 +303,65 @@ if (count($invoices) > 0) {
             <?php endif; ?>
         </div>
 
+        <!-- Mis Servicios -->
+        <?php if (count($clientServices) > 1): ?>
+        <div class="glass-panel p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-server me-2 text-primary"></i> Mis Servicios</h5>
+            <div class="services-list">
+                <?php foreach ($clientServices as $svc):
+                    $svcId = $svc['id'] ?? $svc['service_id'] ?? 0;
+                    $svcEst = strtoupper($svc['estado'] ?? 'ACTIVO');
+                    if ($svcEst === 'ACTIVE') $svcEst = 'ACTIVO';
+                    if ($svcEst === 'SUSPENDED') $svcEst = 'SUSPENDIDO';
+                    if ($svcEst === 'CANCELLED') $svcEst = 'CANCELADO';
+                    if ($svcEst === 'FREE') $svcEst = 'GRATIS';
+                    $isCurrent = ($svcId == $wisp_service_id);
+                    // Solo obtener detalle si no es el servicio actual (ya lo tenemos en $c_perfil)
+                    $svcPlan = '';
+                    $svcRouter = '';
+                    $svcIp = '';
+                    $svcZona = '';
+                    if ($isCurrent) {
+                        $svcPlan = $c_perfil['plan_internet']['nombre'] ?? '';
+                        $svcRouter = $c_perfil['router']['nombre'] ?? '';
+                        $svcIp = $c_perfil['ip'] ?? '';
+                        $svcZona = $c_perfil['zona']['nombre'] ?? '';
+                    } elseif ($svcId) {
+                        $det = $wispClient->getServiceDetail((string)$svcId);
+                        if (!empty($det['data'])) {
+                            $d = $det['data'];
+                            $svcPlan = $d['plan_internet']['nombre'] ?? '';
+                            $svcRouter = $d['router']['nombre'] ?? '';
+                            $svcIp = $d['ip'] ?? '';
+                            $svcZona = $d['zona']['nombre'] ?? '';
+                        }
+                    }
+                ?>
+                <div class="service-card <?php echo $isCurrent ? 'service-current' : ''; ?>">
+                    <div class="service-top">
+                        <span class="service-id">Servicio #<?php echo $svcId; ?></span>
+                        <span class="service-badge status-badge status-<?php
+                            echo match ($svcEst) {
+                                'ACTIVO'     => 'active',
+                                'SUSPENDIDO' => 'suspended',
+                                'GRATIS'     => 'free',
+                                'CANCELADO'  => 'cancelled',
+                                default      => 'pending',
+                            };
+                        ?>"><?php echo $svcEst; ?></span>
+                    </div>
+                    <div class="service-details">
+                        <?php if ($svcPlan): ?><span><i class="fas fa-wifi me-1 text-muted"></i><?php echo htmlspecialchars($svcPlan); ?></span><?php endif; ?>
+                        <?php if ($svcRouter): ?><span><i class="fas fa-network-wired me-1 text-muted"></i><?php echo htmlspecialchars($svcRouter); ?></span><?php endif; ?>
+                        <?php if ($svcIp): ?><span><i class="fas fa-globe me-1 text-muted"></i><?php echo htmlspecialchars($svcIp); ?></span><?php endif; ?>
+                        <?php if ($svcZona): ?><span><i class="fas fa-map-marker-alt me-1 text-muted"></i><?php echo htmlspecialchars($svcZona); ?></span><?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Todos los Recibos -->
         <div class="glass-panel p-4 mb-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -437,6 +499,51 @@ if (count($invoices) > 0) {
     <script src="../js/bootstrap.bundle.min.js"></script>
 
     <style>
+        /* ── Servicios: cards ── */
+        .services-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .service-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border-glass);
+            background: var(--glass-bg);
+            transition: all 0.2s ease;
+        }
+        .service-card:hover {
+            border-color: rgba(59,130,246,0.4);
+        }
+        .service-card.service-current {
+            border-color: rgba(16,185,129,0.4);
+            background: rgba(16,185,129,0.04);
+        }
+        .service-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .service-id {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+        }
+        .service-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .service-badge {
+            font-size: 0.65rem !important;
+            padding: 2px 8px !important;
+        }
         /* ── Recibos: cards premium en dashboard ── */
         .recibos-list {
             display: flex;

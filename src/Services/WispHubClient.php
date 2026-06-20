@@ -599,5 +599,38 @@ class WispHubClient
         }
         return 0.0;
     }
+
+    /**
+     * Obtiene todos los servicios asociados a una cédula.
+     * Busca en múltiples formatos de cédula y devuelve todos los matches.
+     *
+     * @param string $cedula Cédula con o sin letra (ej. "V20788775" o "20788775")
+     * @return array Lista de servicios [{id, nombre, cedula, estado, usuario}, ...]
+     */
+    public function getServicesByCedula(string $cedula): array
+    {
+        $clean = preg_replace('/[^0-9]/', '', $cedula);
+        if (empty($clean)) return [];
+
+        $formats = array_unique([
+            $cedula,
+            "V$clean", "E$clean", "J$clean", "P$clean", "G$clean",
+            $clean,
+        ]);
+
+        $seen = [];
+        foreach ($formats as $fmt) {
+            $result = $this->request('GET', 'clientes/', ['cedula' => $fmt, 'limit' => 100]);
+            if ($result['status'] === 200 && !empty($result['data']['data'])) {
+                foreach ($result['data']['data'] as $client) {
+                    $id = $client['id'] ?? $client['service_id'] ?? 0;
+                    if ($id && !isset($seen[$id])) {
+                        $seen[$id] = $client;
+                    }
+                }
+            }
+        }
+        return array_values($seen);
+    }
 }
 ?>

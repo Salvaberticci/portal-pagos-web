@@ -259,4 +259,21 @@ class WispHubDevModeClient extends WispHubClient
             'payments_registered' => [],
         ];
     }
+
+    public function getServicesByCedula(string $cedula): array
+    {
+        $clean = preg_replace('/[^0-9]/', '', $cedula);
+        if ($clean === '20788775') {
+            return [
+                [
+                    'id'       => $this->testServiceId,
+                    'nombre'   => 'Cliente OFICINA Prueba',
+                    'cedula'   => $this->testCedula,
+                    'estado'   => 'activo',
+                    'usuario'  => $this->testUsuario,
+                ],
+            ];
+        }
+        return parent::getServicesByCedula($cedula);
+    }
 }
