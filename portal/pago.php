@@ -626,7 +626,7 @@ foreach ($ordenMetodos as $m) {
                     } else if (data.status === 'manual') {
                         document.getElementById('paymentForm').submit();
                     } else {
-                        mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, '!REFERENCIA NO ENCONTRADA!');
+                        mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, data.titulo || '!REFERENCIA NO ENCONTRADA!');
                     }
                 })
                 .catch(function() {

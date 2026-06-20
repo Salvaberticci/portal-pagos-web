@@ -50,7 +50,7 @@ $referencia = $referencia_clean;
 // Verificar referencia duplicada en BD local
 require_once __DIR__ . '/referencia_helper.php';
 if (referenciaYaUsada($referencia)) {
-    echo json_encode(['status' => 'error', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
+    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
     exit;
 }
 
@@ -73,7 +73,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
 // Verificar referencia duplicada en WispHub (cubre referencias anteriores a la BD local)
 if ($wispClient->isReferenceUsed($referencia)) {
-    echo json_encode(['status' => 'error', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
+    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
     exit;
 }
 
