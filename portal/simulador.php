@@ -171,7 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fecha_fin = $_POST['fecha_fin'] ?? date('Y-m-d');
             }
 
-            // Split range at Sunday boundaries (BDV API no devuelve datos si incluye domingo)
+            // Split range at Sunday boundaries (BDV API no devuelve datos multi-día si incluye domingo)
             $todos_movs = [];
             $actual = new \DateTime($fecha_ini);
             $final = new \DateTime($fecha_fin);
@@ -180,6 +180,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             while ($actual <= $final) {
                 $dia_sem = (int)$actual->format('N');
                 if ($dia_sem === 7) {
+                    // Consultar domingo como bloque de 1 día (devuelve code 1001 = 0 movs)
+                    $fi = $actual->format('Y-m-d');
+                    $r = consultar_movimientos_banco($id_banco, $fi, $fi);
+                    $total_apis++;
+                    if (!empty($r['success']) && !empty($r['movs'])) {
+                        $todos_movs = array_merge($todos_movs, $r['movs']);
+                    }
                     $actual->modify('+1 day');
                     continue;
                 }
@@ -550,13 +557,6 @@ function setDefaultDates() {
     var mm = String(hoy.getMonth()+1).padStart(2,'0');
     var yyyy = hoy.getFullYear();
     var hoyStr = yyyy+'-'+mm+'-'+dd;
-    // BDV API no devuelve datos si el rango incluye domingo
-    if (hoy.getDay() === 0) {
-        hoy.setDate(hoy.getDate() - 1);
-        dd = String(hoy.getDate()).padStart(2,'0');
-        mm = String(hoy.getMonth()+1).padStart(2,'0');
-        hoyStr = hoy.getFullYear()+'-'+mm+'-'+dd;
-    }
     var inicio = new Date(hoy.getTime() - 7*24*60*60*1000);
     dd = String(inicio.getDate()).padStart(2,'0');
     mm = String(inicio.getMonth()+1).padStart(2,'0');
@@ -574,10 +574,6 @@ function runBankAction(mode) {
     if (mode === 'test') {
         logMsg('Probando conexión con API BDV...');
         var hoy = new Date();
-        if (hoy.getDay() === 0) {
-            hoy.setDate(hoy.getDate() - 1);
-            logMsg('Hoy es domingo, usando sábado para la prueba...');
-        }
         fecha_ini = hoy.toISOString().split('T')[0];
         fecha_fin = fecha_ini;
         referencia = '';
