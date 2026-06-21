@@ -142,17 +142,33 @@ if ($api_cfg === null) {
     exit;
 }
 
-// Consultar la API del banco (rango ampliado: -2/+1 días)
-$ts         = strtotime($fecha_pago);
-$fecha_ini  = date('Y-m-d', strtotime('-2 days', $ts));
-$fecha_fin  = date('Y-m-d', strtotime('+1 day', $ts));
-$hoy        = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
-if ($fecha_fin > $hoy) $fecha_fin = $hoy;
+// Consultar la API del banco con múltiples rangos de fecha
+$ts  = strtotime($fecha_pago);
+$hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
 
-$resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
+$rangos = [
+    ['-2 days', '+1 day'],
+    ['-1 day',  '+0 day'],
+    ['-3 days', '+1 day'],
+];
 
-if (!$resultado['success'] || empty($resultado['movs'])) {
-    echo json_encode(['status' => 'error', 'message' => 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.']);
+$resultado = ['success' => false, 'movs' => []];
+foreach ($rangos as $offset) {
+    $fecha_ini = date('Y-m-d', strtotime($offset[0], $ts));
+    $fecha_fin = date('Y-m-d', strtotime($offset[1], $ts));
+    if ($fecha_fin > $hoy) $fecha_fin = $hoy;
+    $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
+    if (!empty($resultado['success']) && !empty($resultado['movs'])) {
+        break;
+    }
+}
+
+if (empty($resultado['success']) || empty($resultado['movs'])) {
+    echo json_encode([
+        'status' => 'error',
+        'titulo' => '!ERROR DE CONEXION BANCARIA!',
+        'message' => 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.'
+    ]);
     exit;
 }
 
