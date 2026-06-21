@@ -56,8 +56,10 @@ $referencia = $referencia_clean;
 
 // 3b. Verificar referencia duplicada en BD local
 require_once __DIR__ . '/referencia_helper.php';
-if (referenciaYaUsada($referencia)) {
-    $_SESSION['pago_err'] = "Esta referencia ya fue utilizada anteriormente.";
+$refInfo = getReferenciaInfo($referencia);
+if ($refInfo) {
+    $facturas = $refInfo['facturas'] ? ' #' . $refInfo['facturas'] : '';
+    $_SESSION['pago_err'] = "La referencia {$referencia} ya fue utilizada en la Factura{$facturas} del día {$refInfo['fecha_pago']}, por el cliente {$refInfo['cliente']}.";
     header('Location: ' . $redirect_url);
     exit;
 }
@@ -245,7 +247,7 @@ try {
 
         // Guardar pago en BD local
         require_once __DIR__ . '/referencia_helper.php';
-        guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino);
+        guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, implode(',', $invoice_ids));
 
         // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
         if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {

@@ -31,7 +31,8 @@ function getDb(): ?PDO {
             zona VARCHAR(100) NOT NULL DEFAULT '',
             total_cobrado DECIMAL(10,2) NOT NULL DEFAULT 0,
             forma_pago VARCHAR(30) DEFAULT NULL,
-            referencia VARCHAR(10) NOT NULL,
+            referencia VARCHAR(15) NOT NULL,
+            facturas VARCHAR(100) NOT NULL DEFAULT '',
             total DECIMAL(10,2) NOT NULL DEFAULT 0,
             accion VARCHAR(30) DEFAULT NULL,
             service_id VARCHAR(50) NOT NULL,
@@ -39,6 +40,17 @@ function getDb(): ?PDO {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_referencia (referencia)
         ) ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$charset}_unicode_ci");
+        // Migraciones para tablas existentes
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados MODIFY COLUMN referencia VARCHAR(15) NOT NULL");
+        } catch (PDOException $e) {
+            // Ya migrado
+        }
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN facturas VARCHAR(100) NOT NULL DEFAULT '' AFTER referencia");
+        } catch (PDOException $e) {
+            // Ya migrado
+        }
         return $pdo;
     } catch (PDOException $e) {
         error_log('[referencia_helper] DB connection failed: ' . $e->getMessage());
@@ -46,17 +58,22 @@ function getDb(): ?PDO {
     }
 }
 
-function referenciaYaUsada(string $referencia): bool {
+function getReferenciaInfo(string $referencia): ?array {
     $pdo = getDb();
-    if (!$pdo) return false;
+    if (!$pdo) return null;
     try {
-        $stmt = $pdo->prepare("SELECT 1 FROM pagos_registrados WHERE referencia = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE referencia = ? LIMIT 1");
         $stmt->execute([$referencia]);
-        return (bool) $stmt->fetch();
+        $row = $stmt->fetch();
+        return $row ?: null;
     } catch (PDOException $e) {
-        error_log('[referencia_helper] check error: ' . $e->getMessage());
-        return false;
+        error_log('[referencia_helper] getReferenciaInfo error: ' . $e->getMessage());
+        return null;
     }
+}
+
+function referenciaYaUsada(string $referencia): bool {
+    return getReferenciaInfo($referencia) !== null;
 }
 
 function guardarPago(
@@ -70,15 +87,16 @@ function guardarPago(
     float  $total,
     ?string $accion,
     string $serviceId,
-    ?int $idBanco = null
+    ?int $idBanco = null,
+    string $facturas = ''
 ): bool {
     $pdo = getDb();
     if (!$pdo) return false;
     try {
         $stmt = $pdo->prepare("INSERT INTO pagos_registrados
-            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, total, accion, service_id, id_banco)
-            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $total, $accion, $serviceId, $idBanco]);
+            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, total, accion, service_id, id_banco)
+            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $total, $accion, $serviceId, $idBanco]);
         return true;
     } catch (PDOException $e) {
         error_log('[referencia_helper] insert error: ' . $e->getMessage());

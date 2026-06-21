@@ -49,8 +49,10 @@ $referencia = $referencia_clean;
 
 // Verificar referencia duplicada en BD local
 require_once __DIR__ . '/referencia_helper.php';
-if (referenciaYaUsada($referencia)) {
-    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => 'Esta referencia ya fue utilizada anteriormente.']);
+$refInfo = getReferenciaInfo($referencia);
+if ($refInfo) {
+    $facturas = $refInfo['facturas'] ? ' #' . $refInfo['facturas'] : '';
+    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => "La referencia {$referencia} ya fue utilizada en la Factura{$facturas} del día {$refInfo['fecha_pago']}, por el cliente {$refInfo['cliente']}."]);
     exit;
 }
 
@@ -207,7 +209,7 @@ if ($metodo_pago === 'Transferencia') {
 }
 
 if (!$mov_ref) {
-    echo json_encode(['status' => 'error', 'message' => 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.']);
+    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA NO EXISTE EN EL BANCO!', 'message' => 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.']);
     exit;
 }
 

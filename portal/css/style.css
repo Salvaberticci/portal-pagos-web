@@ -563,15 +563,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .status-suspended {
-    background: rgba(234, 179, 8, 0.12);
-    color: #a16207;
-    border-color: rgba(234, 179, 8, 0.25);
+    background: rgba(234, 88, 12, 0.12);
+    color: #ea580c;
+    border-color: rgba(234, 88, 12, 0.25);
 }
 
 [data-theme="dark"] .status-suspended {
-    background: rgba(234, 179, 8, 0.15);
-    color: #facc15;
-    border-color: rgba(234, 179, 8, 0.3);
+    background: rgba(251, 146, 60, 0.15);
+    color: #fb923c;
+    border-color: rgba(251, 146, 60, 0.3);
 }
 
 .status-free {
