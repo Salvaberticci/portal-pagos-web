@@ -107,6 +107,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['status' => 'error', 'message' => 'Error al registrar pago: ' . ($res['error'] ?? 'HTTP '.$res['status'])];
                 }
             }
+        } elseif ($action === 'test_bank_api_retry') {
+            require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
+            $id_banco = intval($_POST['id_banco'] ?? 9);
+
+            $ts  = strtotime(date('Y-m-d'));
+            $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
+            $max_fecha = $hoy;
+            if ((int)date('N', strtotime($max_fecha)) === 7) {
+                $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
+            }
+            $rangos = [
+                ['-2 days', '+1 day'],
+                ['-1 day',  '+0 day'],
+                ['-3 days', '+1 day'],
+                ['-10 days', '+0 day'],
+            ];
+
+            $html = '';
+            $resultado_final = ['success' => false, 'movs' => []];
+            $api_respondio = false;
+            foreach ($rangos as $i => $offset) {
+                $fi = date('Y-m-d', strtotime($offset[0], $ts));
+                $ff = date('Y-m-d', strtotime($offset[1], $ts));
+                if ($ff > $max_fecha) $ff = $max_fecha;
+
+                $r = consultar_movimientos_banco($id_banco, $fi, $ff);
+                $total = count($r['movs'] ?? []);
+                $icon = !empty($r['success']) ? ($total > 0 ? '✅' : '⚠️') : '❌';
+                $html .= "<div>{$icon} Rango " . ($i+1) . ": {$fi} a {$ff} → success: " . ($r['success']?'true':'false') . ", movs: {$total}</div>";
+
+                if (!empty($r['success'])) {
+                    $api_respondio = true;
+                }
+                if (!empty($r['success']) && !empty($r['movs'])) {
+                    $resultado_final = $r;
+                    break;
+                }
+                $resultado_final = $r;
+            }
+
+            if (empty($resultado_final['success']) || empty($resultado_final['movs'])) {
+                if ($api_respondio) {
+                    $html .= "<div class='text-warning mt-2'>⚠️ API respondió pero sin movimientos en todos los rangos.</div>";
+                } else {
+                    $html .= "<div class='text-danger mt-2'>❌ API no respondió en ningún rango. Posible error de conexión.</div>";
+                }
+                $response = ['status' => 'ok', 'html' => $html];
+            } else {
+                $html .= "<div class='text-success mt-2 fw-bold'>✅ Se encontraron " . count($resultado_final['movs']) . " movimientos.</div>";
+                $response = ['status' => 'ok', 'html' => $html, 'total' => count($resultado_final['movs'])];
+            }
         } elseif ($action === 'list_bank_transactions') {
             require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
             $id_banco = intval($_POST['id_banco'] ?? 9);
@@ -357,19 +408,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="row g-2">
-                    <div class="col-4">
+                    <div class="col-3">
                         <button class="btn btn-warning btn-custom w-100" onclick="runBankAction('test')">
-                            <i class="fas fa-plug"></i> Test API
+                            <i class="fas fa-plug"></i> Test
                         </button>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
+                        <button class="btn btn-secondary btn-custom w-100" onclick="runBankAction('retry')">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                    <div class="col-3">
                         <button class="btn btn-info btn-custom w-100" onclick="runBankAction('list')">
-                            <i class="fas fa-list"></i> Listar Movs
+                            <i class="fas fa-list"></i> Listar
                         </button>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <button class="btn btn-primary btn-custom w-100" onclick="runBankAction('search_ref')">
-                            <i class="fas fa-search"></i> Buscar Ref
+                            <i class="fas fa-search"></i> Buscar
                         </button>
                     </div>
                 </div>
@@ -472,6 +528,32 @@ function runBankAction(mode) {
         fecha_ini = new Date().toISOString().split('T')[0];
         fecha_fin = fecha_ini;
         referencia = '';
+    } else if (mode === 'retry') {
+        logMsg('Ejecutando test con retry multi-rango (como en produccion)...');
+        fetch('simulador.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'action=test_bank_api_retry&id_banco=' + id_banco
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('page-loading').style.display = 'none';
+            var box = document.getElementById('bank-result-box');
+            box.style.display = 'block';
+            if (data.status === 'ok') {
+                var total = data.total || 0;
+                logMsg(total > 0 ? 'EXITO: ' + total + ' movimiento(s) encontrado(s)' : 'INFO: API respondio, sin movimientos');
+                box.innerHTML = data.html;
+            } else {
+                logMsg('ERROR: ' + data.message, true);
+                box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+            }
+        })
+        .catch(function(err) {
+            document.getElementById('page-loading').style.display = 'none';
+            logMsg('ERROR DE RED: ' + err, true);
+        });
+        return;
     } else if (mode === 'search_ref') {
         if (!referencia) {
             logMsg('ERROR: Ingresa una referencia para buscar', true);
