@@ -158,26 +158,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $html .= "<div class='text-success mt-2 fw-bold'>✅ Se encontraron " . count($resultado_final['movs']) . " movimientos.</div>";
                 $response = ['status' => 'ok', 'html' => $html, 'total' => count($resultado_final['movs'])];
             }
-        } elseif ($action === 'list_bank_transactions') {
+        } elseif ($action === 'list_bank_transactions' || $action === 'list_all_bank_refs') {
             require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
             $id_banco = intval($_POST['id_banco'] ?? 9);
-            $fecha_ini = $_POST['fecha_ini'] ?? date('Y-m-d');
-            $fecha_fin = $_POST['fecha_fin'] ?? date('Y-m-d');
             $buscar_ref = trim($_POST['referencia'] ?? '');
 
-            $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
-
-            if (empty($resultado['success'])) {
-                $msg = $resultado['message'] ?? 'Error de conexión con la API del banco';
-                $response = ['status' => 'error', 'message' => $msg];
-            } elseif (empty($resultado['movs'])) {
-                $msg_extra = '';
-                if (!empty($resultado['raw']['code']) && $resultado['raw']['code'] === '1001') {
-                    $msg_extra = ' La API respondió que no hay movimientos en ese rango (posiblemente incluye domingo o días sin actividad). Prueba el botón "Retry" para multi-rango.';
-                }
-                $response = ['status' => 'error', 'message' => 'No se encontraron movimientos en el rango seleccionado.' . $msg_extra];
+            if ($action === 'list_all_bank_refs') {
+                $fecha_ini = '2026-06-01';
+                $fecha_fin = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
             } else {
-                $movs = $resultado['movs'];
+                $fecha_ini = $_POST['fecha_ini'] ?? date('Y-m-d');
+                $fecha_fin = $_POST['fecha_fin'] ?? date('Y-m-d');
+            }
+
+            // Split range at Sunday boundaries (BDV API no devuelve datos si incluye domingo)
+            $todos_movs = [];
+            $actual = new \DateTime($fecha_ini);
+            $final = new \DateTime($fecha_fin);
+            $total_apis = 0;
+
+            while ($actual <= $final) {
+                $dia_sem = (int)$actual->format('N');
+                if ($dia_sem === 7) {
+                    $actual->modify('+1 day');
+                    continue;
+                }
+                $bloque_fin = clone $actual;
+                $dias_hasta_sab = 6 - $dia_sem;
+                if ($dias_hasta_sab > 0) {
+                    $bloque_fin->modify("+{$dias_hasta_sab} days");
+                }
+                if ($bloque_fin > $final) {
+                    $bloque_fin = $final;
+                }
+
+                $fi = $actual->format('Y-m-d');
+                $ff = $bloque_fin->format('Y-m-d');
+
+                $r = consultar_movimientos_banco($id_banco, $fi, $ff);
+                $total_apis++;
+                if (!empty($r['success']) && !empty($r['movs'])) {
+                    $todos_movs = array_merge($todos_movs, $r['movs']);
+                }
+
+                $actual = clone $bloque_fin;
+                $actual->modify('+1 day');
+            }
+
+            if (empty($todos_movs)) {
+                $response = ['status' => 'error', 'message' => "No se encontraron movimientos en el rango ({$total_apis} consultas API realizadas)."];
+            } else {
+                $movs = $todos_movs;
 
                 if ($buscar_ref) {
                     $ref_clean = preg_replace('/\D/', '', $buscar_ref);
@@ -205,12 +236,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     elseif (strpos($t, 'DEBITO') !== false) $debitos++;
                 }
 
-                $html = "<div class='small'><span class='text-info'>Total: " . count($movs) . "</span> | ";
+                $html = "<div class='small text-muted mb-1'>{$total_apis} consultas API | ";
+                $html .= "<span class='text-info'>Total: " . count($movs) . "</span> | ";
                 $html .= "<span class='text-success'>Créditos: {$creditos}</span> | ";
                 $html .= "<span class='text-danger'>Débitos: {$debitos}</span></div>";
-                $html .= '<div style="max-height:350px;overflow-y:auto;margin-top:8px;">';
+                $html .= '<div style="max-height:400px;overflow-y:auto;">';
                 $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.75rem;">';
-                $html .= '<thead><tr><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Referencia</th><th>Monto Bs</th><th>Obs</th></tr></thead><tbody>';
+                $html .= '<thead><tr><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Ref</th><th>Monto Bs</th><th>Obs</th></tr></thead><tbody>';
                 foreach ($movs as $m) {
                     $tipo = $m['mov'] ?? $m['Tipo'] ?? '?';
                     $fecha = $m['fecha'] ?? '?';
@@ -412,24 +444,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="row g-2">
-                    <div class="col-3">
+                    <div class="col-2">
                         <button class="btn btn-warning btn-custom w-100" onclick="runBankAction('test')">
                             <i class="fas fa-plug"></i> Test
                         </button>
                     </div>
-                    <div class="col-3">
+                    <div class="col-2">
                         <button class="btn btn-secondary btn-custom w-100" onclick="runBankAction('retry')">
                             <i class="fas fa-redo"></i> Retry
                         </button>
                     </div>
-                    <div class="col-3">
+                    <div class="col-2">
                         <button class="btn btn-info btn-custom w-100" onclick="runBankAction('list')">
-                            <i class="fas fa-list"></i> Listar
+                            <i class="fas fa-list"></i> Rango
                         </button>
                     </div>
                     <div class="col-3">
                         <button class="btn btn-primary btn-custom w-100" onclick="runBankAction('search_ref')">
-                            <i class="fas fa-search"></i> Buscar
+                            <i class="fas fa-search"></i> Buscar Ref
+                        </button>
+                    </div>
+                    <div class="col-3">
+                        <button class="btn btn-success btn-custom w-100" onclick="runBankAction('all')">
+                            <i class="fas fa-database"></i> Todo
                         </button>
                     </div>
                 </div>
@@ -576,6 +613,33 @@ function runBankAction(mode) {
             return;
         }
         logMsg('Buscando referencia ' + referencia + ' en BDV...');
+    } else if (mode === 'all') {
+        logMsg('Trayendo TODAS las referencias desde Junio 2026... (varias consultas API)');
+        document.getElementById('page-loading').style.display = 'flex';
+        var box = document.getElementById('bank-result-box');
+        box.style.display = 'none';
+        fetch('simulador.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'action=list_all_bank_refs&id_banco=' + id_banco
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('page-loading').style.display = 'none';
+            box.style.display = 'block';
+            if (data.status === 'ok') {
+                logMsg('EXITO: ' + data.total + ' movimiento(s) encontrados');
+                box.innerHTML = data.html;
+            } else {
+                logMsg('ERROR: ' + data.message, true);
+                box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+            }
+        })
+        .catch(function(err) {
+            document.getElementById('page-loading').style.display = 'none';
+            logMsg('ERROR DE RED: ' + err, true);
+        });
+        return;
     } else {
         logMsg('Listando transacciones BDV de ' + fecha_ini + ' a ' + fecha_fin + '...');
     }
