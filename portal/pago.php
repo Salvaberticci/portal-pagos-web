@@ -687,7 +687,7 @@ foreach ($ordenMetodos as $m) {
             btnDash.classList.remove('d-none');
             btnCerrar.classList.add('d-none');
         } else if (tipo === 'verificacion') {
-            icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#eab308;"></i>';
+            icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>';
             title.textContent = 'Verificación Exitosa';
             title.className = 'fw-bold mb-2';
             title.style.color = 'var(--primary)';
