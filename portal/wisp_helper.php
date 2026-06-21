@@ -73,34 +73,18 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     $invoicesPending = $wispClient->getPendingInvoices($serviceId);
     $balance = $wispClient->getClientBalance($serviceId);
 
-    // También obtener facturas pagadas recientes
-    $usuario_ws = $c_perfil['usuario'] ?? '';
-    $invoicesPaid = [];
-    if (!empty($usuario_ws)) {
-        $paidRes = $wispClient->getInvoices([
-            'cliente'  => $usuario_ws,
-            'estado'   => 2,
-            'limit'    => 50,
-            'ordering' => '-id',
-        ]);
-        $invoicesPaid = $paidRes;
-    }
-
-    // Fusionar: pendientes + pagadas (deduplicando por ID)
-    $byId = [];
-    // Marcar facturas que vienen del listado pendiente (saldo pendiente real)
+    // Solo usamos las facturas pendientes que devuelve WispHub.
+    // NO mezclamos con facturas "pagadas" (estado=2) porque WispHub, cuando
+    // registra un abono parcial, crea una factura nueva de "Saldo Pendiente"
+    // y marca la original como pagada (estado=2). Si mezcláramos ambas,
+    // el portal mostraría la factura original (pagada parcialmente) Y la nueva
+    // de saldo pendiente, duplicando facturas y confundiendo al cliente.
     $pendingIds = [];
+    $byId = [];
     foreach ($invoicesPending as $inv) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
         if ($id) {
             $pendingIds[$id] = true;
-            $byId[$id] = $inv;
-        }
-    }
-    // Pagadas solo se agregan si NO están ya como pendientes
-    foreach ($invoicesPaid as $inv) {
-        $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-        if ($id && !isset($pendingIds[$id])) {
             $byId[$id] = $inv;
         }
     }
@@ -134,6 +118,7 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     }
     $invoices = $enriched;
 
+    $usuario_ws = $c_perfil['usuario'] ?? '';
     $ultimo_pago = null;
     if (!empty($usuario_ws)) {
         $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
