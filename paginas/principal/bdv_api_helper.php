@@ -173,7 +173,7 @@ function consultar_movimientos_bdv(
     }
 
     $code = $data['code'] ?? $data['status'] ?? null;
-    if ($code != '1000' && $code != 200) {
+    if ($code != '1000' && $code != '1001' && $code != 200) {
         $raw_preview = mb_substr(json_encode($data), 0, 2000);
         return [
             'success' => false,
@@ -187,7 +187,7 @@ function consultar_movimientos_bdv(
 
     return [
         'success' => true,
-        'message' => $data['message'] ?? 'consulta exitosa',
+        'message' => $data['message'] ?? ($code === '1001' ? 'No existen movimientos' : 'consulta exitosa'),
         'movs'    => $movs,
         'raw'     => $data,
     ];

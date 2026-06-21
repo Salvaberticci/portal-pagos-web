@@ -160,22 +160,29 @@ $rangos = [
 ];
 
 $resultado = ['success' => false, 'movs' => []];
+$api_respondio = false;
 foreach ($rangos as $offset) {
     $fecha_ini = date('Y-m-d', strtotime($offset[0], $ts));
     $fecha_fin = date('Y-m-d', strtotime($offset[1], $ts));
     if ($fecha_fin > $max_fecha) $fecha_fin = $max_fecha;
     $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
+    if (!empty($resultado['success'])) {
+        $api_respondio = true;
+    }
     if (!empty($resultado['success']) && !empty($resultado['movs'])) {
         break;
     }
 }
 
 if (empty($resultado['success']) || empty($resultado['movs'])) {
-    echo json_encode([
-        'status' => 'error',
-        'titulo' => '!ERROR DE CONEXION BANCARIA!',
-        'message' => 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.'
-    ]);
+    if ($api_respondio) {
+        $titulo = '!SIN MOVIMIENTOS EN EL RANGO!';
+        $message = 'No se encontraron movimientos en los rangos de fecha consultados. Verifica la fecha e intenta de nuevo.';
+    } else {
+        $titulo = '!ERROR DE CONEXION BANCARIA!';
+        $message = 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.';
+    }
+    echo json_encode(['status' => 'error', 'titulo' => $titulo, 'message' => $message]);
     exit;
 }
 
