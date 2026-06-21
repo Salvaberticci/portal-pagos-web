@@ -160,19 +160,13 @@ if (!$mov_ref) {
 }
 
 if (!$mov_ref) {
-    $es_domingo = (int)date('N') === 7;
-    if ($es_domingo) {
-        $titulo = '!DOMINGO - SIN VERIFICACION BANCARIA!';
-        $message = 'Los pagos realizados en domingo no pueden verificarse hasta el día siguiente (lunes), ya que el banco no procesa movimientos en domingo. Intenta nuevamente mañana o contacta a soporte.';
+    $api_respondio = !empty($fase1['api_respondio']) || !empty($fase2['api_respondio'] ?? false);
+    if ($api_respondio) {
+        $titulo = '!REFERENCIA NO EXISTE EN EL BANCO!';
+        $message = 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.';
     } else {
-        $api_respondio = !empty($fase1['api_respondio']) || !empty($fase2['api_respondio'] ?? false);
-        if ($api_respondio) {
-            $titulo = '!REFERENCIA NO EXISTE EN EL BANCO!';
-            $message = 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.';
-        } else {
-            $titulo = '!ERROR DE CONEXION BANCARIA!';
-            $message = 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.';
-        }
+        $titulo = '!ERROR DE CONEXION BANCARIA!';
+        $message = 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.';
     }
     echo json_encode(['status' => 'error', 'titulo' => $titulo, 'message' => $message]);
     exit;

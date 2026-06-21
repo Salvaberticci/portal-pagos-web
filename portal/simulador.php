@@ -114,9 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ts  = strtotime(date('Y-m-d'));
             $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
             $max_fecha = $hoy;
-            if ((int)date('N', strtotime($max_fecha)) === 7) {
-                $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
-            }
             $rangos = [
                 ['-2 days', '+1 day'],
                 ['-1 day',  '+0 day'],
@@ -252,6 +249,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $html .= '</tbody></table></div>';
                 $response = ['status' => 'ok', 'html' => $html, 'total' => count($resultado['movs'])];
+            }
+        } elseif ($action === 'list_local_refs') {
+            require_once __DIR__ . '/referencia_helper.php';
+            $pdo = \getDb();
+            if (!$pdo) {
+                $response = ['status' => 'error', 'message' => 'No se pudo conectar a la base de datos local.'];
+            } else {
+                $buscar_ref = trim($_POST['referencia'] ?? '');
+                try {
+                    if ($buscar_ref) {
+                        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE referencia LIKE ? ORDER BY created_at DESC LIMIT 50");
+                        $stmt->execute(['%' . $buscar_ref . '%']);
+                    } else {
+                        $stmt = $pdo->query("SELECT * FROM pagos_registrados ORDER BY created_at DESC LIMIT 100");
+                    }
+                    $rows = $stmt->fetchAll();
+                    if (empty($rows)) {
+                        $response = ['status' => 'error', 'message' => $buscar_ref ? "Referencia '{$buscar_ref}' no encontrada en la DB local." : "No hay referencias registradas en la DB local."];
+                    } else {
+                        $html = "<div class='small text-info mb-1'>Total registros: " . count($rows) . "</div>";
+                        $html .= '<div style="max-height:400px;overflow-y:auto;">';
+                        $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.7rem;">';
+                        $html .= '<thead><tr><th>#</th><th>Referencia</th><th>Cliente</th><th>Fecha</th><th>Monto Bs</th><th>Servicio</th><th>Facturas</th><th>Método</th><th>Registrado</th></tr></thead><tbody>';
+                        foreach ($rows as $r) {
+                            $html .= '<tr>';
+                            $html .= '<td>' . htmlspecialchars($r['id']) . '</td>';
+                            $html .= '<td style="font-family:monospace;font-weight:700;color:#facc15;">' . htmlspecialchars($r['referencia']) . '</td>';
+                            $html .= '<td>' . htmlspecialchars(substr($r['cliente'], 0, 20)) . '</td>';
+                            $html .= '<td>' . htmlspecialchars($r['fecha_pago']) . '</td>';
+                            $html .= '<td class="text-success">Bs ' . number_format($r['total_cobrado'], 2) . '</td>';
+                            $html .= '<td>' . htmlspecialchars($r['service_id']) . '</td>';
+                            $html .= '<td>' . htmlspecialchars($r['facturas']) . '</td>';
+                            $html .= '<td>' . htmlspecialchars($r['forma_pago']) . '</td>';
+                            $html .= '<td style="font-size:0.65rem;">' . htmlspecialchars($r['created_at']) . '</td>';
+                            $html .= '</tr>';
+                        }
+                        $html .= '</tbody></table></div>';
+                        $response = ['status' => 'ok', 'html' => $html, 'total' => count($rows)];
+                    }
+                } catch (\PDOException $e) {
+                    $response = ['status' => 'error', 'message' => 'Error BD: ' . $e->getMessage()];
+                }
             }
         }
     } catch (\Exception $e) {
@@ -476,6 +515,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div id="bank-result-box" class="mt-3 p-3 rounded" style="background:rgba(0,0,0,0.3);display:none;font-size:0.85rem;"></div>
             </div>
+
+            <!-- Referencias Locales DB -->
+            <div class="glass-panel">
+                <h5 class="mb-4"><i class="fas fa-database me-2 text-info"></i> Referencias Locales (DB)</h5>
+                <div class="row g-2 mb-3">
+                    <div class="col-4">
+                        <button class="btn btn-info btn-custom w-100" onclick="loadLocalRefs()">
+                            <i class="fas fa-list"></i> Ver Todas
+                        </button>
+                    </div>
+                    <div class="col-8">
+                        <input type="text" id="local_ref_search" class="form-control bg-dark text-white border-secondary" placeholder="Buscar referencia específica...">
+                    </div>
+                </div>
+                <div id="local-ref-result-box" class="p-3 rounded" style="background:rgba(0,0,0,0.3);display:none;font-size:0.85rem;"></div>
+            </div>
         </div>
 
         <!-- Columna Derecha: Consola -->
@@ -559,6 +614,38 @@ function setDefaultDates() {
     var inicioStr = inicio.getFullYear()+'-'+mm+'-'+dd;
     document.getElementById('bank_fecha_ini').value = inicioStr;
     document.getElementById('bank_fecha_fin').value = hoyStr;
+}
+
+function loadLocalRefs() {
+    var ref = document.getElementById('local_ref_search').value.trim();
+    logMsg(ref ? 'Buscando referencia local: ' + ref : 'Cargando todas las referencias locales...');
+    document.getElementById('page-loading').style.display = 'flex';
+    var box = document.getElementById('local-ref-result-box');
+    box.style.display = 'none';
+    var params = 'action=list_local_refs';
+    if (ref) params += '&referencia=' + encodeURIComponent(ref);
+    fetch('simulador.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: params
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('page-loading').style.display = 'none';
+        box.style.display = 'block';
+        if (data.status === 'ok') {
+            logMsg('EXITO: ' + data.total + ' referencia(s) encontrada(s)');
+            box.innerHTML = data.html;
+        } else {
+            logMsg('ERROR: ' + data.message, true);
+            box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('page-loading').style.display = 'none';
+        logMsg('ERROR DE RED: ' + err, true);
+        box.innerHTML = '<div class="text-danger small">Error de red: ' + err + '</div>';
+    });
 }
 
 function runBankAction(mode) {

@@ -51,6 +51,15 @@ function getDb(): ?PDO {
         } catch (PDOException $e) {
             // Ya migrado
         }
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN monto_banco_bs DECIMAL(15,2) DEFAULT NULL AFTER facturas");
+        } catch (PDOException $e) {}
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN fecha_banco VARCHAR(20) DEFAULT NULL AFTER monto_banco_bs");
+        } catch (PDOException $e) {}
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN banco_descripcion VARCHAR(255) DEFAULT NULL AFTER fecha_banco");
+        } catch (PDOException $e) {}
         return $pdo;
     } catch (PDOException $e) {
         error_log('[referencia_helper] DB connection failed: ' . $e->getMessage());
@@ -88,15 +97,18 @@ function guardarPago(
     ?string $accion,
     string $serviceId,
     ?int $idBanco = null,
-    string $facturas = ''
+    string $facturas = '',
+    ?float $montoBancoBs = null,
+    ?string $fechaBanco = null,
+    ?string $bancoDescripcion = null
 ): bool {
     $pdo = getDb();
     if (!$pdo) return false;
     try {
         $stmt = $pdo->prepare("INSERT INTO pagos_registrados
-            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, total, accion, service_id, id_banco)
-            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $total, $accion, $serviceId, $idBanco]);
+            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, monto_banco_bs, fecha_banco, banco_descripcion, total, accion, service_id, id_banco)
+            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $montoBancoBs, $fechaBanco, $bancoDescripcion, $total, $accion, $serviceId, $idBanco]);
         return true;
     } catch (PDOException $e) {
         error_log('[referencia_helper] insert error: ' . $e->getMessage());

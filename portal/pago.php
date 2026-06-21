@@ -70,6 +70,12 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
     require_once __DIR__ . '/wisp_helper.php';
     $wisp_cached = wisp_get_cached_data($wispClient, $wisp_service_id);
+    $saldo_favor = $wispClient->getClientBalance($wisp_service_id);
+
+    // Permitir probar el diseño visual añadiendo ?test_saldo=5 a la URL
+    if (isset($_GET['test_saldo'])) {
+        $saldo_favor = floatval($_GET['test_saldo']);
+    }
     $c_perfil = $wisp_cached['profile'];
 
     if (empty($c_perfil)) {
@@ -101,7 +107,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     }
 
     $invoices = $wisp_cached['invoices'];
-    $saldo_favor = $wisp_cached['balance'];
+    $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : $wisp_cached['balance'];
     $deuda_total = 0;
     $invoices_json = [];
     $totalInvoices = count($invoices);
@@ -322,6 +328,17 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     <input type="number" step="0.01" min="0.01" name="monto_manual_usd" class="form-control glass-input"
                         placeholder="0.00" id="input_zelle_monto">
                 </div>
+
+                <!-- Alerta de Saldo a Favor -->
+                <?php if ($saldo_favor > 0): ?>
+                <div class="alert alert-success d-flex align-items-center mb-3 p-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; color: #10b981;">
+                    <i class="fas fa-gift fa-2x me-3"></i>
+                    <div>
+                        <h6 class="fw-bold mb-1">¡Tienes $<?php echo number_format($saldo_favor, 2); ?> USD a tu favor!</h6>
+                        <small class="text-light">Ese monto se descontará automáticamente de tu recibo. Solo necesitas transferir la diferencia.</small>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <!-- Referencia -->
                 <div class="glass-panel p-4 mb-3">
@@ -610,11 +627,25 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     }
                 }
                 var totalBS = totalUSD * tasaBcv;
+                var aPagarUSD = Math.max(0, totalUSD - saldoFavor);
+                var aPagarBS = aPagarUSD * tasaBcv;
+                var descuento = Math.min(totalUSD, saldoFavor);
+
                 document.getElementById('confirmacion_recibos').innerHTML = html;
-                document.getElementById('confirm_total_bs').textContent = 'Bs ' + totalBS.toFixed(2).replace('.', ',');
-                document.getElementById('confirm_total_usd').textContent = '$' + totalUSD.toFixed(2);
+                
+                if (saldoFavor > 0) {
+                    document.getElementById('confirm_total_bs').innerHTML = '<del class="text-muted fw-normal me-2" style="font-size:0.85em;">Bs ' + totalBS.toFixed(2).replace('.', ',') + '</del> Bs ' + aPagarBS.toFixed(2).replace('.', ',');
+                    document.getElementById('confirm_total_usd').innerHTML = '<del class="text-muted fw-normal me-2" style="font-size:0.85em;">$' + totalUSD.toFixed(2) + '</del> $' + aPagarUSD.toFixed(2);
+                    document.getElementById('confirm_saldo').textContent = '-$' + descuento.toFixed(2);
+                    document.getElementById('confirm_saldo').parentElement.style.color = '#10b981'; // highlight green
+                } else {
+                    document.getElementById('confirm_total_bs').textContent = 'Bs ' + totalBS.toFixed(2).replace('.', ',');
+                    document.getElementById('confirm_total_usd').textContent = '$' + totalUSD.toFixed(2);
+                    document.getElementById('confirm_saldo').textContent = '$0.00';
+                    document.getElementById('confirm_saldo').parentElement.style.color = '';
+                }
+                
                 document.getElementById('confirm_tasa').textContent = 'Bs ' + tasaBcv.toFixed(2).replace('.', ',') + ' / $1';
-                document.getElementById('confirm_saldo').textContent = '$' + saldoFavor.toFixed(2);
                 document.getElementById('confirm_metodo').textContent = selectedMetodo;
                 document.getElementById('confirm_banco').textContent = selectedBanco.nombre_banco;
                 document.getElementById('confirm_referencia').textContent = ref;

@@ -587,6 +587,9 @@ class WispHubClient
                 return floatval($saldoFavor);
             }
             $saldo = floatval($result['data']['saldo'] ?? 0);
+            if ($saldo < 0) {
+                return abs($saldo);
+            }
             $facturas = $result['data']['facturas'] ?? [];
             $totalFacturas = 0;
             foreach ($facturas as $f) {

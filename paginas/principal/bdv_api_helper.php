@@ -276,11 +276,9 @@ function _bdv_normalizar_fecha(string $fecha): ?string
 function consultar_movimientos_rango(int $id_banco, string $fechaIni, string $fechaFin): array
 {
     $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
-    $max_fecha = $hoy;
-    if ((int)date('N', strtotime($max_fecha)) === 7) {
-        $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
-    }
-    if ($fechaFin > $max_fecha) $fechaFin = $max_fecha;
+
+    // No permitir fechas futuras
+    if ($fechaFin > $hoy) $fechaFin = $hoy;
 
     $todos_movs = [];
     $api_respondio = false;
@@ -289,21 +287,12 @@ function consultar_movimientos_rango(int $id_banco, string $fechaIni, string $fe
     $final  = new \DateTime($fechaFin);
 
     while ($actual <= $final) {
-        $dia_sem = (int)$actual->format('N');
-        if ($dia_sem === 7) {
-            $fi = $actual->format('Y-m-d');
-            $r  = consultar_movimientos_banco($id_banco, $fi, $fi);
-            $total_api_calls++;
-            if (!empty($r['success'])) $api_respondio = true;
-            if (!empty($r['success']) && !empty($r['movs'])) {
-                $todos_movs = array_merge($todos_movs, $r['movs']);
-            }
-            $actual->modify('+1 day');
-            continue;
-        }
+        // Consultar en bloques semanales (lunes a domingo inclusive)
+        // La API BDV responde correctamente los domingos — no hay restricción de día
+        $dia_sem = (int)$actual->format('N'); // 1=Lun ... 7=Dom
         $bloque_fin = clone $actual;
-        $dias_hasta_sab = 6 - $dia_sem;
-        if ($dias_hasta_sab > 0) $bloque_fin->modify("+{$dias_hasta_sab} days");
+        $dias_hasta_dom = 7 - $dia_sem;
+        if ($dias_hasta_dom > 0) $bloque_fin->modify("+{$dias_hasta_dom} days");
         if ($bloque_fin > $final) $bloque_fin = $final;
 
         $fi = $actual->format('Y-m-d');

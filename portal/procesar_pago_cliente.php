@@ -159,6 +159,14 @@ try {
 
         if ($auto_aprobado) {
             $_SESSION['pago_msg'] = "¡Tu pago fue verificado y registrado! Ref: $referencia.";
+            // Guardar pago en BD local
+            require_once __DIR__ . '/referencia_helper.php';
+            $db_ok = guardarPago(
+                $nombre, '', $fecha_pago, '', $monto_usd, $metodo_pago, $referencia, 
+                $invoice_total, $accion ?? null, $id_contrato_asociado ?? '', $id_banco_destino, 
+                implode(',', $invoice_ids), null, null, null // No tenemos los datos crudos en el legacy
+            );
+            if (!$db_ok) { error_log('[procesar_pago] guardarPago falló en legacy para ref: ' . $referencia); }
         } else {
             $razon = $GLOBALS['bdv_falla_motivo'] ?? 'Error desconocido.';
             $_SESSION['pago_err'] = "Error: $razon";
@@ -245,9 +253,20 @@ try {
         ];
         unset($_SESSION['pago_err']);
 
+        unset($_SESSION['pago_err']);
+
+        $monto_banco_bs = isset($verificacion_data['movimiento']['importe_bs']) ? floatval($verificacion_data['movimiento']['importe_bs']) : null;
+        $fecha_banco = $verificacion_data['movimiento']['fecha'] ?? null;
+        $banco_descripcion = isset($verificacion_data['movimiento']['observacion']) ? trim($verificacion_data['movimiento']['observacion']) : null;
+
         // Guardar pago en BD local
         require_once __DIR__ . '/referencia_helper.php';
-        guardarPago($nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, implode(',', $invoice_ids));
+        $db_ok = guardarPago(
+            $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
+            $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
+            implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion
+        );
+        if (!$db_ok) { error_log('[procesar_pago] guardarPago falló en nuevo flujo para ref: ' . $referencia); }
 
         // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
         if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
