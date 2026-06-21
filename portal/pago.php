@@ -676,11 +676,11 @@ foreach ($ordenMetodos as $m) {
             if (data) {
                 details.classList.remove('d-none');
                 var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
-                if (data.referencia) dHtml += '<tr><td class="text-muted">Referencia</td><td class="fw-bold">' + data.referencia + '</td></tr>';
-                if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto USD</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
-                if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
-                if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td class="text-muted">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
-                if (data.service_id) dHtml += '<tr><td class="text-muted">Servicio</td><td class="fw-bold">' + data.service_id + '</td></tr>';
+                if (data.referencia) dHtml += '<tr><td class="fw-bold">Referencia</td><td class="fw-bold">' + data.referencia + '</td></tr>';
+                if (data.monto_usd) dHtml += '<tr><td class="fw-bold">Monto USD</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
+                if (data.monto_bs) dHtml += '<tr><td class="fw-bold">Monto Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td class="fw-bold">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
+                if (data.service_id) dHtml += '<tr><td class="fw-bold">Servicio</td><td class="fw-bold">' + data.service_id + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
             }
@@ -695,11 +695,11 @@ foreach ($ordenMetodos as $m) {
             if (data) {
                 details.classList.remove('d-none');
                 var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
-                if (data.monto_usd) dHtml += '<tr><td class="text-muted">Monto Verificado</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
-                if (data.monto_bs) dHtml += '<tr><td class="text-muted">Monto en Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
-                if (data.deuda_seleccionada_usd) dHtml += '<tr><td class="text-muted">Deuda Seleccionada</td><td class="fw-bold">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
-                if (data.cobertura_hasta) dHtml += '<tr><td class="text-muted">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
-                if (data.fecha) dHtml += '<tr><td class="text-muted">Fecha de Pago</td><td class="fw-bold">' + data.fecha + '</td></tr>';
+                if (data.monto_usd) dHtml += '<tr><td class="fw-bold">Monto Verificado</td><td class="fw-bold">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
+                if (data.monto_bs) dHtml += '<tr><td class="fw-bold">Monto en Bs</td><td class="fw-bold">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                if (data.deuda_seleccionada_usd) dHtml += '<tr><td class="fw-bold">Deuda Seleccionada</td><td class="fw-bold">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
+                if (data.cobertura_hasta) dHtml += '<tr><td class="fw-bold">Cobertura hasta</td><td class="fw-bold">' + data.cobertura_hasta + '</td></tr>';
+                if (data.fecha) dHtml += '<tr><td class="fw-bold">Fecha de Pago</td><td class="fw-bold">' + data.fecha + '</td></tr>';
                 dHtml += '</table></div>';
                 details.innerHTML = dHtml;
             }
