@@ -711,6 +711,15 @@ foreach ($ordenMetodos as $m) {
                     onConfirm();
                 };
             }
+        } else if (titulo && titulo.includes('REFERENCIA')) {
+            icon.innerHTML = '<span style="position:relative;display:inline-flex;align-items:center;justify-content:center;">' +
+                '<i class="fas fa-exclamation-triangle" style="color:#eab308;"></i>' +
+                '<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font-size:1.5rem;font-weight:900;">!</span>' +
+                '</span>';
+            title.textContent = titulo;
+            title.className = 'fw-bold mb-2';
+            title.style.color = '#ea580c';
+            msg.textContent = mensaje;
         } else {
             icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';
             title.textContent = titulo || 'Error';
