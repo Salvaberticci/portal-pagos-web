@@ -171,7 +171,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = $resultado['message'] ?? 'Error de conexión con la API del banco';
                 $response = ['status' => 'error', 'message' => $msg];
             } elseif (empty($resultado['movs'])) {
-                $response = ['status' => 'error', 'message' => 'No se encontraron movimientos en el rango seleccionado.'];
+                $msg_extra = '';
+                if (!empty($resultado['raw']['code']) && $resultado['raw']['code'] === '1001') {
+                    $msg_extra = ' La API respondió que no hay movimientos en ese rango (posiblemente incluye domingo o días sin actividad). Prueba el botón "Retry" para multi-rango.';
+                }
+                $response = ['status' => 'error', 'message' => 'No se encontraron movimientos en el rango seleccionado.' . $msg_extra];
             } else {
                 $movs = $resultado['movs'];
 
@@ -509,7 +513,14 @@ function setDefaultDates() {
     var mm = String(hoy.getMonth()+1).padStart(2,'0');
     var yyyy = hoy.getFullYear();
     var hoyStr = yyyy+'-'+mm+'-'+dd;
-    var inicio = new Date(Date.now() - 7*24*60*60*1000);
+    // BDV API no devuelve datos si el rango incluye domingo
+    if (hoy.getDay() === 0) {
+        hoy.setDate(hoy.getDate() - 1);
+        dd = String(hoy.getDate()).padStart(2,'0');
+        mm = String(hoy.getMonth()+1).padStart(2,'0');
+        hoyStr = hoy.getFullYear()+'-'+mm+'-'+dd;
+    }
+    var inicio = new Date(hoy.getTime() - 7*24*60*60*1000);
     dd = String(inicio.getDate()).padStart(2,'0');
     mm = String(inicio.getMonth()+1).padStart(2,'0');
     var inicioStr = inicio.getFullYear()+'-'+mm+'-'+dd;
@@ -524,8 +535,13 @@ function runBankAction(mode) {
     var referencia = document.getElementById('bank_referencia').value;
 
     if (mode === 'test') {
-        logMsg('Probando conexión con API BDV (rango: hoy)...');
-        fecha_ini = new Date().toISOString().split('T')[0];
+        logMsg('Probando conexión con API BDV...');
+        var hoy = new Date();
+        if (hoy.getDay() === 0) {
+            hoy.setDate(hoy.getDate() - 1);
+            logMsg('Hoy es domingo, usando sábado para la prueba...');
+        }
+        fecha_ini = hoy.toISOString().split('T')[0];
         fecha_fin = fecha_ini;
         referencia = '';
     } else if (mode === 'retry') {
