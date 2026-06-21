@@ -687,7 +687,7 @@ foreach ($ordenMetodos as $m) {
             btnDash.classList.remove('d-none');
             btnCerrar.classList.add('d-none');
         } else if (tipo === 'verificacion') {
-            icon.innerHTML = '<i class="fas fa-info-circle" style="color:var(--primary);"></i>';
+            icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#eab308;"></i>';
             title.textContent = 'Verificación Exitosa';
             title.className = 'fw-bold mb-2';
             title.style.color = 'var(--primary)';
@@ -712,7 +712,7 @@ foreach ($ordenMetodos as $m) {
                 };
             }
         } else {
-            icon.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--danger);"></i>';
+            icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';
             title.textContent = titulo || 'Error';
             title.className = 'fw-bold mb-2';
             title.style.color = 'var(--danger)';
