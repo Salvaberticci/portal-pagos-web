@@ -30,7 +30,10 @@
 
         // ─── Agrega aquí las referencias históricas conocidas ───
         // Formato: [cliente, ip_servicio, fecha_pago, zona, total_cobrado, forma_pago, referencia, total, accion, service_id, id_banco]
+        // Referencias de pagos reales existentes en WispHub antes del portal
         $historico[] = ['Cliente Prueba (V20788775)', '', '2026-06-19', '', 0.17, 'Pago Móvil', '0677266323803', 0.17, 'completo', '902', 9];
+        $historico[] = ['Maire Villegas (V14800836)',  '', '2026-06-19', '', 20.00, 'Pago Móvil', '139627',        20.00, 'completo', '870', 9];
+        $historico[] = ['Cliente (referencia 851396)',  '', '2026-06-20', '', 12.147, 'Pago Móvil', '851396',      12.147, 'completo', '0', 9];
         // ─────────────────────────────────────────────────────────
 
         $stmt = $pdo->prepare("INSERT IGNORE INTO pagos_registrados
