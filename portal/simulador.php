@@ -137,8 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $movs = $filtered;
                     if (empty($movs)) {
-                        $response = ['status' => 'error', 'message' => "Referencia '{$buscar_ref}' no encontrada en el rango."];
-                        break;
+                        echo json_encode(['status' => 'error', 'message' => "Referencia '{$buscar_ref}' no encontrada en el rango."]);
+                        exit;
                     }
                 }
 
