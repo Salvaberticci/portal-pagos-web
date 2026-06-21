@@ -102,8 +102,19 @@ foreach ($invoices as $inv) {
     }
 }
 
-// Estado del servicio
+// Estado del servicio (por defecto del perfil)
 $estado_ws = strtoupper($c_perfil['estado'] ?? 'ACTIVO');
+
+// Sincronizar el estado con la llamada en vivo de getServicesByCedula
+// para evitar incongruencias de caché justo después de pagar
+foreach ($clientServices as $svc) {
+    $svcId = $svc['id_servicio'] ?? $svc['id'] ?? $svc['service_id'] ?? 0;
+    if ($svcId == $wisp_service_id) {
+        $estado_ws = strtoupper($svc['estado'] ?? $estado_ws);
+        break;
+    }
+}
+
 if ($estado_ws === 'ACTIVE') $estado_ws = 'ACTIVO';
 if ($estado_ws === 'SUSPENDED') $estado_ws = 'SUSPENDIDO';
 if ($estado_ws === 'CANCELLED') $estado_ws = 'CANCELADO';
