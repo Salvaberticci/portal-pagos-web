@@ -511,8 +511,8 @@ if ($estado_ws === 'FREE') $estado_ws = 'GRATIS';
             color: var(--text-muted);
         }
         .service-badge {
-            font-size: 0.65rem !important;
-            padding: 2px 8px !important;
+            font-size: 0.65rem;
+            padding: 2px 8px;
         }
         /* ── Recibos: cards premium en dashboard ── */
         .recibos-list {

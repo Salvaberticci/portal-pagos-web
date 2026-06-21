@@ -532,18 +532,28 @@ h1, h2, h3, h4, h5, h6 {
 
 .status-badge {
     display: inline-block;
-    padding: 4px 12px;
+    padding: 6px 14px;
     border-radius: 20px;
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+    border-width: 2px;
+    border-style: solid;
+}
+
+/* Make badges more visible on small screens */
+@media (max-width: 576px) {
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 6px 16px;
+    }
 }
 
 .status-active {
     background: rgba(5, 150, 105, 0.12);
     color: var(--success);
-    border: 1px solid rgba(5, 150, 105, 0.25);
+    border-color: rgba(5, 150, 105, 0.25);
 }
 
 [data-theme="dark"] .status-active {
@@ -555,7 +565,7 @@ h1, h2, h3, h4, h5, h6 {
 .status-suspended {
     background: rgba(234, 179, 8, 0.12);
     color: #a16207;
-    border: 1px solid rgba(234, 179, 8, 0.25);
+    border-color: rgba(234, 179, 8, 0.25);
 }
 
 [data-theme="dark"] .status-suspended {
@@ -567,7 +577,7 @@ h1, h2, h3, h4, h5, h6 {
 .status-free {
     background: rgba(59, 130, 246, 0.12);
     color: #1d4ed8;
-    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.25);
 }
 
 [data-theme="dark"] .status-free {
@@ -579,7 +589,7 @@ h1, h2, h3, h4, h5, h6 {
 .status-cancelled {
     background: rgba(220, 38, 38, 0.1);
     color: var(--danger);
-    border: 1px solid rgba(220, 38, 38, 0.2);
+    border-color: rgba(220, 38, 38, 0.2);
 }
 
 [data-theme="dark"] .status-cancelled {
@@ -591,7 +601,7 @@ h1, h2, h3, h4, h5, h6 {
 .status-pending {
     background: rgba(217, 119, 6, 0.1);
     color: var(--warning);
-    border: 1px solid rgba(217, 119, 6, 0.2);
+    border-color: rgba(217, 119, 6, 0.2);
 }
 
 [data-theme="dark"] .status-pending {
