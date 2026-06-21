@@ -142,39 +142,57 @@ if ($api_cfg === null) {
     exit;
 }
 
-// Consultar la API del banco con múltiples rangos de fecha
+// Consultar la API del banco — barrer desde -10 días hasta +1 día, dividiendo en bloques sin domingo
 $ts  = strtotime($fecha_pago);
 $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
-
-// La API BDV no devuelve datos si el rango incluye domingo
 $max_fecha = $hoy;
 if ((int)date('N', strtotime($max_fecha)) === 7) {
     $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
 }
 
-$rangos = [
-    ['-2 days', '+1 day'],
-    ['-1 day',  '+0 day'],
-    ['-3 days', '+1 day'],
-    ['-10 days', '+0 day'],
-];
+$fecha_inicio_busqueda = date('Y-m-d', strtotime('-10 days', $ts));
+$fecha_fin_busqueda   = date('Y-m-d', strtotime('+1 day',  $ts));
+if ($fecha_fin_busqueda > $max_fecha) $fecha_fin_busqueda = $max_fecha;
 
-$resultado = ['success' => false, 'movs' => []];
+$todos_movs = [];
 $api_respondio = false;
-foreach ($rangos as $offset) {
-    $fecha_ini = date('Y-m-d', strtotime($offset[0], $ts));
-    $fecha_fin = date('Y-m-d', strtotime($offset[1], $ts));
-    if ($fecha_fin > $max_fecha) $fecha_fin = $max_fecha;
-    $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
-    if (!empty($resultado['success'])) {
-        $api_respondio = true;
+$actual = new \DateTime($fecha_inicio_busqueda);
+$final  = new \DateTime($fecha_fin_busqueda);
+
+while ($actual <= $final) {
+    $dia_sem = (int)$actual->format('N');
+    if ($dia_sem === 7) {
+        // Domingo: consultar como bloque de 1 día (code 1001 = 0 movs, no se pierde)
+        $fi = $actual->format('Y-m-d');
+        $r  = consultar_movimientos_banco($id_banco, $fi, $fi);
+        if (!empty($r['success'])) $api_respondio = true;
+        if (!empty($r['success']) && !empty($r['movs'])) {
+            $todos_movs = array_merge($todos_movs, $r['movs']);
+        }
+        $actual->modify('+1 day');
+        continue;
     }
-    if (!empty($resultado['success']) && !empty($resultado['movs'])) {
-        break;
+    // Bloque lunes→sábado
+    $bloque_fin = clone $actual;
+    $dias_hasta_sab = 6 - $dia_sem;
+    if ($dias_hasta_sab > 0) $bloque_fin->modify("+{$dias_hasta_sab} days");
+    if ($bloque_fin > $final) $bloque_fin = $final;
+
+    $fi = $actual->format('Y-m-d');
+    $ff = $bloque_fin->format('Y-m-d');
+    $r  = consultar_movimientos_banco($id_banco, $fi, $ff);
+    if (!empty($r['success'])) $api_respondio = true;
+    if (!empty($r['success']) && !empty($r['movs'])) {
+        $todos_movs = array_merge($todos_movs, $r['movs']);
     }
+
+    $actual = clone $bloque_fin;
+    $actual->modify('+1 day');
 }
 
-if (empty($resultado['success']) || empty($resultado['movs'])) {
+$resultado = ['success' => !empty($todos_movs), 'movs' => $todos_movs];
+
+if (empty($todos_movs)) {
     if ($api_respondio) {
         $titulo = '!SIN MOVIMIENTOS EN EL RANGO!';
         $message = 'No se encontraron movimientos en los rangos de fecha consultados. Verifica la fecha e intenta de nuevo.';
