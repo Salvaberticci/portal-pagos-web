@@ -86,15 +86,23 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $invoicesPaid = $paidRes;
     }
 
-    // Fusionar: pendientes + pagadas (deduplicando por ID, pagada prevalece)
+    // Fusionar: pendientes + pagadas (deduplicando por ID)
     $byId = [];
+    // Marcar facturas que vienen del listado pendiente (saldo pendiente real)
+    $pendingIds = [];
     foreach ($invoicesPending as $inv) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-        if ($id) $byId[$id] = $inv;
+        if ($id) {
+            $pendingIds[$id] = true;
+            $byId[$id] = $inv;
+        }
     }
+    // Pagadas solo se agregan si NO están ya como pendientes
     foreach ($invoicesPaid as $inv) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-        if ($id) $byId[$id] = $inv;
+        if ($id && !isset($pendingIds[$id])) {
+            $byId[$id] = $inv;
+        }
     }
     $allInvoices = array_values($byId);
 
@@ -104,6 +112,20 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         if ($invId) {
             $full = $wispClient->getInvoiceDetail((string)$invId);
             if (!empty($full)) {
+                // Si la factura viene del listado PENDIENTE, el campo "total" de ese
+                // endpoint es el saldo real a pagar. El detalle (/facturas/{id}/) puede
+                // devolver total_cobrado desactualizado. Corregimos:
+                $fromPending = isset($pendingIds[$invId]);
+                if ($fromPending) {
+                    $pendingTotal = floatval($inv['total'] ?? 0);
+                    $detailTotal  = floatval($full['total'] ?? $pendingTotal);
+                    // pendingTotal = saldo pendiente real
+                    // total_cobrado = detailTotal - pendingTotal (si detailTotal > pendingTotal, hay abono)
+                    $full['total'] = $detailTotal; // el total original de la factura
+                    $full['total_cobrado'] = max(0, $detailTotal - $pendingTotal);
+                    $full['saldo_nuevo'] = $pendingTotal;
+                    $full['saldo'] = $pendingTotal;
+                }
                 $enriched[] = $full;
                 continue;
             }
