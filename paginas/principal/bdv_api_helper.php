@@ -256,3 +256,159 @@ function _bdv_normalizar_fecha(string $fecha): ?string
 
     return null;
 }
+
+/**
+ * Consulta movimientos bancarios BDV para un rango de fechas, dividiendo
+ * automáticamente en bloques Lunes→Sábado para evitar el problema del
+ * domingo (la API BDV no retorna datos cuando el rango incluye domingos).
+ *
+ * @param  int|string $id_banco   ID del banco en bancos.json.
+ * @param  string     $fechaIni   Fecha inicio (Y-m-d).
+ * @param  string     $fechaFin   Fecha fin (Y-m-d).
+ *
+ * @return array [
+ *   'success'        => bool,
+ *   'movs'           => array,  // Todos los movimientos encontrados
+ *   'api_respondio'  => bool,   // Si la API respondió al menos una vez
+ *   'total_api_calls' => int,   // Número de llamadas API realizadas
+ * ]
+ */
+function consultar_movimientos_rango(int $id_banco, string $fechaIni, string $fechaFin): array
+{
+    $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
+    $max_fecha = $hoy;
+    if ((int)date('N', strtotime($max_fecha)) === 7) {
+        $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
+    }
+    if ($fechaFin > $max_fecha) $fechaFin = $max_fecha;
+
+    $todos_movs = [];
+    $api_respondio = false;
+    $total_api_calls = 0;
+    $actual = new \DateTime($fechaIni);
+    $final  = new \DateTime($fechaFin);
+
+    while ($actual <= $final) {
+        $dia_sem = (int)$actual->format('N');
+        if ($dia_sem === 7) {
+            $fi = $actual->format('Y-m-d');
+            $r  = consultar_movimientos_banco($id_banco, $fi, $fi);
+            $total_api_calls++;
+            if (!empty($r['success'])) $api_respondio = true;
+            if (!empty($r['success']) && !empty($r['movs'])) {
+                $todos_movs = array_merge($todos_movs, $r['movs']);
+            }
+            $actual->modify('+1 day');
+            continue;
+        }
+        $bloque_fin = clone $actual;
+        $dias_hasta_sab = 6 - $dia_sem;
+        if ($dias_hasta_sab > 0) $bloque_fin->modify("+{$dias_hasta_sab} days");
+        if ($bloque_fin > $final) $bloque_fin = $final;
+
+        $fi = $actual->format('Y-m-d');
+        $ff = $bloque_fin->format('Y-m-d');
+        $r  = consultar_movimientos_banco($id_banco, $fi, $ff);
+        $total_api_calls++;
+        if (!empty($r['success'])) $api_respondio = true;
+        if (!empty($r['success']) && !empty($r['movs'])) {
+            $todos_movs = array_merge($todos_movs, $r['movs']);
+        }
+
+        $actual = clone $bloque_fin;
+        $actual->modify('+1 day');
+    }
+
+    return [
+        'success'         => !empty($todos_movs),
+        'movs'            => $todos_movs,
+        'api_respondio'   => $api_respondio,
+        'total_api_calls' => $total_api_calls,
+    ];
+}
+
+/**
+ * Obtiene todas las transacciones de Crédito del banco BDV de los últimos 30 días.
+ * Sin límite de cantidad — busca en TODOS los créditos disponibles.
+ *
+ * @param  int $id_banco  ID del banco en bancos.json.
+ *
+ * @return array [
+ *   'success'       => bool,
+ *   'movs'          => array,  // Todos los créditos encontrados (sin límite)
+ *   'api_respondio' => bool,
+ * ]
+ */
+function obtener_creditos_recientes(int $id_banco): array
+{
+    $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
+    $fecha_ini = date('Y-m-d', strtotime('-30 days', strtotime($hoy)));
+
+    $resultado = consultar_movimientos_rango($id_banco, $fecha_ini, $hoy);
+
+    if (!$resultado['api_respondio']) {
+        return ['success' => false, 'movs' => [], 'api_respondio' => false];
+    }
+
+    $creditos = [];
+    foreach ($resultado['movs'] as $mov) {
+        $tipo = strtoupper($mov['mov'] ?? $mov['Tipo'] ?? '');
+        $desc = strtoupper($mov['descripcion'] ?? '');
+        if ($tipo === 'CREDITO' && strpos($desc, 'DEBITO') === false) {
+            $creditos[] = $mov;
+        }
+    }
+
+    return [
+        'success'       => !empty($creditos),
+        'movs'          => $creditos,
+        'api_respondio' => $resultado['api_respondio'],
+    ];
+}
+
+/**
+ * Busca una referencia en un array de movimientos.
+ * Compara referencia completa y los últimos 6 y 8 dígitos.
+ * Solo busca en movimientos de tipo CREDITO.
+ *
+ * @param  array  $movs        Array de movimientos BDV.
+ * @param  string $referencia  Referencia a buscar (solo dígitos, 6-15).
+ * @param  string $metodo_pago 'Transferencia' u otro (Pago Móvil, etc.).
+ *
+ * @return array|null  El movimiento encontrado o null.
+ */
+function buscar_referencia_en_movs(array $movs, string $referencia, string $metodo_pago = ''): ?array
+{
+    $ref_user_clean = preg_replace('/\D/', '', $referencia);
+
+    if ($metodo_pago === 'Transferencia') {
+        $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
+        $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
+    } else {
+        $ref_search = $ref_user_clean;
+        if (strlen($ref_search) > 8) $ref_search = substr($ref_search, -8);
+        $ref_user_6 = strlen($ref_search) >= 6 ? substr($ref_search, -6) : $ref_search;
+        $ref_user_8 = $ref_search;
+    }
+
+    foreach ($movs as $mov) {
+        $tipo = strtoupper($mov['mov'] ?? $mov['Tipo'] ?? '');
+        $desc = strtoupper($mov['descripcion'] ?? '');
+        if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
+        if (!isset($mov['referencia'])) continue;
+
+        $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
+        $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
+        $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
+
+        if (
+            $ref_banco_clean === $ref_user_clean ||
+            ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
+            ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
+        ) {
+            return $mov;
+        }
+    }
+
+    return null;
+}

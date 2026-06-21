@@ -171,51 +171,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $fecha_fin = $_POST['fecha_fin'] ?? date('Y-m-d');
             }
 
-            // Split range at Sunday boundaries (BDV API no devuelve datos multi-día si incluye domingo)
-            $todos_movs = [];
-            $actual = new \DateTime($fecha_ini);
-            $final = new \DateTime($fecha_fin);
-            $total_apis = 0;
+            $resultado = consultar_movimientos_rango($id_banco, $fecha_ini, $fecha_fin);
+            $total_apis = $resultado['total_api_calls'];
 
-            while ($actual <= $final) {
-                $dia_sem = (int)$actual->format('N');
-                if ($dia_sem === 7) {
-                    // Consultar domingo como bloque de 1 día (devuelve code 1001 = 0 movs)
-                    $fi = $actual->format('Y-m-d');
-                    $r = consultar_movimientos_banco($id_banco, $fi, $fi);
-                    $total_apis++;
-                    if (!empty($r['success']) && !empty($r['movs'])) {
-                        $todos_movs = array_merge($todos_movs, $r['movs']);
-                    }
-                    $actual->modify('+1 day');
-                    continue;
-                }
-                $bloque_fin = clone $actual;
-                $dias_hasta_sab = 6 - $dia_sem;
-                if ($dias_hasta_sab > 0) {
-                    $bloque_fin->modify("+{$dias_hasta_sab} days");
-                }
-                if ($bloque_fin > $final) {
-                    $bloque_fin = $final;
-                }
-
-                $fi = $actual->format('Y-m-d');
-                $ff = $bloque_fin->format('Y-m-d');
-
-                $r = consultar_movimientos_banco($id_banco, $fi, $ff);
-                $total_apis++;
-                if (!empty($r['success']) && !empty($r['movs'])) {
-                    $todos_movs = array_merge($todos_movs, $r['movs']);
-                }
-
-                $actual = clone $bloque_fin;
-                $actual->modify('+1 day');
-            }
-
-            if (empty($todos_movs)) {
+            if (empty($resultado['movs'])) {
                 $response = ['status' => 'error', 'message' => "No se encontraron movimientos en el rango ({$total_apis} consultas API realizadas)."];
             } else {
-                $movs = $todos_movs;
+                $movs = $resultado['movs'];
 
                 if ($buscar_ref) {
                     $ref_clean = preg_replace('/\D/', '', $buscar_ref);
@@ -263,6 +225,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $html .= '</tbody></table></div>';
                 $response = ['status' => 'ok', 'html' => $html, 'total' => count($movs)];
             }
+        } elseif ($action === 'list_last30_credits') {
+            require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
+            $id_banco = intval($_POST['id_banco'] ?? 9);
+
+            $resultado = \obtener_creditos_recientes($id_banco);
+
+            if (empty($resultado['movs'])) {
+                if ($resultado['api_respondio']) {
+                    $response = ['status' => 'error', 'message' => "No se encontraron créditos en los últimos 30 días."];
+                } else {
+                    $response = ['status' => 'error', 'message' => "API no respondió. Error de conexión bancaria."];
+                }
+            } else {
+                $html = "<div class='small text-muted mb-1'>Total créditos (30d): " . count($resultado['movs']) . "</div>";
+                $html .= '<div style="max-height:400px;overflow-y:auto;">';
+                $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.75rem;">';
+                $html .= '<thead><tr><th>Fecha</th><th>Hora</th><th>Ref</th><th>Monto Bs</th><th>Origen</th></tr></thead><tbody>';
+                foreach ($resultado['movs'] as $m) {
+                    $fecha = $m['fecha'] ?? '?';
+                    $hora = $m['hora'] ?? '';
+                    $ref = $m['referencia'] ?? '?';
+                    $importe = $m['importe'] ?? $m['monto'] ?? '?';
+                    $desc = htmlspecialchars(substr($m['observacion'] ?? $m['descripcion'] ?? '', 0, 50));
+                    $html .= "<tr class='text-success'><td>{$fecha}</td><td>{$hora}</td><td style='font-family:monospace'>{$ref}</td><td>Bs {$importe}</td><td style='font-size:0.7rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>{$desc}</td></tr>";
+                }
+                $html .= '</tbody></table></div>';
+                $response = ['status' => 'ok', 'html' => $html, 'total' => count($resultado['movs'])];
+            }
         }
     } catch (\Exception $e) {
         $response = ['status' => 'error', 'message' => $e->getMessage()];
@@ -277,6 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>WispHub — Simulador de Integración</title>
+    <link rel="icon" href="../images/favicon.ico" type="image/x-icon">
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
     <style>
@@ -466,14 +457,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <i class="fas fa-list"></i> Rango
                         </button>
                     </div>
-                    <div class="col-3">
+                    <div class="col-2">
                         <button class="btn btn-primary btn-custom w-100" onclick="runBankAction('search_ref')">
                             <i class="fas fa-search"></i> Buscar Ref
                         </button>
                     </div>
-                    <div class="col-3">
+                    <div class="col-2">
                         <button class="btn btn-success btn-custom w-100" onclick="runBankAction('all')">
                             <i class="fas fa-database"></i> Todo
+                        </button>
+                    </div>
+                    <div class="col-2">
+                        <button class="btn btn-light btn-custom w-100" onclick="runBankAction('last30')">
+                            <i class="fas fa-clock"></i> 30D Créd
                         </button>
                     </div>
                 </div>
@@ -625,6 +621,33 @@ function runBankAction(mode) {
             box.style.display = 'block';
             if (data.status === 'ok') {
                 logMsg('EXITO: ' + data.total + ' movimiento(s) encontrados');
+                box.innerHTML = data.html;
+            } else {
+                logMsg('ERROR: ' + data.message, true);
+                box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+            }
+        })
+        .catch(function(err) {
+            document.getElementById('page-loading').style.display = 'none';
+            logMsg('ERROR DE RED: ' + err, true);
+        });
+        return;
+    } else if (mode === 'last30') {
+        logMsg('Trayendo últimos 30 días de CRÉDITOS BDV (modo producción)...');
+        document.getElementById('page-loading').style.display = 'flex';
+        var box = document.getElementById('bank-result-box');
+        box.style.display = 'none';
+        fetch('simulador.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'action=list_last30_credits&id_banco=' + id_banco
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('page-loading').style.display = 'none';
+            box.style.display = 'block';
+            if (data.status === 'ok') {
+                logMsg('EXITO: ' + data.total + ' crédito(s) encontrado(s)');
                 box.innerHTML = data.html;
             } else {
                 logMsg('ERROR: ' + data.message, true);

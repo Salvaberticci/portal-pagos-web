@@ -18,6 +18,8 @@ if (isset($_SESSION['cliente_cedula'])) {
     <title>Portal de Clientes - Wireless Supply</title>
     <!-- Bootstrap CSS -->
     <link href="../css/bootstrap.min.css" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" href="../images/favicon.ico" type="image/x-icon">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
     <!-- Estilos Premium -->

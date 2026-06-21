@@ -142,122 +142,39 @@ if ($api_cfg === null) {
     exit;
 }
 
-// Consultar la API del banco — barrer desde -10 días hasta +1 día, dividiendo en bloques sin domingo
+// === FASE 1: Buscar referencia en rango ±10 días del pago ===
 $ts  = strtotime($fecha_pago);
-$hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
-$max_fecha = $hoy;
-if ((int)date('N', strtotime($max_fecha)) === 7) {
-    $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
-}
-
 $fecha_inicio_busqueda = date('Y-m-d', strtotime('-10 days', $ts));
 $fecha_fin_busqueda   = date('Y-m-d', strtotime('+1 day',  $ts));
-if ($fecha_fin_busqueda > $max_fecha) $fecha_fin_busqueda = $max_fecha;
 
-$todos_movs = [];
-$api_respondio = false;
-$actual = new \DateTime($fecha_inicio_busqueda);
-$final  = new \DateTime($fecha_fin_busqueda);
+$fase1 = consultar_movimientos_rango($id_banco, $fecha_inicio_busqueda, $fecha_fin_busqueda);
+$mov_ref = buscar_referencia_en_movs($fase1['movs'], $referencia, $metodo_pago);
 
-while ($actual <= $final) {
-    $dia_sem = (int)$actual->format('N');
-    if ($dia_sem === 7) {
-        // Domingo: consultar como bloque de 1 día (code 1001 = 0 movs, no se pierde)
-        $fi = $actual->format('Y-m-d');
-        $r  = consultar_movimientos_banco($id_banco, $fi, $fi);
-        if (!empty($r['success'])) $api_respondio = true;
-        if (!empty($r['success']) && !empty($r['movs'])) {
-            $todos_movs = array_merge($todos_movs, $r['movs']);
-        }
-        $actual->modify('+1 day');
-        continue;
-    }
-    // Bloque lunes→sábado
-    $bloque_fin = clone $actual;
-    $dias_hasta_sab = 6 - $dia_sem;
-    if ($dias_hasta_sab > 0) $bloque_fin->modify("+{$dias_hasta_sab} days");
-    if ($bloque_fin > $final) $bloque_fin = $final;
-
-    $fi = $actual->format('Y-m-d');
-    $ff = $bloque_fin->format('Y-m-d');
-    $r  = consultar_movimientos_banco($id_banco, $fi, $ff);
-    if (!empty($r['success'])) $api_respondio = true;
-    if (!empty($r['success']) && !empty($r['movs'])) {
-        $todos_movs = array_merge($todos_movs, $r['movs']);
-    }
-
-    $actual = clone $bloque_fin;
-    $actual->modify('+1 day');
-}
-
-$resultado = ['success' => !empty($todos_movs), 'movs' => $todos_movs];
-
-if (empty($todos_movs)) {
-    if ($api_respondio) {
-        $titulo = '!SIN MOVIMIENTOS EN EL RANGO!';
-        $message = 'No se encontraron movimientos en los rangos de fecha consultados. Verifica la fecha e intenta de nuevo.';
-    } else {
-        $titulo = '!ERROR DE CONEXION BANCARIA!';
-        $message = 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.';
-    }
-    echo json_encode(['status' => 'error', 'titulo' => $titulo, 'message' => $message]);
-    exit;
-}
-
-// Buscar movimiento
-$mov_ref = null;
-$ref_user_clean = preg_replace('/\D/', '', $referencia);
-
-if ($metodo_pago === 'Transferencia') {
-    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
-    $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
-    foreach ($resultado['movs'] as $mov) {
-        $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-        $desc = strtoupper($mov['descripcion'] ?? '');
-        if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
-        if (!isset($mov['referencia'])) continue;
-        $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
-        $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
-        $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
-        if (
-            $ref_banco_clean === $ref_user_clean ||
-            ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
-            ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
-        ) {
-            $mov_ref = $mov;
-            break;
-        }
-    }
-} else {
-    if (strlen($ref_user_clean) > 8) {
-        $ref_user_clean = substr($ref_user_clean, -8);
-    }
-    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
-    $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
-
-    foreach ($resultado['movs'] as $mov) {
-        $tipo = strtoupper($mov['Tipo'] ?? $mov['mov'] ?? '');
-        $desc = strtoupper($mov['descripcion'] ?? '');
-        if ($tipo !== 'CREDITO' || strpos($desc, 'DEBITO') !== false) continue;
-        if (!isset($mov['referencia'])) continue;
-
-        $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
-        $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
-        $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
-
-        if (
-            $ref_banco_clean === $ref_user_clean ||
-            ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
-            ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
-        ) {
-            $mov_ref = $mov;
-            break;
-        }
+// === FASE 2 (fallback): Si no se encontró, buscar en todos los créditos de los últimos 30 días ===
+$fase2 = null;
+if (!$mov_ref) {
+    $fase2 = obtener_creditos_recientes($id_banco);
+    if (!empty($fase2['movs'])) {
+        $mov_ref = buscar_referencia_en_movs($fase2['movs'], $referencia, $metodo_pago);
     }
 }
 
 if (!$mov_ref) {
-    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA NO EXISTE EN EL BANCO!', 'message' => 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.']);
+    $es_domingo = (int)date('N') === 7;
+    if ($es_domingo) {
+        $titulo = '!DOMINGO - SIN VERIFICACION BANCARIA!';
+        $message = 'Los pagos realizados en domingo no pueden verificarse hasta el día siguiente (lunes), ya que el banco no procesa movimientos en domingo. Intenta nuevamente mañana o contacta a soporte.';
+    } else {
+        $api_respondio = !empty($fase1['api_respondio']) || !empty($fase2['api_respondio'] ?? false);
+        if ($api_respondio) {
+            $titulo = '!REFERENCIA NO EXISTE EN EL BANCO!';
+            $message = 'La referencia no fue encontrada en los movimientos del banco. Verifica la fecha y el número de referencia. O ponte en contacto con tu número de Soporte local.';
+        } else {
+            $titulo = '!ERROR DE CONEXION BANCARIA!';
+            $message = 'No pudimos consultar los movimientos del banco en este momento. Inténtalo más tarde o reporta para verificación manual.';
+        }
+    }
+    echo json_encode(['status' => 'error', 'titulo' => $titulo, 'message' => $message]);
     exit;
 }
 

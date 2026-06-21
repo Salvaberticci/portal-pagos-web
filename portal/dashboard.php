@@ -33,6 +33,7 @@ $cache_time = 3600;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mi Panel - Wireless Supply</title>
+<link rel="icon" href="../images/favicon.ico" type="image/x-icon">
 <link href="../css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
 <link rel="stylesheet" href="css/style.css">
