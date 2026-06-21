@@ -150,6 +150,7 @@ $rangos = [
     ['-2 days', '+1 day'],
     ['-1 day',  '+0 day'],
     ['-3 days', '+1 day'],
+    ['-10 days', '+0 day'],
 ];
 
 $resultado = ['success' => false, 'movs' => []];
