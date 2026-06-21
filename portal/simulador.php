@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $response = ['status' => 'error', 'message' => 'Error al activar: HTTP ' . $res['status']];
             }
-        } elseif ($action === 'pay') {
+            } elseif ($action === 'pay') {
             $ref = $_POST['referencia'] ?? '';
             $monto = floatval($_POST['monto'] ?? 0);
             if (!$ref || $monto <= 0) {
@@ -106,6 +106,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $response = ['status' => 'error', 'message' => 'Error al registrar pago: ' . ($res['error'] ?? 'HTTP '.$res['status'])];
                 }
+            }
+        } elseif ($action === 'list_bank_transactions') {
+            require_once __DIR__ . '/../paginas/principal/banco_api_router.php';
+            $id_banco = intval($_POST['id_banco'] ?? 9);
+            $fecha_ini = $_POST['fecha_ini'] ?? date('Y-m-d');
+            $fecha_fin = $_POST['fecha_fin'] ?? date('Y-m-d');
+            $buscar_ref = trim($_POST['referencia'] ?? '');
+
+            $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
+
+            if (empty($resultado['success'])) {
+                $msg = $resultado['message'] ?? 'Error de conexión con la API del banco';
+                $response = ['status' => 'error', 'message' => $msg];
+            } elseif (empty($resultado['movs'])) {
+                $response = ['status' => 'error', 'message' => 'No se encontraron movimientos en el rango seleccionado.'];
+            } else {
+                $movs = $resultado['movs'];
+
+                if ($buscar_ref) {
+                    $ref_clean = preg_replace('/\D/', '', $buscar_ref);
+                    $ref_6 = strlen($ref_clean) >= 6 ? substr($ref_clean, -6) : $ref_clean;
+                    $filtered = [];
+                    foreach ($movs as $m) {
+                        $m_ref = preg_replace('/\D/', '', $m['referencia'] ?? '');
+                        $m_ref_6 = strlen($m_ref) >= 6 ? substr($m_ref, -6) : $m_ref;
+                        if ($m_ref === $ref_clean || $m_ref_6 === $ref_6) {
+                            $filtered[] = $m;
+                        }
+                    }
+                    $movs = $filtered;
+                    if (empty($movs)) {
+                        $response = ['status' => 'error', 'message' => "Referencia '{$buscar_ref}' no encontrada en el rango."];
+                        break;
+                    }
+                }
+
+                $creditos = 0;
+                $debitos = 0;
+                foreach ($movs as $m) {
+                    $t = strtoupper($m['mov'] ?? $m['Tipo'] ?? '');
+                    if ($t === 'CREDITO') $creditos++;
+                    elseif (strpos($t, 'DEBITO') !== false) $debitos++;
+                }
+
+                $html = "<div class='small'><span class='text-info'>Total: " . count($movs) . "</span> | ";
+                $html .= "<span class='text-success'>Créditos: {$creditos}</span> | ";
+                $html .= "<span class='text-danger'>Débitos: {$debitos}</span></div>";
+                $html .= '<div style="max-height:350px;overflow-y:auto;margin-top:8px;">';
+                $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.75rem;">';
+                $html .= '<thead><tr><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Referencia</th><th>Monto Bs</th><th>Obs</th></tr></thead><tbody>';
+                foreach ($movs as $m) {
+                    $tipo = $m['mov'] ?? $m['Tipo'] ?? '?';
+                    $fecha = $m['fecha'] ?? '?';
+                    $hora = $m['hora'] ?? '';
+                    $ref = $m['referencia'] ?? '?';
+                    $importe = $m['importe'] ?? $m['monto'] ?? '?';
+                    $obs = htmlspecialchars(substr($m['observacion'] ?? '', 0, 45));
+                    $color = strtoupper($tipo) === 'CREDITO' ? 'text-success' : 'text-danger';
+                    $html .= "<tr class='{$color}'><td>{$fecha}</td><td>{$hora}</td><td>{$tipo}</td><td style='font-family:monospace'>{$ref}</td><td>Bs {$importe}</td><td style='font-size:0.7rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>{$obs}</td></tr>";
+                }
+                $html .= '</tbody></table></div>';
+                $response = ['status' => 'ok', 'html' => $html, 'total' => count($movs)];
             }
         }
     } catch (\Exception $e) {
@@ -265,6 +327,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
             </div>
+
+            <!-- Banco API -->
+            <div class="glass-panel">
+                <h5 class="mb-4"><i class="fas fa-university me-2 text-warning"></i> Banco API — Verificador BDV</h5>
+
+                <div class="mb-3">
+                    <label class="form-label small">Banco</label>
+                    <select id="bank_selector" class="form-select bg-dark text-white border-secondary">
+                        <option value="9">BDV Pago Móvil</option>
+                        <option value="12">BDV Transferencia</option>
+                    </select>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">Fecha Desde</label>
+                        <input type="date" id="bank_fecha_ini" class="form-control bg-dark text-white border-secondary">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Fecha Hasta</label>
+                        <input type="date" id="bank_fecha_fin" class="form-control bg-dark text-white border-secondary">
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Buscar Referencia (opcional)</label>
+                    <input type="text" id="bank_referencia" class="form-control bg-dark text-white border-secondary" placeholder="Ej: 139627">
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-4">
+                        <button class="btn btn-warning btn-custom w-100" onclick="runBankAction('test')">
+                            <i class="fas fa-plug"></i> Test API
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-info btn-custom w-100" onclick="runBankAction('list')">
+                            <i class="fas fa-list"></i> Listar Movs
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-primary btn-custom w-100" onclick="runBankAction('search_ref')">
+                            <i class="fas fa-search"></i> Buscar Ref
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bank-result-box" class="mt-3 p-3 rounded" style="background:rgba(0,0,0,0.3);display:none;font-size:0.85rem;"></div>
+            </div>
         </div>
 
         <!-- Columna Derecha: Consola -->
@@ -335,6 +446,76 @@ function runAction(action) {
         logMsg('ERROR DE RED: ' + err, true);
     });
 }
+
+function setDefaultDates() {
+    var hoy = new Date();
+    var dd = String(hoy.getDate()).padStart(2,'0');
+    var mm = String(hoy.getMonth()+1).padStart(2,'0');
+    var yyyy = hoy.getFullYear();
+    var hoyStr = yyyy+'-'+mm+'-'+dd;
+    var inicio = new Date(Date.now() - 7*24*60*60*1000);
+    dd = String(inicio.getDate()).padStart(2,'0');
+    mm = String(inicio.getMonth()+1).padStart(2,'0');
+    var inicioStr = inicio.getFullYear()+'-'+mm+'-'+dd;
+    document.getElementById('bank_fecha_ini').value = inicioStr;
+    document.getElementById('bank_fecha_fin').value = hoyStr;
+}
+
+function runBankAction(mode) {
+    var id_banco = document.getElementById('bank_selector').value;
+    var fecha_ini = document.getElementById('bank_fecha_ini').value;
+    var fecha_fin = document.getElementById('bank_fecha_fin').value;
+    var referencia = document.getElementById('bank_referencia').value;
+
+    if (mode === 'test') {
+        logMsg('Probando conexión con API BDV (rango: hoy)...');
+        fecha_ini = new Date().toISOString().split('T')[0];
+        fecha_fin = fecha_ini;
+        referencia = '';
+    } else if (mode === 'search_ref') {
+        if (!referencia) {
+            logMsg('ERROR: Ingresa una referencia para buscar', true);
+            return;
+        }
+        logMsg('Buscando referencia ' + referencia + ' en BDV...');
+    } else {
+        logMsg('Listando transacciones BDV de ' + fecha_ini + ' a ' + fecha_fin + '...');
+    }
+
+    document.getElementById('page-loading').style.display = 'flex';
+    var box = document.getElementById('bank-result-box');
+    box.style.display = 'none';
+
+    var formData = new FormData();
+    formData.append('action', 'list_bank_transactions');
+    formData.append('id_banco', id_banco);
+    formData.append('fecha_ini', fecha_ini);
+    formData.append('fecha_fin', fecha_fin);
+    formData.append('referencia', referencia);
+
+    fetch('simulador.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('page-loading').style.display = 'none';
+        box.style.display = 'block';
+        if (data.status === 'ok') {
+            logMsg('EXITO: ' + data.total + ' movimiento(s) encontrado(s)');
+            box.innerHTML = data.html;
+        } else {
+            logMsg('ERROR: ' + data.message, true);
+            box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('page-loading').style.display = 'none';
+        logMsg('ERROR DE RED: ' + err, true);
+    });
+}
+
+setDefaultDates();
 </script>
 </body>
 </html>

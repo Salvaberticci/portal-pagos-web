@@ -146,6 +146,12 @@ if ($api_cfg === null) {
 $ts  = strtotime($fecha_pago);
 $hoy = (new \DateTime('now', new \DateTimeZone('America/Caracas')))->format('Y-m-d');
 
+// La API BDV no devuelve datos si el rango incluye domingo
+$max_fecha = $hoy;
+if ((int)date('N', strtotime($max_fecha)) === 7) {
+    $max_fecha = date('Y-m-d', strtotime($max_fecha . ' -1 day'));
+}
+
 $rangos = [
     ['-2 days', '+1 day'],
     ['-1 day',  '+0 day'],
@@ -157,7 +163,7 @@ $resultado = ['success' => false, 'movs' => []];
 foreach ($rangos as $offset) {
     $fecha_ini = date('Y-m-d', strtotime($offset[0], $ts));
     $fecha_fin = date('Y-m-d', strtotime($offset[1], $ts));
-    if ($fecha_fin > $hoy) $fecha_fin = $hoy;
+    if ($fecha_fin > $max_fecha) $fecha_fin = $max_fecha;
     $resultado = consultar_movimientos_banco($id_banco, $fecha_ini, $fecha_fin);
     if (!empty($resultado['success']) && !empty($resultado['movs'])) {
         break;
