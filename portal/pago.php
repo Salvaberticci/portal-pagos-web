@@ -51,7 +51,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pagar - Wireless Supply</title>
-    <link rel="icon" href="../images/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../images/favicon.png" type="image/png">
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
@@ -784,7 +784,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         '</span>';
                     title.textContent = titulo;
                     title.className = 'fw-bold mb-2';
-                    title.style.color = '#ea580c';
+                    title.style.color = '#3b82f6';
                     msg.textContent = mensaje;
                 } else {
                     icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';

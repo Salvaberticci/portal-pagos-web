@@ -19,7 +19,7 @@ if (isset($_SESSION['cliente_cedula'])) {
     <!-- Bootstrap CSS -->
     <link href="../css/bootstrap.min.css" rel="stylesheet">
     <!-- Favicon -->
-    <link rel="icon" href="../images/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="../images/favicon.png" type="image/png">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="css/fontawesome/css/all.min.css">
     <!-- Estilos Premium -->
