@@ -760,7 +760,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
                         if (data.referencia) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia</td><td style="font-weight:700;color:var(--text-main);">' + data.referencia + '</td></tr>';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto USD</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
-                        if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                        if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referncia </td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                         if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
                         if (data.service_id) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio</td><td style="font-weight:700;color:var(--text-main);">' + data.service_id + '</td></tr>';
                         dHtml += '</table></div>';
