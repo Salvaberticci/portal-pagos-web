@@ -677,9 +677,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
                 // Todas las referencias de cualquier banco se comprueban con la misma API del Banco BDV
                 var params = new URLSearchParams();
+                params.append('csrf_token', csrfToken);
                 params.append('metodo_pago', selectedMetodo);
                 params.append('id_banco_destino', document.getElementById('input_banco').value);
                 params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
+                params.append('id_contrato', idContrato);
                 params.append('referencia', ref);
                 params.append('monto_usd', document.getElementById('input_monto_usd').value);
                 params.append('invoice_total', document.getElementById('input_invoice_total').value);

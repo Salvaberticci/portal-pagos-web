@@ -208,31 +208,40 @@ try {
     }
 
     // Verificar resultado del registro en WispHub
-    if ($wispResult && in_array($wispResult['status'] ?? 0, [200, 201])) {
+    $wispSuccess = $wispResult && in_array($wispResult['status'] ?? 0, [200, 201]);
+    $bankVerified = !empty($verificacion_data);
+
+    if ($wispSuccess || $bankVerified) {
         // Construir mensaje detallado segun la distribucion
-        $msg_parts = ["Tu pago fue registrado exitosamente."];
+        $msg_parts = ["Tu pago fue verificado y registrado exitosamente."];
 
-        $amount_applied = $wispResult['amount_applied'] ?? $monto_usd;
-        $amount_unused  = $wispResult['amount_unused'] ?? 0;
+        if ($wispSuccess) {
+            $amount_applied = $wispResult['amount_applied'] ?? $monto_usd;
+            $amount_unused  = $wispResult['amount_unused'] ?? 0;
 
-        $pagos_count = count($wispResult['payments_registered'] ?? []);
+            $pagos_count = count($wispResult['payments_registered'] ?? []);
 
-        if ($pagos_count > 0) {
-            $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count recibo(s).";
-        }
+            if ($pagos_count > 0) {
+                $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count recibo(s).";
+            }
 
-        if ($amount_unused > 0) {
-            $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($amount_unused, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
-        }
+            if ($amount_unused > 0) {
+                $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($amount_unused, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
+            }
 
-        if ($amount_applied < $monto_usd && $amount_unused <= 0) {
-            $msg_parts[] = "Se aplic&oacute; <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
-        }
+            if ($amount_applied < $monto_usd && $amount_unused <= 0) {
+                $msg_parts[] = "Se aplic&oacute; <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
+            }
 
-        // Si se seleccionaron recibos pero no se aplico a todas
-        $selected_count = count($invoice_ids);
-        if ($selected_count > 0 && $pagos_count < $selected_count) {
-            $msg_parts[] = "Nota: solo se pagaron $pagos_count de $selected_count recibo(s) seleccionado(s) con el monto disponible.";
+            // Si se seleccionaron recibos pero no se aplico a todas
+            $selected_count = count($invoice_ids);
+            if ($selected_count > 0 && $pagos_count < $selected_count) {
+                $msg_parts[] = "Nota: solo se pagaron $pagos_count de $selected_count recibo(s) seleccionado(s) con el monto disponible.";
+            }
+        } else {
+            // WispHub falló pero el banco aprobó
+            $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? 'Error desconocido');
+            error_log("[procesar_pago_cliente] WispHub rechazó pero Banco aprobó (Ref: $referencia): " . $errorMsg);
         }
 
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
@@ -300,13 +309,13 @@ try {
         }
 
         // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
-        if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
+        if ($wispSuccess && $amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
             $firstInvoiceId = (int)$invoice_ids[0];
             $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
             $fechaEmi = $invDetail['fecha_emision'] ?? '';
             $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
             $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
-            $appliedToFirst = floatval($payments[0]['payment_applied'] ?? $amount_applied);
+            $appliedToFirst = floatval($wispResult['payments_registered'][0]['payment_applied'] ?? $amount_applied);
             if ($totalFactura > 0 && $fechaEmi && $fechaVenc) {
                 $proporcion = $appliedToFirst / $totalFactura;
                 $diasExtra = round(30 * $proporcion) + 1; // +1 día de gracia

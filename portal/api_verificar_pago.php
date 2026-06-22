@@ -26,13 +26,24 @@ if (!check_rate_limit('api_verificar_pago', 10, 60)) {
 }
 
 // Inputs
-$id_banco = isset($_REQUEST['id_banco']) ? intval($_REQUEST['id_banco']) : 0;
+$id_banco = isset($_REQUEST['id_banco']) ? intval($_REQUEST['id_banco']) : 
+            (isset($_REQUEST['id_banco_destino']) ? intval($_REQUEST['id_banco_destino']) : 0);
 $referencia = isset($_REQUEST['referencia']) ? trim($_REQUEST['referencia']) : '';
 $fecha_pago = isset($_REQUEST['fecha_pago']) ? trim($_REQUEST['fecha_pago']) : '';
 $metodo_pago = isset($_REQUEST['metodo_pago']) ? trim($_REQUEST['metodo_pago']) : '';
 $tasa_dolar = obtener_tasa_bcv();
 $wisp_service_id = isset($_REQUEST['id_contrato']) ? trim($_REQUEST['id_contrato']) : '';
-$invoice_ids = isset($_REQUEST['invoice_ids']) ? $_REQUEST['invoice_ids'] : [];
+$invoice_ids_raw = isset($_REQUEST['invoice_ids']) ? $_REQUEST['invoice_ids'] : [];
+// Puede llegar como string "9784,9785" o como array
+if (is_string($invoice_ids_raw) && !empty($invoice_ids_raw)) {
+    $invoice_ids = array_filter(explode(',', $invoice_ids_raw));
+} elseif (is_array($invoice_ids_raw)) {
+    $invoice_ids = $invoice_ids_raw;
+} else {
+    $invoice_ids = [];
+}
+$invoice_ids = array_map('strval', $invoice_ids);
+
 
 if (empty($referencia) || empty($fecha_pago) || empty($id_banco)) {
     echo json_encode(['status' => 'error', 'message' => 'Todos los campos son obligatorios.']);
