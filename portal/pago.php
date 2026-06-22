@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'security_helper.php';
 enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
@@ -331,13 +331,16 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
                 <!-- Alerta de Saldo a Favor -->
                 <?php if ($saldo_favor > 0): ?>
-                <div class="alert alert-success d-flex align-items-center mb-3 p-3" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; color: #10b981;">
-                    <i class="fas fa-gift fa-2x me-3"></i>
-                    <div>
-                        <h6 class="fw-bold mb-1">¡Tienes $<?php echo number_format($saldo_favor, 2); ?> USD a tu favor!</h6>
-                        <small class="text-light">Ese monto se descontará automáticamente de tu recibo. Solo necesitas transferir la diferencia.</small>
+                    <div class="alert alert-success d-flex align-items-center mb-3 p-3"
+                        style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; color: #10b981;">
+                        <i class="fas fa-gift fa-2x me-3"></i>
+                        <div>
+                            <h6 class="fw-bold mb-1">¡Tienes $<?php echo number_format($saldo_favor, 2); ?> USD a tu favor!
+                            </h6>
+                            <small class="text-light">Ese monto se descontará automáticamente de tu recibo. Solo necesitas
+                                transferir la diferencia.</small>
+                        </div>
                     </div>
-                </div>
                 <?php endif; ?>
 
                 <!-- Referencia -->
@@ -345,7 +348,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     <label class="label-premium">Numero de Referencia</label>
                     <input type="text" name="referencia" class="form-control glass-input"
                         placeholder="Ingresa tu referencia" id="input_referencia" inputmode="numeric"
-                        pattern="[0-9]{6,15}" maxlength="15" required>
+                        pattern="[0-9]{6,20}" maxlength="20" minlength="6" required>
                 </div>
 
                 <!-- Boton Pagar -->
@@ -527,6 +530,17 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 selectedMetodo = metodo;
                 document.getElementById('input_metodo').value = metodo;
 
+                var refInput = document.getElementById('input_referencia');
+                if (metodo.indexOf('vil') !== -1) {
+                    refInput.setAttribute('maxlength', '8');
+                    refInput.setAttribute('minlength', '6');
+                    refInput.setAttribute('pattern', '[0-9]{6,8}');
+                } else {
+                    refInput.setAttribute('maxlength', '20');
+                    refInput.setAttribute('minlength', '6');
+                    refInput.setAttribute('pattern', '[0-9]{6,20}');
+                }
+
                 var bancosMetodo = metodosBancos[metodo] || [];
                 var panelBanco = document.getElementById('panel-banco');
 
@@ -632,7 +646,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 var descuento = Math.min(totalUSD, saldoFavor);
 
                 document.getElementById('confirmacion_recibos').innerHTML = html;
-                
+
                 if (saldoFavor > 0) {
                     document.getElementById('confirm_total_bs').innerHTML = '<del class="text-muted fw-normal me-2" style="font-size:0.85em;">Bs ' + totalBS.toFixed(2).replace('.', ',') + '</del> Bs ' + aPagarBS.toFixed(2).replace('.', ',');
                     document.getElementById('confirm_total_usd').innerHTML = '<del class="text-muted fw-normal me-2" style="font-size:0.85em;">$' + totalUSD.toFixed(2) + '</del> $' + aPagarUSD.toFixed(2);
@@ -644,7 +658,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     document.getElementById('confirm_saldo').textContent = '$0.00';
                     document.getElementById('confirm_saldo').parentElement.style.color = '';
                 }
-                
+
                 document.getElementById('confirm_tasa').textContent = 'Bs ' + tasaBcv.toFixed(2).replace('.', ',') + ' / $1';
                 document.getElementById('confirm_metodo').textContent = selectedMetodo;
                 document.getElementById('confirm_banco').textContent = selectedBanco.nombre_banco;
@@ -747,7 +761,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         if (data.referencia) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia</td><td style="font-weight:700;color:var(--text-main);">' + data.referencia + '</td></tr>';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto USD</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                         if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
-                        if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Cobertura hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
+                        if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
                         if (data.service_id) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio</td><td style="font-weight:700;color:var(--text-main);">' + data.service_id + '</td></tr>';
                         dHtml += '</table></div>';
                         details.innerHTML = dHtml;
@@ -766,7 +780,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Verificado</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                         if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto en Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                         if (data.deuda_seleccionada_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Deuda Seleccionada</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
-                        if (data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Cobertura hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
+                        if (data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
                         if (data.fecha) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Fecha de Pago</td><td style="font-weight:700;color:var(--text-main);">' + data.fecha + '</td></tr>';
                         dHtml += '</table></div>';
                         details.innerHTML = dHtml;
