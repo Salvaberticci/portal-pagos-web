@@ -133,11 +133,19 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
 // === Fin modo prueba — flujo normal ===
 
-$api_cfg = obtener_config_api_banco($id_banco);
+// Forzar la consulta a la API del BDV independientemente del banco origen
+$id_banco_api = $id_banco;
+if (strpos(strtolower($metodo_pago), 'pago m') !== false) {
+    $id_banco_api = 9; // BDV Pago Movil
+} else if ($metodo_pago === 'Transferencia') {
+    $id_banco_api = 12; // BDV Transferencia
+}
+
+$api_cfg = obtener_config_api_banco($id_banco_api);
 if ($api_cfg === null) {
     echo json_encode([
         'status' => 'manual',
-        'message' => 'Este método requiere verificación manual por administración.'
+        'message' => 'El sistema de verificación automática no está configurado.'
     ]);
     exit;
 }
@@ -147,13 +155,13 @@ $ts  = strtotime($fecha_pago);
 $fecha_inicio_busqueda = date('Y-m-d', strtotime('-10 days', $ts));
 $fecha_fin_busqueda   = date('Y-m-d', strtotime('+1 day',  $ts));
 
-$fase1 = consultar_movimientos_rango($id_banco, $fecha_inicio_busqueda, $fecha_fin_busqueda);
+$fase1 = consultar_movimientos_rango($id_banco_api, $fecha_inicio_busqueda, $fecha_fin_busqueda);
 $mov_ref = buscar_referencia_en_movs($fase1['movs'], $referencia, $metodo_pago);
 
 // === FASE 2 (fallback): Si no se encontró, buscar en todos los créditos de los últimos 30 días ===
 $fase2 = null;
 if (!$mov_ref) {
-    $fase2 = obtener_creditos_recientes($id_banco);
+    $fase2 = obtener_creditos_recientes($id_banco_api);
     if (!empty($fase2['movs'])) {
         $mov_ref = buscar_referencia_en_movs($fase2['movs'], $referencia, $metodo_pago);
     }

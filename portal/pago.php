@@ -675,41 +675,41 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     return;
                 }
 
-                if (selectedBanco.api_config && selectedBanco.api_config.habilitada) {
-                    var params = new URLSearchParams();
-                    params.append('csrf_token', csrfToken);
-                    params.append('id_banco', selectedBanco.id_banco);
-                    params.append('referencia', ref);
-                    params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
-                    params.append('metodo_pago', selectedMetodo);
-                    params.append('id_contrato', idContrato);
-                    for (var i = 0; i < selectedIds.length; i++) {
-                        params.append('invoice_ids[]', selectedIds[i]);
-                    }
+                // Todas las referencias de cualquier banco se comprueban con la misma API del Banco BDV
+                var params = new URLSearchParams();
+                params.append('metodo_pago', selectedMetodo);
+                params.append('id_banco_destino', document.getElementById('input_banco').value);
+                params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
+                params.append('referencia', ref);
+                params.append('monto_usd', document.getElementById('input_monto_usd').value);
+                params.append('invoice_total', document.getElementById('input_invoice_total').value);
 
-                    fetch('api_verificar_pago.php', { method: 'POST', body: params })
-                        .then(function (r) { return r.json(); })
-                        .then(function (data) {
-                            document.getElementById('loadingOverlay').style.display = 'none';
-                            if (data.status === 'verified') {
-                                document.getElementById('input_verificacion_data').value = JSON.stringify(data);
-                                document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
-                                mostrarModalResultado('verificacion', data.descripcion || 'Referencia verificada correctamente.', data, function () {
-                                    document.getElementById('paymentForm').submit();
-                                });
-                            } else if (data.status === 'manual') {
-                                document.getElementById('paymentForm').submit();
-                            } else {
-                                mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, data.titulo);
-                            }
-                        })
-                        .catch(function () {
-                            document.getElementById('loadingOverlay').style.display = 'none';
-                            mostrarModalResultado('error', 'Error de conexion. Intenta de nuevo.');
-                        });
-                } else {
-                    document.getElementById('paymentForm').submit();
+                // Agregar facturas seleccionadas
+                var selectedInvoices = selectedIds;
+                if (selectedInvoices.length > 0) {
+                    params.append('invoice_ids', selectedInvoices.join(','));
                 }
+
+                fetch('api_verificar_pago.php', { method: 'POST', body: params })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        if (data.status === 'verified') {
+                            document.getElementById('input_verificacion_data').value = JSON.stringify(data);
+                            document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
+                            mostrarModalResultado('verificacion', data.descripcion || 'Referencia verificada correctamente.', data, function () {
+                                document.getElementById('paymentForm').submit();
+                            });
+                        } else if (data.status === 'manual') {
+                            mostrarModalResultado('error', data.message || 'Error al verificar el pago. El sistema de verificación automática no está configurado.');
+                        } else {
+                            mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, data.titulo);
+                        }
+                    })
+                    .catch(function () {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        mostrarModalResultado('error', 'Error de conexion. Intenta de nuevo.');
+                    });
             }
 
             function mostrarModalResultado(tipo, mensaje, data, onConfirm, titulo) {

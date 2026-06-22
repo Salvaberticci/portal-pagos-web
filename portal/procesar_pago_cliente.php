@@ -130,6 +130,35 @@ try {
     $verificacion_data = isset($_POST['verificacion_data']) ? json_decode($_POST['verificacion_data'], true) : null;
 
     if ($es_zelle || $verificacion_data) {
+        // --- QUEMAR REFERENCIA INMEDIATAMENTE SI FUE VERIFICADA POR API BANCARIA ---
+        if ($verificacion_data) {
+            require_once __DIR__ . '/wisp_helper.php';
+            $wispData = wisp_get_cached_data($wispClient, $id_contrato_asociado);
+            $c_perfil = $wispData['profile'] ?? [];
+            $ipServicio = $c_perfil['ip'] ?? '';
+            $zona = $c_perfil['zona']['nombre'] ?? '';
+
+            $accion_pre = $verificacion_data['tipo_pago'] ?? null;
+            if ($accion_pre === null && $invoice_total > 0) {
+                $diff = round($monto_usd - $invoice_total, 2);
+                $accion_pre = $diff < 0 ? 'abono' : ($diff == 0 ? 'completo' : 'exceso');
+            }
+
+            $monto_banco_bs = isset($verificacion_data['movimiento']['importe_bs']) ? floatval($verificacion_data['movimiento']['importe_bs']) : null;
+            $fecha_banco = $verificacion_data['movimiento']['fecha'] ?? null;
+            $banco_descripcion = isset($verificacion_data['movimiento']['observacion']) ? trim($verificacion_data['movimiento']['observacion']) : null;
+
+            require_once __DIR__ . '/referencia_helper.php';
+            // Guardar pago en BD local INMEDIATAMENTE
+            $db_ok = guardarPago(
+                $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
+                $invoice_total, $accion_pre, $id_contrato_asociado, $id_banco_destino, 
+                implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion
+            );
+            if (!$db_ok) { error_log('[procesar_pago] pre-burn guardarPago falló para ref: ' . $referencia); }
+        }
+        // ---------------------------------------------------------------------------
+
         // Nuevo flujo: registrar directo con las facturas seleccionadas
         $wispResult = $wispClient->registerPaymentAndActivate(
             $id_contrato_asociado,
@@ -259,14 +288,16 @@ try {
         $fecha_banco = $verificacion_data['movimiento']['fecha'] ?? null;
         $banco_descripcion = isset($verificacion_data['movimiento']['observacion']) ? trim($verificacion_data['movimiento']['observacion']) : null;
 
-        // Guardar pago en BD local
-        require_once __DIR__ . '/referencia_helper.php';
-        $db_ok = guardarPago(
-            $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
-            $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
-            implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion
-        );
-        if (!$db_ok) { error_log('[procesar_pago] guardarPago falló en nuevo flujo para ref: ' . $referencia); }
+        // Guardar pago en BD local SOLO SI ES ZELLE (los de API bancaria ya se quemaron antes)
+        if ($es_zelle) {
+            require_once __DIR__ . '/referencia_helper.php';
+            $db_ok = guardarPago(
+                $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
+                $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
+                implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion
+            );
+            if (!$db_ok) { error_log('[procesar_pago] guardarPago Zelle falló para ref: ' . $referencia); }
+        }
 
         // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
         if ($amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
