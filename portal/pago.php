@@ -121,11 +121,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         );
         $stmt_ab->execute([$wisp_service_id]);
         foreach ($stmt_ab->fetchAll() as $row) {
-            $inv_id_db = $row['facturas'] ?? 0;
+            $inv_id_db = trim($row['facturas'] ?? '');
             if (!empty($inv_id_db)) {
                 $found = false;
                 foreach ($invoices as &$inv) {
-                    if (($inv['id'] ?? $inv['id_factura'] ?? 0) == $inv_id_db) {
+                    if ((int)($inv['id'] ?? $inv['id_factura'] ?? 0) === (int)$inv_id_db) {
                         $found = true;
                         // Actualizar cobrado si el local es mayor
                         $inv['total_cobrado'] = max(floatval($inv['total_cobrado'] ?? 0), floatval($row['total_cobrado']));
@@ -134,8 +134,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 }
                 if (!$found) {
                     $invoices[] = [
-                        'id' => $inv_id_db,
-                        'id_factura' => $inv_id_db,
+                        'id' => (int)$inv_id_db,
+                        'id_factura' => (int)$inv_id_db,
                         'fecha_emision' => date('Y-m-d', strtotime($row['created_at'])),
                         'fecha_vencimiento' => date('Y-m-d', strtotime($row['created_at'] . ' + 1 day')),
                         'total' => floatval($row['total']),
@@ -157,11 +157,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
         $total = floatval($inv['total'] ?? 0);
         $cobrado = floatval($inv['total_cobrado'] ?? 0);
-        $monto = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
-        // Si la API dice saldo=0 pero la factura tiene abono parcial, calcular manual
-        if ($monto < 0.005 && $cobrado > 0 && $cobrado < $total) {
-            $monto = $total - $cobrado;
-        }
+        // Siempre calculamos el monto pendiente basado en el total cobrado actualizado
+        $monto = max(0, $total - $cobrado);
         // Saltar facturas completamente pagadas
         if ($total > 0 && $cobrado >= $total)
             continue;
