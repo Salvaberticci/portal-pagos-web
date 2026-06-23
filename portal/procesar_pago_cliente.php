@@ -280,6 +280,7 @@ try {
             // WispHub falló pero el banco aprobó
             $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? 'Error desconocido');
             error_log("[procesar_pago_cliente] WispHub rechazó pero Banco aprobó (Ref: $referencia): " . $errorMsg);
+            $msg_parts[] = "<br><strong style='color:#dc2626;'>Aviso:</strong> El banco aprobó el pago, pero WispHub no pudo aplicarlo a tu factura automáticamente. Por favor contacta a soporte con tu número de referencia. (Detalle: " . htmlspecialchars($errorMsg) . ")";
         }
 
         // Agregar mensaje de promesa si existe
