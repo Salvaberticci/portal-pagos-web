@@ -668,7 +668,7 @@ $cache_time = 3600;
                                                     <?php if ($cobertura_vencida): ?>
                                                         <span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>La promesa de pago venci&oacute; el <strong><?php echo $cobertura_hasta; ?></strong>. Tu servicio podría suspenderse pronto.</span>
                                                     <?php else: ?>
-                                                        <span style="color: #bae6fd;"><i class="fas fa-calendar-check me-1 text-info"></i>Promesa de pago activa: Tienes hasta el <strong><?php echo $cobertura_hasta; ?></strong> para pagar los <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> (Bs <?php echo number_format($saldo_bs, 2, ',', '.'); ?>) restantes.</span>
+                                                        <span style="color: #bae6fd;"><i class="fas fa-calendar-check me-1 text-info"></i>Tienes hasta el <strong><?php echo $cobertura_hasta; ?></strong> para pagar los <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> (Bs <?php echo number_format($saldo_bs, 2, ',', '.'); ?>) restantes.</span>
                                                     <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
