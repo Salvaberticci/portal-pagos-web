@@ -16,12 +16,21 @@ function getDb(): ?PDO {
     $password = $cfg['password'] ?? '';
     $charset  = $cfg['charset'] ?? 'utf8mb4';
     try {
-        $pdo = new PDO("mysql:host={$host};port={$port};charset={$charset}", $user, $password, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbname}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
-        $pdo->exec("USE `{$dbname}`");
+        try {
+            // Forma recomendada: conectar directo a la base de datos (ideal para cPanel/producción)
+            $pdo = new PDO("mysql:host={$host};port={$port};dbname={$dbname};charset={$charset}", $user, $password, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]);
+        } catch (PDOException $e) {
+            // Si falla (por ej. en local donde no existe), conectamos sin BD e intentamos crearla
+            $pdo = new PDO("mysql:host={$host};port={$port};charset={$charset}", $user, $password, [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            ]);
+            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbname}` CHARACTER SET {$charset} COLLATE {$charset}_unicode_ci");
+            $pdo->exec("USE `{$dbname}`");
+        }
         $pdo->exec("CREATE TABLE IF NOT EXISTS pagos_registrados (
             id INT AUTO_INCREMENT PRIMARY KEY,
             cliente VARCHAR(100) NOT NULL,
