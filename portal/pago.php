@@ -1130,8 +1130,13 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 transform: translateY(0) !important;
             }
 
+            #result_details .table-premium {
+                background: transparent !important;
+            }
             #result_details .table-premium td {
-                color: #000 !important;
+                color: var(--text-main) !important;
+                background: transparent !important;
+                border-bottom-color: var(--border-glass) !important;
                 opacity: 1;
             }
 
