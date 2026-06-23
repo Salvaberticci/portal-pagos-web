@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview — Modal Verificación</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f1f5f9;
+            --bg-glass: rgba(30,41,59,0.85);
+            --border-glass: rgba(255,255,255,0.1);
+        }
+        body {
+            background: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+        .modal-content {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            color: var(--text-main);
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .modal-header {
+            border-bottom: 1px solid var(--border-glass);
+            padding: 1.25rem 1.5rem 0.75rem;
+        }
+        .modal-body {
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            border-top: 1px solid var(--border-glass);
+            padding: 1rem 1.5rem;
+        }
+        .table-premium {
+            background: transparent;
+            color: var(--text-main);
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+        .table-premium td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: transparent;
+            color: var(--text-main);
+        }
+        .table-premium td:first-child {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .table-premium td:last-child {
+            font-weight: 700;
+            color: var(--text-main);
+            text-align: right;
+        }
+        .table-premium tr:last-child td {
+            border-bottom: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg,#2563eb,#1e40af);
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            color: #fff;
+            font-weight: 600;
+            width: 100%;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg,#3b82f6,#2563eb);
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid var(--border-glass);
+            padding: 10px 24px;
+            border-radius: 12px;
+            color: var(--text-main);
+            font-weight: 600;
+            width: 100%;
+        }
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .icon-circle {
+            font-size: 2.5rem;
+            color: var(--success);
+        }
+        .badge-label {
+            display: inline-block;
+            background: rgba(16,185,129,0.15);
+            color: var(--success);
+            padding: 2px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="modal-content shadow-lg">
+    <div class="modal-header text-center d-block border-0 pb-0">
+        <div class="mb-2">
+            <i class="fas fa-check-circle icon-circle"></i>
+        </div>
+        <h5 class="modal-title w-100" style="color:var(--primary);">Verificación Exitosa</h5>
+    </div>
+    <div class="modal-body">
+        <p class="text-center mb-3" style="color:#94a3b8;font-size:0.95rem;">
+            La referencia ha sido verificada correctamente en el banco.
+        </p>
+
+        <div class="table-responsive mt-2">
+            <table class="table table-premium mb-0">
+                <tbody>
+                    <!-- Referencia Bancaria (últimos 8 dígitos de la API del BDV) -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Referencia Bancaria</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">259405</td>
+                    </tr>
+                    <!-- Monto Verificado -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Monto Verificado</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">$19.67</td>
+                    </tr>
+                        <!-- Monto en Bs (como estaba originalmente) -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Monto en Bs</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">Bs 12.148,00</td>
+                    </tr>
+                    <!-- Deuda Seleccionada -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Deuda Seleccionada</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">$19.67</td>
+                    </tr>
+                    <!-- Servicio hasta -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Servicio hasta</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">23/07/2026</td>
+                    </tr>
+                    <!-- Fecha de Pago -->
+                    <tr>
+                        <td style="font-weight:700;color:var(--text-main);">Fecha de Pago</td>
+                        <td style="font-weight:700;color:var(--text-main);text-align:right;">23/06/2026</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="modal-footer d-flex gap-2">
+        <button class="btn-primary">Confirmar Pago</button>
+        <button class="btn-secondary">Cerrar</button>
+    </div>
+</div>
+
+</body>
+</html>

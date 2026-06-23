@@ -820,7 +820,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         details.classList.remove('d-none');
                         var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Verificado</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
-                        if (data.referencia) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">REF.</td><td style="font-weight:700;color:var(--text-main);">' + data.referencia + '</td></tr>';
+                        if (data.movimiento && data.movimiento.referencia_banco) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia Bancaria</td><td style="font-weight:700;color:var(--text-main);">' + data.movimiento.referencia_banco.slice(-8) + '</td></tr>';
                         if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto en Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                         if (data.deuda_seleccionada_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Deuda Seleccionada</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
                         if (data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
