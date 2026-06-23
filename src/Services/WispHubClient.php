@@ -434,6 +434,8 @@ class WispHubClient
         ]);
     }
 
+
+
     /**
      * Obtiene el perfil completo de un cliente/servicio de WispHub.
      */

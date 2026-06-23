@@ -60,6 +60,9 @@ function getDb(): ?PDO {
         try {
             $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN banco_descripcion VARCHAR(255) DEFAULT NULL AFTER fecha_banco");
         } catch (PDOException $e) {}
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN fecha_promesa DATE DEFAULT NULL AFTER banco_descripcion");
+        } catch (PDOException $e) {}
         return $pdo;
     } catch (PDOException $e) {
         error_log('[referencia_helper] DB connection failed: ' . $e->getMessage());
@@ -100,15 +103,16 @@ function guardarPago(
     string $facturas = '',
     ?float $montoBancoBs = null,
     ?string $fechaBanco = null,
-    ?string $bancoDescripcion = null
+    ?string $bancoDescripcion = null,
+    ?string $fechaPromesa = null
 ): bool {
     $pdo = getDb();
     if (!$pdo) return false;
     try {
         $stmt = $pdo->prepare("INSERT INTO pagos_registrados
-            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, monto_banco_bs, fecha_banco, banco_descripcion, total, accion, service_id, id_banco)
-            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $montoBancoBs, $fechaBanco, $bancoDescripcion, $total, $accion, $serviceId, $idBanco]);
+            (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, monto_banco_bs, fecha_banco, banco_descripcion, fecha_promesa, total, accion, service_id, id_banco)
+            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $montoBancoBs, $fechaBanco, $bancoDescripcion, $fechaPromesa, $total, $accion, $serviceId, $idBanco]);
         return true;
     } catch (PDOException $e) {
         error_log('[referencia_helper] insert error: ' . $e->getMessage());

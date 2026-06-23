@@ -70,64 +70,46 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $c_perfil = array_merge($c_perfil, $detailRes['data']);
     }
 
-    $invoicesPending = $wispClient->getPendingInvoices($serviceId);
+    $clientId = $c_perfil['usuario'] ?? null;
+
+    // Usar GET /clientes/{id_servicio}/saldo/ para garantizar que solo se devuelven las facturas de este servicio
+    $invoicesPendingAPI = [];
+    if ($serviceId) {
+        $invoicesPendingAPI = $wispClient->getPendingInvoices($serviceId);
+    }
     $balance = $wispClient->getClientBalance($serviceId);
 
-    // Solo usamos las facturas pendientes que devuelve WispHub.
-    // NO mezclamos con facturas "pagadas" (estado=2) porque WispHub, cuando
-    // registra un abono parcial, crea una factura nueva de "Saldo Pendiente"
-    // y marca la original como pagada (estado=2). Si mezcláramos ambas,
-    // el portal mostraría la factura original (pagada parcialmente) Y la nueva
-    // de saldo pendiente, duplicando facturas y confundiendo al cliente.
-    $pendingIds = [];
-    $byId = [];
-    foreach ($invoicesPending as $inv) {
-        $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-        if ($id) {
-            $pendingIds[$id] = true;
-            $byId[$id] = $inv;
-        }
+    // Normalizar y estructurar la respuesta para el dashboard
+    $invoices = [];
+    foreach ($invoicesPendingAPI as $inv) {
+        $id = $inv['id_factura'] ?? $inv['id'] ?? 0;
+        if (!$id) continue;
+        
+        $invoices[] = [
+            'id' => $id,
+            'id_factura' => $id,
+            'fecha_emision' => $inv['fecha_emision'] ?? '',
+            'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
+            'total' => floatval($inv['total'] ?? 0),
+            'saldo_nuevo' => floatval($inv['total'] ?? 0),
+            'saldo' => floatval($inv['total'] ?? 0),
+            'total_cobrado' => 0,
+            'estado' => 1,
+            'articulos' => [
+                ['descripcion' => 'Renta y mantenimiento de la red']
+            ]
+        ];
     }
-    $allInvoices = array_values($byId);
 
-    $enriched = [];
-    foreach ($allInvoices as $inv) {
-        $invId = $inv['id'] ?? 0;
-        if ($invId) {
-            $full = $wispClient->getInvoiceDetail((string)$invId);
-            if (!empty($full)) {
-                // Si la factura viene del listado PENDIENTE, el campo "total" de ese
-                // endpoint es el saldo real a pagar. El detalle (/facturas/{id}/) puede
-                // devolver total_cobrado desactualizado. Corregimos:
-                $fromPending = isset($pendingIds[$invId]);
-                if ($fromPending) {
-                    $pendingTotal = floatval($inv['total'] ?? 0);
-                    $detailTotal  = floatval($full['total'] ?? $pendingTotal);
-                    // pendingTotal = saldo pendiente real
-                    // total_cobrado = detailTotal - pendingTotal (si detailTotal > pendingTotal, hay abono)
-                    $full['total'] = $detailTotal; // el total original de la factura
-                    $full['total_cobrado'] = max(0, $detailTotal - $pendingTotal);
-                    $full['saldo_nuevo'] = $pendingTotal;
-                    $full['saldo'] = $pendingTotal;
-                }
-                $enriched[] = $full;
-                continue;
-            }
-        }
-        $enriched[] = $inv;
-    }
-    $invoices = $enriched;
-
-    $usuario_ws = $c_perfil['usuario'] ?? '';
     $ultimo_pago = null;
-    if (!empty($usuario_ws)) {
-        $ultimo_pago = $wispClient->getLastPaidInvoice($usuario_ws);
+    if (!empty($clientId)) {
+        $ultimo_pago = $wispClient->getLastPaidInvoice($clientId);
     }
 
     $data = [
-        'profile' => $c_perfil,
-        'invoices' => $invoices,
-        'balance' => $balance,
+        'profile'     => $c_perfil,
+        'invoices'    => $invoices,
+        'balance'     => $balance,
         'ultimo_pago' => $ultimo_pago,
     ];
 

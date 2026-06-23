@@ -53,6 +53,15 @@ class WispHubDevModeClient extends WispHubClient
         ];
     }
 
+    public function getInvoices(array $params = []): array
+    {
+        $cliente = $params['cliente'] ?? '';
+        if ($cliente === $this->testUsuario) {
+            return $this->getPendingInvoices($this->testServiceId);
+        }
+        return parent::getInvoices($params);
+    }
+
     public function getPendingInvoices(string $serviceId): array
     {
         if ($serviceId !== $this->testServiceId) {
@@ -155,12 +164,12 @@ class WispHubDevModeClient extends WispHubClient
                 'fecha_pago'       => null,
                 'estado'           => 'Pendiente de Pago',
                 'tipo'             => 1,
-                'total'            => 50.00,
+                'total'            => 30.00,
                 'monto_pendiente'  => 30.00,
-                'sub_total'        => 50.00,
-                'total_cobrado'    => 20.00,
+                'sub_total'        => 30.00,
+                'total_cobrado'    => 0,
                 'articulos'        => [
-                    ['id' => 6, 'descripcion' => 'Instalacion de Red FTTH y Equipo ONT (Abonado \$20)', 'precio' => '50.00', 'cantidad' => 1],
+                    ['id' => 6, 'descripcion' => 'Instalacion de Red FTTH y Equipo ONT (Saldo Pendiente)', 'precio' => '30.00', 'cantidad' => 1],
                 ],
             ],
         ];

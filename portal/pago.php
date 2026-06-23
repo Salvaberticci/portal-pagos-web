@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'security_helper.php';
 enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
@@ -107,6 +107,48 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     }
 
     $invoices = $wisp_cached['invoices'];
+
+    // Rescate de facturas abonadas parcialmente de la BD local
+    require_once __DIR__ . '/referencia_helper.php';
+    $pdo_pago = getDb();
+    if ($pdo_pago) {
+        $stmt_ab = $pdo_pago->prepare(
+            "SELECT * FROM pagos_registrados 
+             WHERE service_id = ? 
+             AND total_cobrado < total 
+             AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) 
+             ORDER BY id DESC LIMIT 10"
+        );
+        $stmt_ab->execute([$wisp_service_id]);
+        foreach ($stmt_ab->fetchAll() as $row) {
+            $inv_id_db = $row['facturas'] ?? 0;
+            if (!empty($inv_id_db)) {
+                $found = false;
+                foreach ($invoices as &$inv) {
+                    if (($inv['id'] ?? $inv['id_factura'] ?? 0) == $inv_id_db) {
+                        $found = true;
+                        // Actualizar cobrado si el local es mayor
+                        $inv['total_cobrado'] = max(floatval($inv['total_cobrado'] ?? 0), floatval($row['total_cobrado']));
+                        break;
+                    }
+                }
+                if (!$found) {
+                    $invoices[] = [
+                        'id' => $inv_id_db,
+                        'id_factura' => $inv_id_db,
+                        'fecha_emision' => date('Y-m-d', strtotime($row['created_at'])),
+                        'fecha_vencimiento' => date('Y-m-d', strtotime($row['created_at'] . ' + 1 day')),
+                        'total' => floatval($row['total']),
+                        'saldo_nuevo' => floatval($row['total']),
+                        'saldo' => floatval($row['total']),
+                        'total_cobrado' => floatval($row['total_cobrado']),
+                        'estado' => 1,
+                        'articulos' => [['descripcion' => 'Abono pendiente (Recibo N° ' . $inv_id_db . ')']]
+                    ];
+                }
+            }
+        }
+    }
     $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : $wisp_cached['balance'];
     $deuda_total = 0;
     $invoices_json = [];

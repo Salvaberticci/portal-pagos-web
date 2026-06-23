@@ -159,6 +159,31 @@ try {
         }
         // ---------------------------------------------------------------------------
 
+        // IMPORTANTE: Si es pago parcial, calculamos la promesa pero la aplicamos DESPUÉS de registrar el abono.
+        // WispHub marca la factura original como "Pagada" al recibir el abono y genera una nueva de "Saldo Pendiente".
+        $shouldCreatePromise = false;
+        $promiseDetails = [];
+        if ($monto_usd < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
+            $firstInvoiceId = (int)$invoice_ids[0];
+            $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+            $fechaEmi = $invDetail['fecha_emision'] ?? '';
+            $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
+            $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
+            if ($totalFactura > 0 && $fechaEmi && $fechaVenc) {
+                $proporcion = $monto_usd / $totalFactura;
+                $diasExtra = round(30 * $proporcion) + 1; // +1 día de gracia
+                $fechaLimite = date('Y-m-d', strtotime($fechaVenc . " + $diasExtra days"));
+            } else {
+                $fechaLimite = !empty($fechaVenc) ? date('Y-m-d', strtotime($fechaVenc)) : date('Y-m-d', strtotime('+30 days'));
+            }
+            $saldoRestante = round($invoice_total - $monto_usd, 2);
+            $shouldCreatePromise = true;
+            $promiseDetails = [
+                'fecha_limite' => $fechaLimite,
+                'saldo' => $saldoRestante
+            ];
+        }
+
         // Nuevo flujo: registrar directo con las facturas seleccionadas
         $wispResult = $wispClient->registerPaymentAndActivate(
             $id_contrato_asociado,
@@ -170,6 +195,19 @@ try {
             '',
             $invoice_ids  // Solo pagar las facturas seleccionadas
         );
+
+        $wispStatus = $wispResult['status'] ?? 200;
+
+        // Calcular fecha de promesa para abonos parciales y guardarla en la BD local.
+        // WispHub rechaza promesas en facturas que ya marcó como "Pagada" (HTTP 400),
+        // por lo que usamos nuestra BD local como fuente de verdad para la promesa.
+        $fechaPromesaLocal = null;
+        if ($shouldCreatePromise) {
+            $fechaPromesaLocal = $promiseDetails['fecha_limite'];
+            $GLOBALS['pending_promise_msg'] = " Promesa de pago registrada: tienes hasta el "
+                . date('d/m/Y', strtotime($fechaPromesaLocal))
+                . " para pagar los $" . number_format($promiseDetails['saldo'], 2) . " USD restantes.";
+        }
     } else {
         // Flujo legacy (desde bdv_autoverify_helper.php del wizard viejo)
         require_once __DIR__ . '/bdv_autoverify_helper.php';
@@ -244,6 +282,11 @@ try {
             error_log("[procesar_pago_cliente] WispHub rechazó pero Banco aprobó (Ref: $referencia): " . $errorMsg);
         }
 
+        // Agregar mensaje de promesa si existe
+        if (!empty($GLOBALS['pending_promise_msg'])) {
+            $msg_parts[] = $GLOBALS['pending_promise_msg'];
+        }
+
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
         $_SESSION['pago_msg'] = implode(' ', $msg_parts);
 
@@ -303,32 +346,37 @@ try {
             $db_ok = guardarPago(
                 $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
                 $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
-                implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion
+                implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion,
+                $fechaPromesaLocal ?? null
             );
             if (!$db_ok) { error_log('[procesar_pago] guardarPago Zelle falló para ref: ' . $referencia); }
         }
 
-        // Si es pago parcial, crear promesa de pago en WispHub por el saldo restante
+        // Calcular y guardar promesa de pago localmente si es pago parcial.
+        // WispHub rechaza crear promesas en facturas ya marcadas como "Pagada" (HTTP 400),
+        // por lo que almacenamos la fecha de promesa en nuestra BD local.
         if ($wispSuccess && $amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
             $firstInvoiceId = (int)$invoice_ids[0];
             $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
-            $fechaEmi = $invDetail['fecha_emision'] ?? '';
             $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
             $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
             $appliedToFirst = floatval($wispResult['payments_registered'][0]['payment_applied'] ?? $amount_applied);
-            if ($totalFactura > 0 && $fechaEmi && $fechaVenc) {
+            if ($totalFactura > 0 && $fechaVenc) {
                 $proporcion = $appliedToFirst / $totalFactura;
-                $diasExtra = round(30 * $proporcion) + 1; // +1 día de gracia
-                $fechaLimite = date('Y/m/d', strtotime($fechaVenc . " + $diasExtra days"));
+                $diasExtra = round(30 * $proporcion) + 1;
+                $fechaLimiteLocal = date('Y-m-d', strtotime($fechaVenc . " + $diasExtra days"));
             } else {
-                $fechaLimite = !empty($fechaVenc) ? str_replace('-', '/', $fechaVenc) : date('Y/m/d', strtotime('+30 days'));
+                $fechaLimiteLocal = !empty($fechaVenc) ? date('Y-m-d', strtotime($fechaVenc)) : date('Y-m-d', strtotime('+30 days'));
             }
-            $saldoRestante = round($invoice_total - $amount_applied, 2);
-            $promiseResult = $wispClient->addPaymentPromise($firstInvoiceId, $fechaLimite, $saldoRestante);
-            if (($promiseResult['status'] ?? 0) === 201) {
-                $msg_parts[] = " Promesa de pago creada por $" . number_format($saldoRestante, 2) . " USD (vence " . $fechaLimite . ").";
-                $_SESSION['pago_msg'] = implode(' ', $msg_parts);
+            $saldoRestante2 = round($invoice_total - $amount_applied, 2);
+            // Actualizar la fecha_promesa en la BD local para el registro de este pago
+            $pdo_upd = getDb();
+            if ($pdo_upd) {
+                $pdo_upd->prepare("UPDATE pagos_registrados SET fecha_promesa = ? WHERE referencia = ? AND service_id = ?")
+                        ->execute([$fechaLimiteLocal, $referencia, $id_contrato_asociado]);
             }
+            $msg_parts[] = " Promesa registrada: tienes hasta el " . date('d/m/Y', strtotime($fechaLimiteLocal)) . " para pagar los $" . number_format($saldoRestante2, 2) . " USD restantes.";
+            $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         }
 
         $redirect_url = 'dashboard.php?refreshed=1';

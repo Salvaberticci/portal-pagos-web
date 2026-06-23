@@ -92,6 +92,7 @@ $cache_time = 3600;
     }
 
     require_once __DIR__ . '/wisp_helper.php';
+    require_once __DIR__ . '/referencia_helper.php';
     $wisp_cached = wisp_get_cached_data($wispClient, $wisp_service_id);
     $c_perfil = $wisp_cached['profile'];
     $invoices = $wisp_cached['invoices'];
@@ -380,154 +381,313 @@ $cache_time = 3600;
                         <?php endif; ?>
                     </div>
                 </div>
-                <?php if ($totalInvs > 0): ?>
-                    <div class="recibos-list">
-                        <?php foreach ($invoices as $inv):
-                            $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                            $inv_monto = floatval($inv['total'] ?? $inv['monto'] ?? $inv['monto_pendiente'] ?? 0);
-                            $inv_monto_bs = $inv_monto * $tasa_bcv;
-                            $inv_desc = wisp_extract_desc($inv, $inv_id);
-                            if (mb_strlen($inv_desc) > 55)
-                                $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
-                            $fecha_emi = $inv['fecha_emision'] ?? '';
-                            $fecha_venc = $inv['fecha_vencimiento'] ?? '';
-                            $vencida = $fecha_venc && strtotime($fecha_venc) < time();
-                            $abonado = floatval($inv['total_cobrado'] ?? 0);
-                            // Saltar facturas completamente pagadas
-                            if ($abonado >= $inv_monto && $inv_monto > 0)
-                                continue;
-                            $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
-                            // Si la API dice saldo=0 pero la factura no está pagada, calcular manual
-                            if ($saldo_pend < 0.005 && $abonado > 0 && $abonado < $inv_monto) {
-                                $saldo_pend = $inv_monto - $abonado;
+                <?php
+                // Pre-cargar abonos parciales de la BD local UNA SOLA VEZ
+                // Buscamos por service_id para evitar problemas de diferencias entre nombres y usuarios.
+                $abonos_parciales = []; // mapa: id_factura => registro de BD
+                $pdo_dash = getDb();
+                if ($pdo_dash) {
+                    $stmt_ab = $pdo_dash->prepare(
+                        "SELECT * FROM pagos_registrados 
+                         WHERE service_id = ? 
+                         AND total_cobrado < total 
+                         AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) 
+                         ORDER BY id DESC LIMIT 10"
+                    );
+                    $stmt_ab->execute([$wisp_service_id]);
+                    foreach ($stmt_ab->fetchAll() as $row) {
+                        $inv_id_db = trim($row['facturas'] ?? '');
+                        if (empty($inv_id_db)) continue;
+                        // Mapear por id de factura para cruce exacto
+                        $abonos_parciales[(int)$inv_id_db] = $row;
+                        
+                        // Rescate: Si la factura no viene en $invoices (porque WispHub la ocultó
+                        // por haberla marcado "Pagada" tras el abono), la inyectamos manualmente.
+                        $found = false;
+                        foreach ($invoices as $inv) {
+                            if ((int)($inv['id'] ?? $inv['id_factura'] ?? 0) === (int)$inv_id_db) {
+                                $found = true; break;
                             }
-                            // Determinar si es factura recurrente (servicio mensual) vs pago único
-                            $es_recurring = false;
-                            if ($fecha_emi && $fecha_venc) {
-                                $periodo_dias = max(1, round((strtotime($fecha_venc) - strtotime($fecha_emi)) / 86400));
-                                $es_recurring = $periodo_dias > 1;
-                            }
-                            // Cobertura estimada desde fecha_vencimiento (solo facturas recurrentes pagadas)
-                            $cobertura_dias = 0;
-                            $cobertura_hasta = '';
-                            $cobertura_restantes = 0;
-                            $cobertura_vencida = false;
-                            if ($es_recurring && $abonado > 0) {
-                                $ratio = min(1.0, $abonado / $inv_monto);
-                                $cobertura_dias = (int) round(30 * $ratio);
-                                $ts_cob = strtotime($fecha_venc) + ($cobertura_dias * 86400);
-                                $cobertura_hasta = date('d/m/Y', $ts_cob);
-                                $cobertura_restantes = (int) floor(($ts_cob - time()) / 86400);
-                                $cobertura_vencida = $cobertura_restantes < 0;
-                            }
-                            ?>
-                            <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
+                        }
+                        if (!$found) {
+                            // Obtener fechas reales de WispHub para calcular cobertura correctamente
+                            $realDetail = [];
+                            try {
+                                $realDetail = $wispClient->getInvoiceDetail((string)$inv_id_db);
+                            } catch (\Exception $e) {}
+                            $fecha_emi_real  = $realDetail['fecha_emision']    ?? date('Y-m-d', strtotime($row['created_at'] . ' - 30 days'));
+                            $fecha_venc_real = $realDetail['fecha_vencimiento'] ?? date('Y-m-d', strtotime($row['created_at']));
+                            $total_real      = floatval($realDetail['total'] ?? $row['total']);
+                            $desc_real       = !empty($realDetail['articulos'][0]['descripcion']) 
+                                                ? $realDetail['articulos'][0]['descripcion'] 
+                                                : 'Abono pendiente (Recibo N° ' . $inv_id_db . ')';
+                            $invoices[] = [
+                                'id'                => (int)$inv_id_db,
+                                'id_factura'        => (int)$inv_id_db,
+                                'fecha_emision'     => $fecha_emi_real,
+                                'fecha_vencimiento' => $fecha_venc_real,
+                                'total'             => $total_real,
+                                'saldo_nuevo'       => $total_real,
+                                'saldo'             => $total_real,
+                                'total_cobrado'     => floatval($row['total_cobrado']),
+                                'estado'            => 1,
+                                'articulos'         => [['descripcion' => $desc_real]],
+                                '_rescued'          => true,
+                            ];
+                        }
+                    }
+                }
 
-                                <!-- Cuerpo -->
-                                <div class="recibo-body">
-                                    <div class="recibo-top">
-                                        <div class="recibo-info">
-                                            <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
-                                            <?php if ($fecha_emi): ?>
-                                                <span class="recibo-fecha"><i
-                                                        class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
+                // Clasificar facturas
+                $pending_invoices = [];
+                $abonadas_invoices = [];
+
+                foreach ($invoices as $inv) {
+                    $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                    $inv_monto = floatval($inv['total'] ?? $inv['monto'] ?? $inv['monto_pendiente'] ?? 0);
+                    $abonado = floatval($inv['total_cobrado'] ?? 0);
+                    
+                    // --- DETECCIÓN DE FACTURA CON ABONO EN BD LOCAL ---
+                    $is_saldo_pendiente = false;
+                    if (isset($abonos_parciales[(int)$inv_id])) {
+                        $recent_partial = $abonos_parciales[(int)$inv_id];
+                        $is_saldo_pendiente = true;
+                        // Usar monto real de la BD si WispHub dice total distinto
+                        $inv_monto = floatval($recent_partial['total']);
+                        // El cobrado real es lo que dice la BD local (más fiable que WispHub)
+                        $abonado = floatval($recent_partial['total_cobrado']);
+                    }
+
+                    // Saltar facturas completamente pagadas
+                    if ($abonado >= $inv_monto && $inv_monto > 0 && !$is_saldo_pendiente) {
+                        continue;
+                    }
+                    
+                    $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
+                    if ($saldo_pend < 0.005 && $abonado > 0 && $abonado < $inv_monto) {
+                        $saldo_pend = $inv_monto - $abonado;
+                    }
+
+                    // Determinar si es factura recurrente (servicio mensual)
+                    $fecha_emi = $inv['fecha_emision'] ?? '';
+                    $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                    $es_recurring = false;
+                    if ($fecha_emi && $fecha_venc) {
+                        $periodo_dias = max(1, round((strtotime($fecha_venc) - strtotime($fecha_emi)) / 86400));
+                        $es_recurring = $periodo_dias > 1;
+                    }
+
+                    // Cobertura / promesa: se calcula siempre que haya abono parcial
+                    $cobertura_dias = 0;
+                    $cobertura_hasta = '';
+                    $cobertura_restantes = 0;
+                    $cobertura_vencida = false;
+                    if ($abonado > 0 && $inv_monto > 0 && $abonado < $inv_monto) {
+                        // Prioridad 1: usar fecha_promesa guardada en BD local (más exacta)
+                        $fecha_promesa_bd = null;
+                        if (isset($abonos_parciales[(int)$inv_id]['fecha_promesa'])) {
+                            $fecha_promesa_bd = $abonos_parciales[(int)$inv_id]['fecha_promesa'];
+                        }
+
+                        if ($fecha_promesa_bd) {
+                            $ts_cob = strtotime($fecha_promesa_bd);
+                        } else {
+                            // Fallback: calcular proporcionalmente desde la fecha de vencimiento
+                            $ratio = min(1.0, $abonado / $inv_monto);
+                            $cobertura_dias = (int) round(30 * $ratio) + 1;
+                            $ts_base = $fecha_venc ? strtotime($fecha_venc) : time();
+                            if (!$ts_base) $ts_base = time();
+                            $ts_cob = $ts_base + ($cobertura_dias * 86400);
+                        }
+
+                        if ($ts_cob) {
+                            $cobertura_hasta = date('d/m/Y', $ts_cob);
+                            $cobertura_restantes = (int) floor(($ts_cob - time()) / 86400);
+                            $cobertura_vencida = $cobertura_restantes < 0;
+                        }
+                    }
+
+                    // Enriquecer el arreglo de factura
+                    $inv['reconstructed_total'] = $inv_monto;
+                    $inv['reconstructed_abonado'] = $abonado;
+                    $inv['reconstructed_saldo'] = $saldo_pend;
+                    $inv['is_saldo_pendiente'] = $is_saldo_pendiente;
+                    $inv['es_recurring'] = $es_recurring;
+                    $inv['cobertura_hasta'] = $cobertura_hasta;
+                    $inv['cobertura_vencida'] = $cobertura_vencida;
+                    
+                    if ($abonado > 0) {
+                        $abonadas_invoices[] = $inv;
+                    } else {
+                        $pending_invoices[] = $inv;
+                    }
+                }
+
+                $totalInvs = count($pending_invoices) + count($abonadas_invoices);
+                ?>
+
+                <?php if ($totalInvs > 0): ?>
+                    
+                    <!-- Sección de Facturas Pendientes (Sin Abonos) -->
+                    <?php if (count($pending_invoices) > 0): ?>
+                        <div class="mb-4">
+                            <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+                                <i class="fas fa-exclamation-circle text-primary me-2"></i> Recibos Pendientes
+                            </h6>
+                            <div class="recibos-list">
+                                <?php foreach ($pending_invoices as $inv):
+                                    $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                                    $inv_monto = $inv['reconstructed_total'];
+                                    $inv_monto_bs = $inv_monto * $tasa_bcv;
+                                    $inv_desc = wisp_extract_desc($inv, $inv_id);
+                                    if (mb_strlen($inv_desc) > 55)
+                                        $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
+                                    $fecha_emi = $inv['fecha_emision'] ?? '';
+                                    $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                                    $vencida = $fecha_venc && strtotime($fecha_venc) < time();
+                                    ?>
+                                    <div class="recibo-card <?php echo $vencida ? 'recibo-vencida' : ''; ?>">
+                                        <!-- Cuerpo -->
+                                        <div class="recibo-body">
+                                            <div class="recibo-top">
+                                                <div class="recibo-info">
+                                                    <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
+                                                    <?php if ($fecha_emi): ?>
+                                                        <span class="recibo-fecha"><i
+                                                                class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="recibo-montos">
+                                                    <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
+                                                    <span class="recibo-bs">Bs
+                                                        <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Descripción -->
+                                            <div class="recibo-desc-row">
+                                                <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
+                                                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn-pagar">
+                                                    <i class="fas fa-credit-card"></i> Pagar
+                                                </a>
+                                            </div>
+
+                                            <hr class="recibo-divider">
+
+                                            <?php if ($inv['es_recurring'] && $fecha_venc): ?>
+                                                <div class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
+                                                    <span><i class="fas fa-clock me-1"></i>Vence:
+                                                        <?php echo date('d/m/Y', strtotime($fecha_venc)); ?></span>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="recibo-row recibo-status-recibo">
+                                                <span class="recibo-status-text pendiente"><i class="fas fa-clock me-1"></i>Pendiente de pago</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Barra de acento inferior -->
+                                        <div class="recibo-accent-bar"></div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Sección de Facturas Abonadas (Con Promesas de Pago) -->
+                    <?php if (count($abonadas_invoices) > 0): ?>
+                        <div class="mb-4">
+                            <h6 class="text-uppercase text-muted fw-bold mb-3 mt-4" style="font-size: 0.8rem; letter-spacing: 0.5px;">
+                                <i class="fas fa-hand-holding-usd text-success me-2"></i> Abonos y Promesas de Pago
+                            </h6>
+                            <div class="recibos-list">
+                                <?php foreach ($abonadas_invoices as $inv):
+                                    $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
+                                    $inv_monto = $inv['reconstructed_total'];
+                                    $abonado = $inv['reconstructed_abonado'];
+                                    $saldo_pend = $inv['reconstructed_saldo'];
+                                    $inv_monto_bs = $inv_monto * $tasa_bcv;
+                                    $saldo_bs = $saldo_pend * $tasa_bcv;
+                                    $inv_desc = wisp_extract_desc($inv, $inv_id);
+                                    if (mb_strlen($inv_desc) > 55)
+                                        $inv_desc = mb_substr($inv_desc, 0, 55) . '...';
+                                    $fecha_emi = $inv['fecha_emision'] ?? '';
+                                    $fecha_venc = $inv['fecha_vencimiento'] ?? '';
+                                    $cobertura_hasta = $inv['cobertura_hasta'];
+                                    $cobertura_vencida = $inv['cobertura_vencida'];
+                                    $porcentaje = min(100, round(($abonado / $inv_monto) * 100));
+                                    ?>
+                                    <div class="recibo-card border-success" style="background: rgba(16, 185, 129, 0.02);">
+                                        <!-- Cuerpo -->
+                                        <div class="recibo-body">
+                                            <div class="recibo-top">
+                                                <div class="recibo-info">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="recibo-num">Recibo #<?php echo $inv_id; ?></span>
+                                                        <span class="badge bg-success" style="font-size: 0.65rem;">Abonado</span>
+                                                    </div>
+                                                    <?php if ($fecha_emi): ?>
+                                                        <span class="recibo-fecha"><i
+                                                                class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_emi)); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="recibo-montos">
+                                                    <span class="recibo-usd text-success">$<?php echo number_format($inv_monto, 2); ?></span>
+                                                    <span class="recibo-bs">Bs
+                                                        <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Descripción -->
+                                            <div class="recibo-desc-row mb-3">
+                                                <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
+                                            </div>
+
+                                            <!-- Barra de Progreso del Abono -->
+                                            <div class="my-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
+                                                    <span class="text-success"><i class="fas fa-wallet me-1"></i> Abonado: <strong>$<?php echo number_format($abonado, 2); ?></strong></span>
+                                                    <span class="text-warning">Pendiente: <strong>$<?php echo number_format($saldo_pend, 2); ?></strong></span>
+                                                </div>
+                                                <div class="progress" style="height: 10px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                                                         style="width: <?php echo $porcentaje; ?>%; background: linear-gradient(90deg, #10b981, #3b82f6);" 
+                                                         aria-valuenow="<?php echo $porcentaje; ?>" aria-valuemin="0" aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex justify-content-between mt-1 text-muted" style="font-size: 0.7rem;">
+                                                    <span>Servicio hasta: <strong><?php echo $cobertura_hasta ?: '-'; ?></strong></span>
+                                                    <span><?php echo $porcentaje; ?>% Cubierto</span>
+                                                </div>
+                                            </div>
+
+                                            <hr class="recibo-divider">
+
+                                            <!-- Información de la Promesa de Pago -->
+                                            <?php if ($cobertura_hasta): ?>
+                                                <div class="recibo-row recibo-aviso my-2" style="background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9; border-radius: 4px; padding: 8px 12px;">
+                                                    <?php if ($cobertura_vencida): ?>
+                                                        <span class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>La promesa de pago venci&oacute; el <strong><?php echo $cobertura_hasta; ?></strong>. Tu servicio podría suspenderse pronto.</span>
+                                                    <?php else: ?>
+                                                        <span style="color: #bae6fd;"><i class="fas fa-calendar-check me-1 text-info"></i>Promesa de pago activa: Tienes hasta el <strong><?php echo $cobertura_hasta; ?></strong> para pagar los <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> (Bs <?php echo number_format($saldo_bs, 2, ',', '.'); ?>) restantes.</span>
+                                                    <?php endif; ?>
+                                                </div>
                                             <?php endif; ?>
                                         </div>
-                                        <div class="recibo-montos">
-                                            <span class="recibo-usd">$<?php echo number_format($inv_monto, 2); ?></span>
-                                            <span class="recibo-bs">Bs
-                                                <?php echo number_format($inv_monto_bs, 2, ',', '.'); ?></span>
-                                        </div>
+
+                                        <!-- Barra de acento inferior (verde/azul) -->
+                                        <div class="recibo-accent-bar" style="background: linear-gradient(90deg, #10b981, #3b82f6);"></div>
                                     </div>
-
-                                    <!-- Descripción -->
-                                    <div class="recibo-desc-row">
-                                        <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
-                                    </div>
-
-                                    <hr class="recibo-divider">
-
-                                    <?php if ($abonado >= $inv_monto): ?>
-                                        <!-- Pagado completo -->
-                                        <div class="recibo-row recibo-status-recibo">
-                                            <span class="recibo-status-text pagado"><i class="fas fa-check-circle me-1"></i>Pagado:
-                                                $<?php echo number_format($abonado, 2); ?></span>
-                                        </div>
-                                        <?php if ($es_recurring && $cobertura_hasta): ?>
-                                            <div class="recibo-row">
-                                                <span class="recibo-cobertura-label"><i
-                                                        class="fas fa-shield-alt me-1 text-info"></i>Servicio hasta:
-                                                    <strong><?php echo $cobertura_hasta; ?></strong></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php elseif ($abonado > 0): ?>
-                                        <!-- Abono parcial -->
-                                        <?php if ($es_recurring && $fecha_venc): ?>
-                                            <div
-                                                class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
-                                                <span><i class="fas fa-clock me-1"></i>Vence:
-                                                    <?php echo date('d/m/Y', strtotime($fecha_venc)); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <div class="recibo-row">
-                                            <span class="recibo-abono-label"><i class="fas fa-check me-1 text-success"></i>Abonaste
-                                                <strong>$<?php echo number_format($abonado, 2); ?></strong> de
-                                                <strong>$<?php echo number_format($inv_monto, 2); ?></strong>
-                                                (<?php echo round($abonado / $inv_monto * 100); ?>%)</span>
-                                        </div>
-                                        <div class="recibo-row">
-                                            <span class="recibo-saldo-label"><i
-                                                    class="fas fa-hourglass-half me-1 text-warning"></i>Restante:
-                                                <strong>$<?php echo number_format($saldo_pend, 2); ?></strong></span>
-                                        </div>
-                                        <?php if ($es_recurring && $cobertura_hasta): ?>
-                                            <div class="recibo-row">
-                                                <span class="recibo-cobertura-label"><i
-                                                        class="fas fa-shield-alt me-1 text-info"></i>Servicio hasta:
-                                                    <strong><?php echo $cobertura_hasta; ?></strong></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if ($es_recurring && $saldo_pend > 0 && $cobertura_hasta): ?>
-                                            <div class="recibo-row recibo-aviso">
-                                                <?php if ($cobertura_vencida): ?>
-                                                    <span><i class="fas fa-exclamation-triangle me-1 text-danger"></i>Tu cobertura
-                                                        venci&oacute; el <strong><?php echo $cobertura_hasta; ?></strong>. Debes pagar
-                                                        <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> para reactivar tu
-                                                        servicio.</span>
-                                                <?php else: ?>
-                                                    <span><i class="fas fa-exclamation-triangle me-1 text-warning"></i>Debes pagar
-                                                        <strong>$<?php echo number_format($saldo_pend, 2); ?></strong> antes del
-                                                        <strong><?php echo $cobertura_hasta; ?></strong> para no suspender el
-                                                        servicio.</span>
-                                                <?php endif; ?>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <!-- Pendiente sin pago -->
-                                        <?php if ($es_recurring && $fecha_venc): ?>
-                                            <div
-                                                class="recibo-row recibo-venc-row <?php echo $vencida ? 'text-danger' : 'text-warning'; ?>">
-                                                <span><i class="fas fa-clock me-1"></i>Vence:
-                                                    <?php echo date('d/m/Y', strtotime($fecha_venc)); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <div class="recibo-row recibo-status-recibo">
-                                            <span class="recibo-status-text pendiente"><i class="fas fa-clock me-1"></i>Pendiente de
-                                                pago</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Barra de acento inferior -->
-                                <div class="recibo-accent-bar"></div>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endforeach; ?>
-                    </div>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="text-center mt-4">
                         <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>" class="btn btn-premium btn-lg px-5">
                             <i class="fas fa-credit-card me-2"></i> Ir a Pagar
                         </a>
                     </div>
+
                 <?php else: ?>
                     <div class="text-center py-5">
                         <div class="mb-3" style="font-size:3rem;">&#127881;</div>
