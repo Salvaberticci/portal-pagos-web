@@ -1,35 +1,17 @@
 <?php
-require_once __DIR__ . '/paginas/principal/banco_api_router.php';
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/src/Services/WispHubClient.php';
+$wispConfig = include __DIR__ . '/config/wisp_hub.php';
+$wispClient = new \Services\WispHubClient($wispConfig);
 
-echo "=== Test buscar_referencia 851396 ===\n";
-$id_banco = 12; // BDV Transferencia o 9 BDV Pago Movil
-$fecha_pago = '2026-06-21';
-$ts  = strtotime($fecha_pago);
-$fecha_inicio_busqueda = date('Y-m-d', strtotime('-10 days', $ts));
-$fecha_fin_busqueda   = date('Y-m-d', strtotime('+1 day',  $ts));
+echo "Test 1: id_servicio => 902\n";
+$res1 = $wispClient->getInvoices(['id_servicio' => 902]);
+echo count($res1) . " invoices\n";
 
-$fase1 = consultar_movimientos_rango(9, $fecha_inicio_busqueda, $fecha_fin_busqueda);
-echo "API response fase 1 (id_banco 9):\n";
-echo "api_respondio: " . ($fase1['api_respondio'] ? 'true' : 'false') . "\n";
-echo "total movs: " . count($fase1['movs']) . "\n";
+echo "Test 2: servicio => 902\n";
+$res2 = $wispClient->getInvoices(['servicio' => 902]);
+echo count($res2) . " invoices\n";
 
-$mov_ref = buscar_referencia_en_movs($fase1['movs'], '851396', 'Pago Móvil');
-if ($mov_ref) {
-    echo "Encontrado en banco 9:\n";
-    print_r($mov_ref);
-} else {
-    echo "NO encontrado en banco 9.\n";
-}
-
-$fase1_12 = consultar_movimientos_rango(12, $fecha_inicio_busqueda, $fecha_fin_busqueda);
-echo "\nAPI response fase 1 (id_banco 12):\n";
-echo "api_respondio: " . ($fase1_12['api_respondio'] ? 'true' : 'false') . "\n";
-echo "total movs: " . count($fase1_12['movs']) . "\n";
-
-$mov_ref_12 = buscar_referencia_en_movs($fase1_12['movs'], '851396', 'Transferencia');
-if ($mov_ref_12) {
-    echo "Encontrado en banco 12:\n";
-    print_r($mov_ref_12);
-} else {
-    echo "NO encontrado en banco 12.\n";
-}
+echo "Test 3: usuario => onu_prueba_oficina@sitelco\n";
+$res3 = $wispClient->getInvoices(['usuario' => 'onu_prueba_oficina@sitelco']);
+echo count($res3) . " invoices\n";
