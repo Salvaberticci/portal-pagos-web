@@ -8,6 +8,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 ?>
 <!DOCTYPE html>
 <html lang="es" data-theme="dark">
+
 <head>
     <script>
         const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -28,6 +29,7 @@ if (isset($_SESSION['cliente_cedula'])) {
         .select-wrapper {
             position: relative;
         }
+
         .select-tipo {
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -35,6 +37,7 @@ if (isset($_SESSION['cliente_cedula'])) {
             padding-right: 2.5rem;
             background-image: none !important;
         }
+
         .select-arrow {
             position: absolute;
             right: 14px;
@@ -44,23 +47,33 @@ if (isset($_SESSION['cliente_cedula'])) {
             color: var(--text-muted, #6b7280);
             font-size: 0.75rem;
         }
+
         .select-tipo option {
             background: var(--bg-card, #1e293b);
             color: var(--text-main, #e2e8f0);
         }
+
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 100000;
             justify-content: center;
             align-items: center;
         }
+
         .modal-backdrop-custom {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
         }
+
         .modal-glass {
             position: relative;
             max-width: 400px;
@@ -71,6 +84,7 @@ if (isset($_SESSION['cliente_cedula'])) {
         }
     </style>
 </head>
+
 <body>
     <div class="login-wrapper">
         <div class="login-box glass-panel animate-fade text-center">
@@ -80,23 +94,28 @@ if (isset($_SESSION['cliente_cedula'])) {
                 </button>
             </div>
             <div class="login-logo-wrap">
-                <img src="../images/logo-galanet.png" alt="Logo Galanet" style="width: 100%; height: auto; display: block;">
+                <img src="../images/logo-galanet.png" alt="Logo Galanet"
+                    style="width: 100%; height: auto; display: block;">
             </div>
             <h3 class="mb-2 font-weight-bold text-gradient">Portal de Clientes</h3>
             <p class="text-muted mb-4">Consulta tus contratos y paga tus mensualidades fácilmente.</p>
 
-            <?php $loginError = isset($_SESSION['login_error']) ? $_SESSION['login_error'] : ''; unset($_SESSION['login_error']); ?>
-            <div id="login-error-data" data-msg="<?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?>" style="display:none;"></div>
+            <?php $loginError = isset($_SESSION['login_error']) ? $_SESSION['login_error'] : '';
+            unset($_SESSION['login_error']); ?>
+            <div id="login-error-data" data-msg="<?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?>"
+                style="display:none;"></div>
 
             <form action="auth.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <div class="mb-4">
-                    <h5 class="fw-bold text-gradient mb-3"><i class="fas fa-id-card me-2"></i>Documento de Identidad</h5>
+                    <h5 class="fw-bold text-gradient mb-3"><i class="fas fa-id-card me-2"></i>Documento de Identidad
+                    </h5>
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label class="label-premium mb-1">Tipo</label>
                             <div class="select-wrapper">
-                                <select id="tipo_cedula" class="form-select glass-input select-tipo" style="cursor: pointer;">
+                                <select id="tipo_cedula" class="form-select glass-input select-tipo"
+                                    style="cursor: pointer;">
                                     <option value="V" selected>V</option>
                                     <option value="E">E</option>
                                     <option value="J">J</option>
@@ -107,8 +126,9 @@ if (isset($_SESSION['cliente_cedula'])) {
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <label class="label-premium mb-1">Número</label>
-                            <input type="number" id="cedula_numero" class="form-control glass-input" placeholder="Ingresa tu número" required>
+                            <label class="label-premium mb-1">Ingresa tu Documento</label>
+                            <input type="number" id="cedula_numero" class="form-control glass-input"
+                                placeholder="Ingresa tu número" required>
                         </div>
                     </div>
                     <input type="hidden" name="cedula" id="cedula_hidden">
@@ -123,14 +143,16 @@ if (isset($_SESSION['cliente_cedula'])) {
     </div>
 
     <div id="login-error-modal" class="modal-overlay">
-        <div class="modal-backdrop-custom" onclick="document.getElementById('login-error-modal').style.display='none'"></div>
+        <div class="modal-backdrop-custom" onclick="document.getElementById('login-error-modal').style.display='none'">
+        </div>
         <div class="modal-glass glass-panel animate-fade">
             <div class="mb-3" style="font-size: 3rem; color: var(--danger);">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
             <h5 class="fw-bold mb-1">USUARIO NO ENCONTRADO</h5>
             <p class="text-muted mb-4" id="modal-error-msg">Usuario no encontrado</p>
-            <button class="btn btn-premium px-5" onclick="document.getElementById('login-error-modal').style.display='none'">Cerrar</button>
+            <button class="btn btn-premium px-5"
+                onclick="document.getElementById('login-error-modal').style.display='none'">Cerrar</button>
         </div>
     </div>
 
@@ -147,7 +169,7 @@ if (isset($_SESSION['cliente_cedula'])) {
         const cedulaNumero = document.getElementById('cedula_numero');
         const cedulaHidden = document.getElementById('cedula_hidden');
 
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', function (e) {
             var num = cedulaNumero.value;
             if (num.length < 6 || num.length > 8) {
                 e.preventDefault();
@@ -159,12 +181,12 @@ if (isset($_SESSION['cliente_cedula'])) {
         });
 
         // Asegurar que solo se ingresen números en el campo
-        cedulaNumero.addEventListener('input', function(e) {
+        cedulaNumero.addEventListener('input', function (e) {
             this.value = this.value.replace(/[^0-9]/g, '');
         });
 
         // Theme Toggle Logic
-        (function() {
+        (function () {
             const themeBtn = document.getElementById('themeToggleBtn');
             if (!themeBtn) return;
             const html = document.documentElement;
@@ -180,10 +202,10 @@ if (isset($_SESSION['cliente_cedula'])) {
 
             updateThemeIcon(html.getAttribute('data-theme'));
 
-            themeBtn.addEventListener('click', function() {
+            themeBtn.addEventListener('click', function () {
                 const currentTheme = html.getAttribute('data-theme');
                 const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-                
+
                 html.setAttribute('data-theme', newTheme);
                 localStorage.setItem('theme', newTheme);
                 updateThemeIcon(newTheme);
@@ -191,7 +213,7 @@ if (isset($_SESSION['cliente_cedula'])) {
         })();
 
         // Error Modal
-        (function() {
+        (function () {
             var errDiv = document.getElementById('login-error-data');
             if (errDiv && errDiv.getAttribute('data-msg')) {
                 document.getElementById('modal-error-msg').textContent = errDiv.getAttribute('data-msg');
@@ -200,4 +222,5 @@ if (isset($_SESSION['cliente_cedula'])) {
         })();
     </script>
 </body>
+
 </html>
