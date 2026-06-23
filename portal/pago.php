@@ -132,6 +132,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         break;
                     }
                 }
+                unset($inv); // Evitar el bug de referencia de PHP que duplica el último elemento
                 if (!$found) {
                     $invoices[] = [
                         'id' => (int)$inv_id_db,
