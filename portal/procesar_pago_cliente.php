@@ -340,17 +340,15 @@ try {
         $fecha_banco = $verificacion_data['movimiento']['fecha'] ?? null;
         $banco_descripcion = isset($verificacion_data['movimiento']['observacion']) ? trim($verificacion_data['movimiento']['observacion']) : null;
 
-        // Guardar pago en BD local SOLO SI ES ZELLE (los de API bancaria ya se quemaron antes)
-        if ($es_zelle) {
-            require_once __DIR__ . '/referencia_helper.php';
-            $db_ok = guardarPago(
-                $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
-                $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
-                implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion,
-                $fechaPromesaLocal ?? null
-            );
-            if (!$db_ok) { error_log('[procesar_pago] guardarPago Zelle falló para ref: ' . $referencia); }
-        }
+        // Guardar pago en BD local (upsert: si ya fue insertado por pre-burn, se actualiza)
+        require_once __DIR__ . '/referencia_helper.php';
+        $db_ok = guardarPago(
+            $nombre, $ipServicio, $fecha_pago, $zona, $monto_usd, $metodo_pago, $referencia, 
+            $invoice_total, $accion, $id_contrato_asociado, $id_banco_destino, 
+            implode(',', $invoice_ids), $monto_banco_bs, $fecha_banco, $banco_descripcion,
+            $fechaPromesaLocal ?? null
+        );
+        if (!$db_ok) { error_log('[procesar_pago] guardarPago falló para ref: ' . $referencia); }
 
         // Calcular y guardar promesa de pago localmente si es pago parcial.
         // WispHub rechaza crear promesas en facturas ya marcadas como "Pagada" (HTTP 400),

@@ -111,11 +111,19 @@ function guardarPago(
     try {
         $stmt = $pdo->prepare("INSERT INTO pagos_registrados
             (cliente, ip_servicio, fecha_pago, estado, zona, total_cobrado, forma_pago, referencia, facturas, monto_banco_bs, fecha_banco, banco_descripcion, fecha_promesa, total, accion, service_id, id_banco)
-            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            VALUES (?, ?, ?, 'Pagada', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+            cliente = VALUES(cliente), ip_servicio = VALUES(ip_servicio), fecha_pago = VALUES(fecha_pago),
+            estado = 'Pagada', zona = VALUES(zona), total_cobrado = VALUES(total_cobrado),
+            forma_pago = VALUES(forma_pago), facturas = VALUES(facturas),
+            monto_banco_bs = VALUES(monto_banco_bs), fecha_banco = VALUES(fecha_banco),
+            banco_descripcion = VALUES(banco_descripcion), fecha_promesa = VALUES(fecha_promesa),
+            total = VALUES(total), accion = VALUES(accion), service_id = VALUES(service_id),
+            id_banco = VALUES(id_banco)");
         $stmt->execute([$cliente, $ipServicio, $fechaPago, $zona, $totalCobrado, $formaPago, $referencia, $facturas, $montoBancoBs, $fechaBanco, $bancoDescripcion, $fechaPromesa, $total, $accion, $serviceId, $idBanco]);
         return true;
     } catch (PDOException $e) {
-        error_log('[referencia_helper] insert error: ' . $e->getMessage());
+        error_log('[referencia_helper] insert/upsert error: ' . $e->getMessage());
         return false;
     }
 }
