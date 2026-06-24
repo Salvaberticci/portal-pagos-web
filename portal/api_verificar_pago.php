@@ -61,6 +61,11 @@ if (strtoupper(substr($referencia, 0, 10)) === 'TEST_ABONO') {
         echo json_encode(['status' => 'error', 'message' => 'La referencia debe tener entre 6 y 20 dígitos.']);
         exit;
     }
+
+    if (strpos(strtolower($metodo_pago), 'pago m') !== false && strlen($referencia_clean) > 8) {
+        echo json_encode(['status' => 'error', 'message' => 'Para Pago Móvil, la referencia no puede tener más de 8 dígitos.']);
+        exit;
+    }
 }
 $referencia = $referencia_clean;
 
