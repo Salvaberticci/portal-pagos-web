@@ -158,7 +158,10 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             }
         }
     }
-    $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : $wisp_cached['balance'];
+    // Usar balance combinado (WispHub + BD local) — ya calculado en wisp_helper
+    $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : ($wisp_cached['balance'] ?? 0);
+    $sf_local_pago = $wisp_cached['saldo_favor_local'] ?? 0;
+
     $deuda_total = 0;
     $invoices_json = [];
     $totalInvoices = count($invoices);

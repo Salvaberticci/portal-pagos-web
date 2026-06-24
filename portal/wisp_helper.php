@@ -106,11 +106,23 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $ultimo_pago = $wispClient->getLastPaidInvoice($clientId);
     }
 
+    // Sumar saldo a favor guardado en BD local (pagos con exceso) al balance de WispHub
+    // Usamos require_once para evitar doble declaración si ya fue incluido
+    $saldo_favor_local = 0.0;
+    $refHelper = __DIR__ . '/referencia_helper.php';
+    if (file_exists($refHelper)) {
+        require_once $refHelper;
+        $saldo_favor_local = getSaldoFavor($serviceId);
+    }
+    $balance_total = round($balance + $saldo_favor_local, 2);
+
     $data = [
-        'profile'     => $c_perfil,
-        'invoices'    => $invoices,
-        'balance'     => $balance,
-        'ultimo_pago' => $ultimo_pago,
+        'profile'           => $c_perfil,
+        'invoices'          => $invoices,
+        'balance'           => $balance_total,          // WispHub + BD local
+        'balance_wisphub'   => $balance,                // Solo WispHub (para debug)
+        'saldo_favor_local' => $saldo_favor_local,      // Solo BD local
+        'ultimo_pago'       => $ultimo_pago,
     ];
 
     wisp_set_cache($serviceId, $data);

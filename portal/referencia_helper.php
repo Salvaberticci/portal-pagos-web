@@ -72,6 +72,9 @@ function getDb(): ?PDO {
         try {
             $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN fecha_promesa DATE DEFAULT NULL AFTER banco_descripcion");
         } catch (PDOException $e) {}
+        try {
+            $pdo->exec("ALTER TABLE pagos_registrados ADD COLUMN saldo_favor DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER fecha_promesa");
+        } catch (PDOException $e) {} // ya migrado
         return $pdo;
     } catch (PDOException $e) {
         error_log('[referencia_helper] DB connection failed: ' . $e->getMessage());
@@ -134,5 +137,65 @@ function guardarPago(
     } catch (PDOException $e) {
         error_log('[referencia_helper] insert/upsert error: ' . $e->getMessage());
         return false;
+    }
+}
+
+/**
+ * Devuelve el saldo a favor acumulado local para un service_id.
+ * Solo considera registros con saldo_favor > 0 de los últimos 180 días
+ * y que no hayan sido consumidos (saldo_favor_consumido = 0).
+ */
+function getSaldoFavor(string $serviceId): float {
+    $pdo = getDb();
+    if (!$pdo) return 0.0;
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT COALESCE(SUM(saldo_favor), 0) AS total
+             FROM pagos_registrados
+             WHERE service_id = ?
+               AND saldo_favor > 0
+               AND created_at > DATE_SUB(NOW(), INTERVAL 180 DAY)"
+        );
+        $stmt->execute([$serviceId]);
+        return floatval($stmt->fetchColumn());
+    } catch (PDOException $e) {
+        error_log('[referencia_helper] getSaldoFavor error: ' . $e->getMessage());
+        return 0.0;
+    }
+}
+
+/**
+ * Marca como consumido el saldo a favor de un service_id.
+ * Llama esto cuando el cliente usa su crédito para un nuevo pago.
+ * Devuelve el total consumido.
+ */
+function consumeSaldoFavor(string $serviceId, float $montoAConsumir): float {
+    $pdo = getDb();
+    if (!$pdo || $montoAConsumir <= 0) return 0.0;
+    try {
+        // Leer registros con saldo_favor > 0 ordenados por fecha (FIFO)
+        $stmt = $pdo->prepare(
+            "SELECT id, saldo_favor FROM pagos_registrados
+             WHERE service_id = ? AND saldo_favor > 0
+             ORDER BY created_at ASC"
+        );
+        $stmt->execute([$serviceId]);
+        $rows = $stmt->fetchAll();
+
+        $consumido = 0.0;
+        $resto = $montoAConsumir;
+        $upd = $pdo->prepare("UPDATE pagos_registrados SET saldo_favor = ? WHERE id = ?");
+        foreach ($rows as $row) {
+            if ($resto <= 0) break;
+            $disponible = floatval($row['saldo_favor']);
+            $usar = min($disponible, $resto);
+            $upd->execute([round($disponible - $usar, 2), $row['id']]);
+            $consumido += $usar;
+            $resto     -= $usar;
+        }
+        return round($consumido, 2);
+    } catch (PDOException $e) {
+        error_log('[referencia_helper] consumeSaldoFavor error: ' . $e->getMessage());
+        return 0.0;
     }
 }

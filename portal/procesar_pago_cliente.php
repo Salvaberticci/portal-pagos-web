@@ -362,6 +362,30 @@ try {
         );
         if (!$db_ok) { error_log('[procesar_pago] guardarPago falló para ref: ' . $referencia); }
 
+        // ── SALDO A FAVOR: guardar exceso en BD local ──────────────────────────
+        // Si el cliente pagó MÁS de lo que debía, guardar el exceso como saldo_favor
+        // para que sea visible en el dashboard y reutilizable en el próximo pago.
+        if ($amount_unused > 0.005 && $db_ok) {
+            $pdo_sf = getDb();
+            if ($pdo_sf) {
+                $pdo_sf->prepare(
+                    "UPDATE pagos_registrados SET saldo_favor = ? WHERE referencia = ? AND service_id = ?"
+                )->execute([round($amount_unused, 2), $referencia, $id_contrato_asociado]);
+                error_log("[procesar_pago] Saldo a favor guardado: \${$amount_unused} para Ref: $referencia Service: $id_contrato_asociado");
+            }
+        }
+
+        // ── SALDO A FAVOR: consumir crédito previo si el cliente lo usó ────────
+        // Si el sistema dedujo un saldo a favor previo del monto a pagar, marcarlo consumido.
+        // La deducción se hace en api_verificar_pago.php antes de llegar aquí,
+        // registrada en $_SESSION['credito_usado'].
+        $credito_usado = floatval($_SESSION['credito_usado'] ?? 0);
+        if ($credito_usado > 0.005) {
+            consumeSaldoFavor($id_contrato_asociado, $credito_usado);
+            unset($_SESSION['credito_usado']);
+            error_log("[procesar_pago] Crédito consumido: \${$credito_usado} para Service: $id_contrato_asociado");
+        }
+
         // Calcular y guardar promesa de pago localmente si es pago parcial.
         // La fecha límite se calcula desde HOY sumando los días proporcionales ganados.
         // Fórmula: días_ganados = round(30 * (monto_abonado / total_factura))
@@ -391,6 +415,7 @@ try {
         }
 
         $redirect_url = 'dashboard.php?refreshed=1';
+
 
         // Log
         $log_dir = __DIR__ . '/../logs';

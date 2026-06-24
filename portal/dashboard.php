@@ -365,20 +365,47 @@ $cache_time = 3600;
                                     (<?php echo $unpaid; ?>
                                     pendiente<?php echo $unpaid > 1 ? 's' : ''; ?>)<?php endif; ?></small>
                         <?php endif; ?>
-                        <?php if ($saldo_favor > 0): ?>
+                        <?php
+                        // Mostrar saldo a favor (WispHub + BD local)
+                        $sf_local   = $wisp_cached['saldo_favor_local'] ?? 0;
+                        $sf_wisphub = $wisp_cached['balance_wisphub'] ?? 0;
+                        if ($saldo_favor > 0): ?>
                             <div class="row mt-3 pt-3 border-top border-white border-opacity-10">
                                 <div class="col-12">
-                                    <div class="glass-panel p-3 d-flex align-items-center justify-content-between">
+                                    <div class="glass-panel p-3 d-flex align-items-center justify-content-between"
+                                         title="Este crédito se descontará automáticamente de tu próxima factura.">
                                         <div>
-                                            <small class="text-muted d-block"><i
-                                                    class="fas fa-wallet text-success me-1"></i> Saldo a Favor</small>
-                                            <span
-                                                class="fw-bold text-success">$<?php echo number_format($saldo_favor, 2); ?></span>
+                                            <small class="text-muted d-block">
+                                                <i class="fas fa-wallet text-success me-1"></i>
+                                                Saldo a Favor
+                                                <?php if ($sf_local > 0 && $sf_wisphub > 0): ?>
+                                                    <span class="ms-1 badge bg-success bg-opacity-25 text-success" style="font-size:.65rem;">
+                                                        WispHub + Crédito local
+                                                    </span>
+                                                <?php elseif ($sf_local > 0): ?>
+                                                    <span class="ms-1 badge bg-success bg-opacity-25 text-success" style="font-size:.65rem;">
+                                                        Crédito pendiente
+                                                    </span>
+                                                <?php endif; ?>
+                                            </small>
+                                            <span class="fw-bold text-success fs-5">
+                                                $<?php echo number_format($saldo_favor, 2); ?> USD
+                                            </span>
+                                            <?php if ($sf_local > 0): ?>
+                                                <small class="text-muted d-block mt-1">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    Se aplicará automáticamente en tu próximo pago
+                                                </small>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="text-success opacity-50">
+                                            <i class="fas fa-circle-check fa-2x"></i>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         <?php endif; ?>
+
                     </div>
                 </div>
                 <?php
