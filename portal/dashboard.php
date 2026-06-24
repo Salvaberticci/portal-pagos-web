@@ -492,12 +492,10 @@ $cache_time = 3600;
                         if ($fecha_promesa_bd) {
                             $ts_cob = strtotime($fecha_promesa_bd);
                         } else {
-                            // Fallback: calcular proporcionalmente desde la fecha de vencimiento
+                            // Fallback: calcular proporcionalmente desde HOY (igual que en procesar_pago_cliente)
                             $ratio = min(1.0, $abonado / $inv_monto);
-                            $cobertura_dias = (int) round(30 * $ratio) + 1;
-                            $ts_base = $fecha_venc ? strtotime($fecha_venc) : time();
-                            if (!$ts_base) $ts_base = time();
-                            $ts_cob = $ts_base + ($cobertura_dias * 86400);
+                            $cobertura_dias = max(1, (int) round(30 * $ratio));
+                            $ts_cob = time() + ($cobertura_dias * 86400);
                         }
 
                         if ($ts_cob) {
@@ -672,6 +670,16 @@ $cache_time = 3600;
                                                     <?php endif; ?>
                                                 </div>
                                             <?php endif; ?>
+
+                                            <!-- Botón para completar el pago del saldo pendiente -->
+                                            <div class="mt-3">
+                                                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" 
+                                                   class="btn btn-warning btn-sm w-100 fw-bold" 
+                                                   style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; color: #1a1a2e; border-radius: 10px; padding: 10px; letter-spacing: 0.3px;">
+                                                    <i class="fas fa-credit-card me-2"></i>
+                                                    Completar Pago — $<?php echo number_format($saldo_pend, 2); ?> pendientes
+                                                </a>
+                                            </div>
                                         </div>
 
                                         <!-- Barra de acento inferior (verde/azul) -->

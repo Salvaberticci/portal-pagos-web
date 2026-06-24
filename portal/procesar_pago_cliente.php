@@ -352,29 +352,25 @@ try {
         if (!$db_ok) { error_log('[procesar_pago] guardarPago falló para ref: ' . $referencia); }
 
         // Calcular y guardar promesa de pago localmente si es pago parcial.
-        // WispHub rechaza crear promesas en facturas ya marcadas como "Pagada" (HTTP 400),
-        // por lo que almacenamos la fecha de promesa en nuestra BD local.
-        if ($wispSuccess && $amount_unused <= 0 && $amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
-            $firstInvoiceId = (int)$invoice_ids[0];
-            $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
-            $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
-            $totalFactura = floatval($invDetail['total'] ?? $invoice_total);
+        // La fecha límite se calcula desde HOY sumando los días proporcionales ganados.
+        // Fórmula: días_ganados = round(30 * (monto_abonado / total_factura))
+        // Ej: abono $10 de $20 = 50% → 15 días → fecha límite = hoy + 15 días
+        if ($amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
+            $totalFactura = floatval($invoice_total);
             $appliedToFirst = floatval($wispResult['payments_registered'][0]['payment_applied'] ?? $amount_applied);
-            if ($totalFactura > 0 && $fechaVenc) {
-                $proporcion = $appliedToFirst / $totalFactura;
-                $diasExtra = round(30 * $proporcion) + 1;
-                $fechaLimiteLocal = date('Y-m-d', strtotime($fechaVenc . " + $diasExtra days"));
-            } else {
-                $fechaLimiteLocal = !empty($fechaVenc) ? date('Y-m-d', strtotime($fechaVenc)) : date('Y-m-d', strtotime('+30 days'));
-            }
-            $saldoRestante2 = round($invoice_total - $amount_applied, 2);
-            // Actualizar la fecha_promesa en la BD local para el registro de este pago
+            // Cálculo proporcional desde HOY
+            $proporcion = min(1.0, $appliedToFirst / $totalFactura);
+            $diasGanados = max(1, round(30 * $proporcion));
+            $fechaLimiteLocal = date('Y-m-d', strtotime("+{$diasGanados} days"));
+            $saldoRestante2 = round($totalFactura - $appliedToFirst, 2);
+
+            // Actualizar la fecha_promesa en la BD local
             $pdo_upd = getDb();
             if ($pdo_upd) {
-                $pdo_upd->prepare("UPDATE pagos_registrados SET fecha_promesa = ? WHERE referencia = ? AND service_id = ?")
+                $pdo_upd->prepare("UPDATE pagos_registrados SET fecha_promesa = ?, accion = 'abono' WHERE referencia = ? AND service_id = ?")
                         ->execute([$fechaLimiteLocal, $referencia, $id_contrato_asociado]);
             }
-            $msg_parts[] = " Promesa registrada: tienes hasta el " . date('d/m/Y', strtotime($fechaLimiteLocal)) . " para pagar los $" . number_format($saldoRestante2, 2) . " USD restantes.";
+            $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($appliedToFirst, 2) . " USD</strong> registrado. Tu servicio estará activo hasta el <strong>" . date('d/m/Y', strtotime($fechaLimiteLocal)) . "</strong> ($diasGanados días). Saldo pendiente: <strong>$" . number_format($saldoRestante2, 2) . " USD</strong>.";
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         }
 
