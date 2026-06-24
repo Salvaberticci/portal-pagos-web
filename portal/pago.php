@@ -502,7 +502,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             for (var i = 0; i < recibos.length; i++) {
                 if (recibos[i].preseleccionado) {
                     selectedIds = [recibos[i].id];
-                    document.getElementById('input_invoice_total').value = recibos[i].total;
+                    // Si hay abono parcial, el total de referencia es el saldo pendiente
+                    var invoiceTotalInit = recibos[i].total_cobrado > 0
+                        ? recibos[i].monto_pendiente
+                        : recibos[i].total;
+                    document.getElementById('input_invoice_total').value = invoiceTotalInit;
                     document.getElementById('input_invoice_fecha_emision').value = recibos[i].fecha_emision;
                     break;
                 }
@@ -525,16 +529,20 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 actualizarInvoiceIds();
                 actualizarTotal();
                 updatePagarBtn();
-                var total = 0;
+                var invoiceTotal = 0;
                 var fecha = '';
                 for (var i = 0; i < recibos.length; i++) {
                     if (recibos[i].id === id) {
-                        total = recibos[i].total;
+                        // Si hay un cobrado parcial, el monto real de la factura a cobrar
+                        // es el saldo pendiente (monto_pendiente), no el total original
+                        invoiceTotal = recibos[i].total_cobrado > 0
+                            ? recibos[i].monto_pendiente
+                            : recibos[i].total;
                         fecha = recibos[i].fecha_emision;
                         break;
                     }
                 }
-                document.getElementById('input_invoice_total').value = total;
+                document.getElementById('input_invoice_total').value = invoiceTotal;
                 document.getElementById('input_invoice_fecha_emision').value = fecha;
             }
 
