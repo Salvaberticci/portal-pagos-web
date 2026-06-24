@@ -99,11 +99,54 @@ $deuda_usd = 0.00;
 $selected_deuda_usd = 0.00;
 if (!empty($wisp_service_id)) {
     $invoices = $wispClient->getPendingInvoices($wisp_service_id);
+
+    // Leer abonos acumulados en BD local para corregir el monto que WispHub reporta
+    // (WispHub a veces no refleja los abonos parciales correctamente)
+    $abonos_locales_por_factura = []; // id_factura => total_cobrado_acumulado
+    $pdo_api = getDb();
+    if ($pdo_api && !empty($wisp_service_id)) {
+        $stmt_ab_api = $pdo_api->prepare(
+            "SELECT facturas, SUM(total_cobrado) AS acum, MAX(total) AS total_fact
+             FROM pagos_registrados
+             WHERE service_id = ? AND facturas != ''
+             AND created_at > DATE_SUB(NOW(), INTERVAL 60 DAY)
+             GROUP BY facturas
+             HAVING acum < MAX(total)"
+        );
+        $stmt_ab_api->execute([$wisp_service_id]);
+        foreach ($stmt_ab_api->fetchAll(PDO::FETCH_ASSOC) as $ab_row) {
+            $abonos_locales_por_factura[trim($ab_row['facturas'])] = [
+                'acum'       => floatval($ab_row['acum']),
+                'total_fact' => floatval($ab_row['total_fact']),
+            ];
+        }
+    }
+
     foreach ($invoices as $inv) {
-        $inv_monto = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+        $inv_id = strval($inv['id'] ?? '');
+        $inv_monto_wisp = floatval($inv['monto'] ?? $inv['monto_pendiente'] ?? $inv['total'] ?? 0);
+
+        // Si tenemos abono local para esta factura, calcular saldo real pendiente
+        if (isset($abonos_locales_por_factura[$inv_id])) {
+            $ab = $abonos_locales_por_factura[$inv_id];
+            $inv_monto = max(0, $ab['total_fact'] - $ab['acum']);
+        } else {
+            $inv_monto = $inv_monto_wisp;
+        }
+
         $deuda_usd += $inv_monto;
-        if (!empty($invoice_ids) && in_array(strval($inv['id'] ?? ''), $invoice_ids, true)) {
+        if (!empty($invoice_ids) && in_array($inv_id, $invoice_ids, true)) {
             $selected_deuda_usd += $inv_monto;
+        }
+    }
+
+    // Si la factura seleccionada no está en WispHub pero sí en BD local (abono rescatado)
+    if (!empty($invoice_ids) && $selected_deuda_usd == 0) {
+        foreach ($invoice_ids as $sel_id) {
+            if (isset($abonos_locales_por_factura[$sel_id])) {
+                $ab = $abonos_locales_por_factura[$sel_id];
+                $selected_deuda_usd += max(0, $ab['total_fact'] - $ab['acum']);
+            }
         }
     }
 }
@@ -233,13 +276,19 @@ $cobertura_hasta = '';
 if ($tipo_pago === 'abono' && !empty($invoice_ids) && $deuda_referencia > 0) {
     $firstId = (int)$invoice_ids[0];
     $invDetail = $wispClient->getInvoiceDetail((string)$firstId);
-    $fechaEmi = $invDetail['fecha_emision'] ?? '';
-    $fechaVenc = $invDetail['fecha_vencimiento'] ?? '';
     $totalInv = floatval($invDetail['total'] ?? 0);
-    if ($totalInv > 0 && $fechaEmi && $fechaVenc) {
-        $proporcion = $monto_usd / $deuda_referencia;
-        $diasExtra = round(30 * $proporcion);
-        $cobertura_hasta = date('d/m/Y', strtotime($fechaVenc . ' + ' . ($diasExtra + 1) . ' days'));
+    // Calcular acumulado total que tendrá el cliente (abonos anteriores + este pago)
+    $totalAcumulado = 0;
+    if (isset($abonos_locales_por_factura[(string)$firstId])) {
+        $totalAcumulado = $abonos_locales_por_factura[(string)$firstId]['acum'];
+    }
+    $totalAcumulado += $monto_usd; // sumar el pago actual
+    $totalBase = $totalInv > 0 ? $totalInv : $deuda_referencia;
+    if ($totalBase > 0) {
+        // Dias ganados = round(30 * proporcion_total_acumulada) desde hoy
+        $proporcion = min(1.0, $totalAcumulado / $totalBase);
+        $diasGanados = max(1, round(30 * $proporcion));
+        $cobertura_hasta = date('d/m/Y', strtotime("+{$diasGanados} days"));
         $descripcion .= " Su servicio estará vigente hasta el {$cobertura_hasta}.";
     }
 }
