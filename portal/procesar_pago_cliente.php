@@ -376,13 +376,15 @@ try {
         }
 
         // ── SALDO A FAVOR: consumir crédito previo si el cliente lo usó ────────
-        // Si el sistema dedujo un saldo a favor previo del monto a pagar, marcarlo consumido.
-        // La deducción se hace en api_verificar_pago.php antes de llegar aquí,
-        // registrada en $_SESSION['credito_usado'].
-        $credito_usado = floatval($_SESSION['credito_usado'] ?? 0);
+        // Si el pago consumió saldo a favor, descontarlo de la BD local
+        // El crédito usado viene en el JSON de verificación de la API
+        $credito_usado = 0;
+        if (isset($verificacion_data) && is_array($verificacion_data) && isset($verificacion_data['credito_usado'])) {
+            $credito_usado = floatval($verificacion_data['credito_usado']);
+        }
+        
         if ($credito_usado > 0.005) {
             consumeSaldoFavor($id_contrato_asociado, $credito_usado);
-            unset($_SESSION['credito_usado']);
             error_log("[procesar_pago] Crédito consumido: \${$credito_usado} para Service: $id_contrato_asociado");
         }
 

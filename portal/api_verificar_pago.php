@@ -251,19 +251,32 @@ if ($monto_mov <= 0) {
 
 // Convertir a USD
 if ($tasa_dolar <= 0) $tasa_dolar = 1.0;
-$monto_usd = round($monto_mov / $tasa_dolar, 2);
+$monto_usd_banco = round($monto_mov / $tasa_dolar, 2);
+
+// Sumar saldo a favor disponible si el pago bancario no cubre la deuda
+$saldo_favor_local = getSaldoFavor($wisp_service_id);
+$credito_usado = 0;
+if ($saldo_favor_local > 0 && $monto_usd_banco < $deuda_referencia) {
+    $falta = round($deuda_referencia - $monto_usd_banco, 2);
+    $credito_usado = min($falta, $saldo_favor_local);
+}
+
+$monto_usd = round($monto_usd_banco + $credito_usado, 2);
 
 // Comparar montos para determinar acción
 $diferencia = round($monto_usd - $deuda_referencia, 2);
 if ($diferencia < 0) {
     $tipo_pago = 'abono';
-    $descripcion = "Usted hizo un abono de Bs " . number_format($monto_mov, 2, ',', '.') . " (equivalente a $" . number_format($monto_usd, 2) . ").";
+    $msg_cred = $credito_usado > 0 ? " (incluyendo $".number_format($credito_usado, 2)." USD de tu saldo a favor)" : "";
+    $descripcion = "Usted hizo un abono de Bs " . number_format($monto_mov, 2, ',', '.') . " (equivalente a $" . number_format($monto_usd_banco, 2) . ")" . $msg_cred . ".";
 } elseif ($diferencia == 0) {
     $tipo_pago = 'completo';
-    $descripcion = "Usted hizo un pago de $" . number_format($monto_usd, 2) . ". Su servicio está al día.";
+    $msg_cred = $credito_usado > 0 ? " más $".number_format($credito_usado, 2)." USD de tu saldo a favor" : "";
+    $descripcion = "Usted hizo un pago de $" . number_format($monto_usd_banco, 2) . $msg_cred . ". Su servicio está al día.";
 } else {
     $tipo_pago = 'saldo_favor';
-    $descripcion = "Pagas el recibo seleccionado ($" . number_format($deuda_referencia, 2) . " USD) y quedará un SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
+    $msg_cred = $credito_usado > 0 ? " más $".number_format($credito_usado, 2)." USD de tu saldo a favor" : "";
+    $descripcion = "Pagas el recibo seleccionado ($" . number_format($deuda_referencia, 2) . " USD) con el pago de $" . number_format($monto_usd_banco, 2) . $msg_cred . " y quedará un NUEVO SALDO A FAVOR de $" . number_format($diferencia, 2) . " USD.";
 }
 
 // Calcular cobertura para abonos (solo facturas recurrentes con período)
@@ -305,6 +318,7 @@ echo json_encode([
     'deuda_usd'   => $deuda_usd,
     'deuda_seleccionada_usd' => $deuda_referencia,
     'tipo_pago'   => $tipo_pago,
+    'credito_usado' => $credito_usado,
     'cobertura_hasta' => $cobertura_hasta,
     'descripcion' => $descripcion,
     'referencia'  => $referencia,
