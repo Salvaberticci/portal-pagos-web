@@ -78,6 +78,14 @@ if ($tasa_dolar <= 0) $tasa_dolar = 1.0;
 // Usar monto_usd_real si viene de verificacion BDV, o monto_usd normal (Zelle manual)
 $monto_usd = isset($_POST['monto_usd_real']) ? floatval($_POST['monto_usd_real']) : (isset($_POST['monto_usd']) ? floatval($_POST['monto_usd']) : 0);
 
+// Descartar saldo a favor si el exceso es menor a 1 USD (para todos los flujos)
+if ($invoice_total > 0 && $monto_usd > $invoice_total) {
+    $exceso_calculado = round($monto_usd - $invoice_total, 2);
+    if ($exceso_calculado > 0 && $exceso_calculado < 1.0) {
+        $monto_usd = $invoice_total;
+    }
+}
+
 if ($monto_usd <= 0) {
     $_SESSION['pago_err'] = "El monto debe ser mayor a 0.";
     header('Location: ' . $redirect_url);

@@ -265,6 +265,13 @@ $monto_usd = round($monto_usd_banco + $credito_usado, 2);
 
 // Comparar montos para determinar acción
 $diferencia = round($monto_usd - $deuda_referencia, 2);
+
+// Descartar saldo a favor si es menor a 1 USD
+if ($diferencia > 0 && $diferencia < 1.0) {
+    $monto_usd = $deuda_referencia;
+    $diferencia = 0;
+}
+
 if ($diferencia < 0) {
     $tipo_pago = 'abono';
     $msg_cred = $credito_usado > 0 ? " (incluyendo $".number_format($credito_usado, 2)." USD de tu saldo a favor)" : "";
