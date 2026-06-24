@@ -112,23 +112,31 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     require_once __DIR__ . '/referencia_helper.php';
     $pdo_pago = getDb();
     if ($pdo_pago) {
+        // Agrupar y sumar todos los abonos por factura (soporta múltiples abonos al mismo recibo)
         $stmt_ab = $pdo_pago->prepare(
-            "SELECT * FROM pagos_registrados 
+            "SELECT 
+                facturas,
+                SUM(total_cobrado) AS total_cobrado_acumulado,
+                MAX(total)         AS total,
+                MAX(created_at)    AS created_at
+             FROM pagos_registrados 
              WHERE service_id = ? 
-             AND total_cobrado < total 
-             AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) 
-             ORDER BY id DESC LIMIT 10"
+             AND facturas != ''
+             AND created_at > DATE_SUB(NOW(), INTERVAL 60 DAY) 
+             GROUP BY facturas
+             HAVING total_cobrado_acumulado < MAX(total)"
         );
         $stmt_ab->execute([$wisp_service_id]);
         foreach ($stmt_ab->fetchAll() as $row) {
             $inv_id_db = trim($row['facturas'] ?? '');
+            $total_cobrado_acum = floatval($row['total_cobrado_acumulado']);
             if (!empty($inv_id_db)) {
                 $found = false;
                 foreach ($invoices as &$inv) {
                     if ((int)($inv['id'] ?? $inv['id_factura'] ?? 0) === (int)$inv_id_db) {
                         $found = true;
-                        // Actualizar cobrado si el local es mayor
-                        $inv['total_cobrado'] = max(floatval($inv['total_cobrado'] ?? 0), floatval($row['total_cobrado']));
+                        // Usar el acumulado de BD local si es mayor que lo que dice WispHub
+                        $inv['total_cobrado'] = max(floatval($inv['total_cobrado'] ?? 0), $total_cobrado_acum);
                         break;
                     }
                 }
@@ -142,7 +150,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         'total' => floatval($row['total']),
                         'saldo_nuevo' => floatval($row['total']),
                         'saldo' => floatval($row['total']),
-                        'total_cobrado' => floatval($row['total_cobrado']),
+                        'total_cobrado' => $total_cobrado_acum,
                         'estado' => 1,
                         'articulos' => [['descripcion' => 'Abono pendiente (Recibo N° ' . $inv_id_db . ')']]
                     ];

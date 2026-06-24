@@ -383,22 +383,34 @@ $cache_time = 3600;
                 </div>
                 <?php
                 // Pre-cargar abonos parciales de la BD local UNA SOLA VEZ
-                // Buscamos por service_id para evitar problemas de diferencias entre nombres y usuarios.
-                $abonos_parciales = []; // mapa: id_factura => registro de BD
+                // IMPORTANTE: Agrupamos por factura y SUMAMOS todos los total_cobrado
+                // para soportar múltiples abonos al mismo recibo (bug: el 2do abono pisaba al 1ro).
+                $abonos_parciales = []; // mapa: id_factura => registro consolidado
                 $pdo_dash = getDb();
                 if ($pdo_dash) {
+                    // Paso 1: Sumar todos los abonos por factura en los últimos 60 días
                     $stmt_ab = $pdo_dash->prepare(
-                        "SELECT * FROM pagos_registrados 
+                        "SELECT 
+                            facturas,
+                            SUM(total_cobrado) AS total_cobrado_acumulado,
+                            MAX(total)         AS total,
+                            MAX(fecha_promesa) AS fecha_promesa,
+                            MAX(created_at)    AS created_at,
+                            MAX(service_id)    AS service_id
+                         FROM pagos_registrados 
                          WHERE service_id = ? 
-                         AND total_cobrado < total 
-                         AND created_at > DATE_SUB(NOW(), INTERVAL 30 DAY) 
-                         ORDER BY id DESC LIMIT 10"
+                         AND facturas != ''
+                         AND created_at > DATE_SUB(NOW(), INTERVAL 60 DAY) 
+                         GROUP BY facturas
+                         HAVING total_cobrado_acumulado < MAX(total)"
                     );
                     $stmt_ab->execute([$wisp_service_id]);
                     foreach ($stmt_ab->fetchAll() as $row) {
                         $inv_id_db = trim($row['facturas'] ?? '');
                         if (empty($inv_id_db)) continue;
-                        // Mapear por id de factura para cruce exacto
+                        // Normalizar el campo para que el código posterior lo use igual
+                        $row['total_cobrado'] = floatval($row['total_cobrado_acumulado']);
+                        // Mapear por id de factura con totales consolidados
                         $abonos_parciales[(int)$inv_id_db] = $row;
                         
                         // Rescate: Si la factura no viene en $invoices (porque WispHub la ocultó
@@ -429,7 +441,7 @@ $cache_time = 3600;
                                 'total'             => $total_real,
                                 'saldo_nuevo'       => $total_real,
                                 'saldo'             => $total_real,
-                                'total_cobrado'     => floatval($row['total_cobrado']),
+                                'total_cobrado'     => $row['total_cobrado'], // ya es el acumulado
                                 'estado'            => 1,
                                 'articulos'         => [['descripcion' => $desc_real]],
                                 '_rescued'          => true,
