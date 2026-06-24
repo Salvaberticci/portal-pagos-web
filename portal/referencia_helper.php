@@ -86,8 +86,10 @@ function getReferenciaInfo(string $referencia): ?array {
     $pdo = getDb();
     if (!$pdo) return null;
     try {
-        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE referencia = ? LIMIT 1");
-        $stmt->execute([$referencia]);
+        $ref_6 = strlen($referencia) >= 6 ? substr($referencia, -6) : $referencia;
+        // La comprobación en la BD local también debe ser siempre por los últimos 6 dígitos
+        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE RIGHT(referencia, 6) = ? LIMIT 1");
+        $stmt->execute([$ref_6]);
         $row = $stmt->fetch();
         return $row ?: null;
     } catch (PDOException $e) {
