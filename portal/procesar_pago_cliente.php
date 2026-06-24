@@ -254,27 +254,38 @@ try {
         $msg_parts = ["Tu pago fue verificado y registrado exitosamente."];
 
         if ($wispSuccess) {
-            $amount_applied = $wispResult['amount_applied'] ?? $monto_usd;
-            $amount_unused  = $wispResult['amount_unused'] ?? 0;
+            $amount_applied = floatval($wispResult['amount_applied'] ?? $monto_usd);
+            $amount_unused  = floatval($wispResult['amount_unused'] ?? 0);
+            $pagos_count    = count($wispResult['payments_registered'] ?? []);
 
-            $pagos_count = count($wispResult['payments_registered'] ?? []);
+            // CORRECCIÓN: WispHub a veces devuelve amount_applied=0 cuando el cliente ya hizo
+            // un abono previo y la factura no aparece como "pendiente" en WispHub.
+            // En ese caso calculamos manualmente: aplicado = min(pagado, deuda_pendiente)
+            if ($amount_applied == 0 && $monto_usd > 0 && $invoice_total > 0) {
+                $amount_applied = min($monto_usd, $invoice_total);
+                $amount_unused  = max(0, round($monto_usd - $invoice_total, 2));
+                // Simular que sí hubo un registro (para no mostrar el aviso de "0 recibos")
+                $pagos_count = !empty($invoice_ids) ? 1 : 0;
+                error_log("[procesar_pago] WispHub devolvió amount_applied=0 para Ref: $referencia — corrigiendo con invoice_total=$invoice_total");
+            }
 
-            if ($pagos_count > 0) {
+            if ($pagos_count > 0 && $amount_applied > 0) {
                 $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count recibo(s).";
             }
 
-            if ($amount_unused > 0) {
-                $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($amount_unused, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
+            if ($amount_unused > 0.005) {
+                $saldo_favor_real = round($amount_unused, 2);
+                $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($saldo_favor_real, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
             }
 
-            if ($amount_applied < $monto_usd && $amount_unused <= 0) {
+            if ($amount_applied > 0 && $amount_applied < $monto_usd && $amount_unused <= 0.005) {
                 $msg_parts[] = "Se aplic&oacute; <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
             }
 
-            // Si se seleccionaron recibos pero no se aplico a todas
+            // Aviso solo si realmente no se pudo pagar ningún recibo
             $selected_count = count($invoice_ids);
-            if ($selected_count > 0 && $pagos_count < $selected_count) {
-                $msg_parts[] = "Nota: solo se pagaron $pagos_count de $selected_count recibo(s) seleccionado(s) con el monto disponible.";
+            if ($selected_count > 0 && $pagos_count == 0) {
+                $msg_parts[] = "Nota: el pago quedó registrado manualmente. Contacta a soporte con tu referencia si no ves el cambio reflejado.";
             }
         } else {
             // WispHub falló pero el banco aprobó
@@ -354,10 +365,11 @@ try {
         // Calcular y guardar promesa de pago localmente si es pago parcial.
         // La fecha límite se calcula desde HOY sumando los días proporcionales ganados.
         // Fórmula: días_ganados = round(30 * (monto_abonado / total_factura))
-        // Ej: abono $10 de $20 = 50% → 15 días → fecha límite = hoy + 15 días
+        // Usamos $amount_applied (ya corregido si WispHub devolvió 0) como fuente de verdad.
         if ($amount_applied < $invoice_total && $invoice_total > 0 && !empty($invoice_ids)) {
             $totalFactura = floatval($invoice_total);
-            $appliedToFirst = floatval($wispResult['payments_registered'][0]['payment_applied'] ?? $amount_applied);
+            // $amount_applied ya fue corregido arriba (min(monto_usd, invoice_total) cuando WispHub devolvió 0)
+            $appliedToFirst = $amount_applied;
             // Cálculo proporcional desde HOY
             $proporcion = min(1.0, $appliedToFirst / $totalFactura);
             $diasGanados = max(1, round(30 * $proporcion));
@@ -371,6 +383,10 @@ try {
                         ->execute([$fechaLimiteLocal, $referencia, $id_contrato_asociado]);
             }
             $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($appliedToFirst, 2) . " USD</strong> registrado. Tu servicio estará activo hasta el <strong>" . date('d/m/Y', strtotime($fechaLimiteLocal)) . "</strong> ($diasGanados días). Saldo pendiente: <strong>$" . number_format($saldoRestante2, 2) . " USD</strong>.";
+            $_SESSION['pago_msg'] = implode(' ', $msg_parts);
+        } elseif ($amount_unused > 0.005 && $invoice_total > 0) {
+            // Pago con exceso (pagó más de lo que debía): la factura queda cubierta, el resto es saldo a favor
+            // El mensaje de saldo a favor ya se agregó arriba — solo actualizamos la sesión
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         }
 
