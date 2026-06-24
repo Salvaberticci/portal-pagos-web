@@ -369,16 +369,8 @@ function obtener_creditos_recientes(int $id_banco): array
 function buscar_referencia_en_movs(array $movs, string $referencia, string $metodo_pago = ''): ?array
 {
     $ref_user_clean = preg_replace('/\D/', '', $referencia);
-
-    if ($metodo_pago === 'Transferencia') {
-        $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
-        $ref_user_8 = strlen($ref_user_clean) >= 8 ? substr($ref_user_clean, -8) : $ref_user_clean;
-    } else {
-        $ref_search = $ref_user_clean;
-        if (strlen($ref_search) > 8) $ref_search = substr($ref_search, -8);
-        $ref_user_6 = strlen($ref_search) >= 6 ? substr($ref_search, -6) : $ref_search;
-        $ref_user_8 = $ref_search;
-    }
+    // Tomar siempre solo los últimos 6 dígitos del usuario, independientemente de si metió 7 u 8
+    $ref_user_6 = strlen($ref_user_clean) >= 6 ? substr($ref_user_clean, -6) : $ref_user_clean;
 
     foreach ($movs as $mov) {
         $tipo = strtoupper($mov['mov'] ?? $mov['Tipo'] ?? '');
@@ -387,14 +379,10 @@ function buscar_referencia_en_movs(array $movs, string $referencia, string $meto
         if (!isset($mov['referencia'])) continue;
 
         $ref_banco_clean = preg_replace('/\D/', '', $mov['referencia']);
+        // Tomar siempre los últimos 6 dígitos de la API del banco
         $ref_banco_6 = strlen($ref_banco_clean) >= 6 ? substr($ref_banco_clean, -6) : $ref_banco_clean;
-        $ref_banco_8 = strlen($ref_banco_clean) >= 8 ? substr($ref_banco_clean, -8) : $ref_banco_clean;
 
-        if (
-            $ref_banco_clean === $ref_user_clean ||
-            ($ref_banco_8 !== '' && $ref_banco_8 === $ref_user_8) ||
-            ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6)
-        ) {
+        if ($ref_banco_6 !== '' && $ref_banco_6 === $ref_user_6) {
             return $mov;
         }
     }

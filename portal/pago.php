@@ -590,15 +590,10 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 document.getElementById('input_metodo').value = metodo;
 
                 var refInput = document.getElementById('input_referencia');
-                if (metodo.indexOf('vil') !== -1) {
-                    refInput.setAttribute('maxlength', '8');
-                    refInput.setAttribute('minlength', '6');
-                    refInput.setAttribute('pattern', '[0-9]{6,8}');
-                } else {
-                    refInput.setAttribute('maxlength', '20');
-                    refInput.setAttribute('minlength', '6');
-                    refInput.setAttribute('pattern', '[0-9]{6,20}');
-                }
+                // Siempre permitir 6 a 20 dígitos y el backend se encargará de extraer los últimos 6
+                refInput.setAttribute('maxlength', '20');
+                refInput.setAttribute('minlength', '6');
+                refInput.setAttribute('pattern', '[0-9]{6,20}');
 
                 var bancosMetodo = metodosBancos[metodo] || [];
                 var panelBanco = document.getElementById('panel-banco');
