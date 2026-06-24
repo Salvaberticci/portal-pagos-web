@@ -463,9 +463,13 @@ $cache_time = 3600;
                         continue;
                     }
                     
-                    $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
-                    if ($saldo_pend < 0.005 && $abonado > 0 && $abonado < $inv_monto) {
-                        $saldo_pend = $inv_monto - $abonado;
+                    // Calcular saldo pendiente
+                    // Si hay abono en BD local: siempre calculamos total - cobrado (WispHub no refleja el abono aún)
+                    // Si no hay abono local: usamos el saldo que devuelve WispHub
+                    if ($is_saldo_pendiente) {
+                        $saldo_pend = max(0, $inv_monto - $abonado);
+                    } else {
+                        $saldo_pend = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($inv_monto - $abonado));
                     }
 
                     // Determinar si es factura recurrente (servicio mensual)
