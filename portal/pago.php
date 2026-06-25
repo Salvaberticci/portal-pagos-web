@@ -177,7 +177,6 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         $deuda_total += $monto;
         $monto_bs = $monto * $tasa_bcv;
         $desc = wisp_extract_desc($inv, $id);
-        $descCorta = (mb_strlen($desc) > 60) ? mb_substr($desc, 0, 60) . '...' : $desc;
         $vencida = !empty($inv['fecha_vencimiento']) && strtotime($inv['fecha_vencimiento']) < time();
         $preseleccionado = ($recibo_id_sel > 0 && $id == $recibo_id_sel) || ($totalInvoices === 1 && !$recibo_id_sel);
         $invoices_json[] = [
@@ -189,8 +188,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             'total' => floatval($inv['total'] ?? 0),
             'monto_pendiente' => $monto,
             'total_cobrado' => floatval($inv['total_cobrado'] ?? 0),
-            'descripcion' => $descCorta,
-            'concepto' => $desc,
+            'descripcion' => $desc,
             'monto_bs' => round($monto_bs, 2),
             'vencida' => $vencida,
             'preseleccionado' => $preseleccionado,
@@ -306,7 +304,6 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                                             </div>
                                         </div>
                                     </label>
-                                    <div class="recibo-concepto"><?php echo htmlspecialchars($inv['concepto']); ?></div>
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -1004,10 +1001,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             }
 
             .recibo-select-desc {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                max-width: 200px;
+                white-space: normal;
+                line-height: 1.4;
             }
 
             .recibo-select-badge {

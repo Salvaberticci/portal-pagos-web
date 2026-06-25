@@ -72,10 +72,14 @@ function wisp_get_cached_data($wispClient, $serviceId) {
 
     $clientId = $c_perfil['usuario'] ?? null;
 
-    // Usar GET /clientes/{id_servicio}/saldo/ para garantizar que solo se devuelven las facturas de este servicio
+    // Usar GET /facturas/ con filtro por cliente y estado pendiente para obtener articulos con descripcion
     $invoicesPendingAPI = [];
-    if ($serviceId) {
-        $invoicesPendingAPI = $wispClient->getPendingInvoices($serviceId);
+    if ($clientId) {
+        $invoicesPendingAPI = $wispClient->getInvoices([
+            'cliente' => $clientId,
+            'estado'  => 1,
+            'limit'   => 50,
+        ]);
     }
     $balance = $wispClient->getClientBalance($serviceId);
 
@@ -85,19 +89,29 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         $id = $inv['id_factura'] ?? $inv['id'] ?? 0;
         if (!$id) continue;
         
+        $articulos = $inv['articulos'] ?? [];
+        if (empty($articulos)) {
+            $desc_fallback = '';
+            foreach (['descripcion', 'concepto', 'observacion'] as $k) {
+                if (!empty($inv[$k])) { $desc_fallback = trim($inv[$k]); break; }
+            }
+            if (empty($desc_fallback)) {
+                $desc_fallback = 'Recibo N° ' . $id;
+            }
+            $articulos = [['descripcion' => $desc_fallback]];
+        }
+
         $invoices[] = [
-            'id' => $id,
-            'id_factura' => $id,
-            'fecha_emision' => $inv['fecha_emision'] ?? '',
+            'id'                => $id,
+            'id_factura'        => $id,
+            'fecha_emision'     => $inv['fecha_emision'] ?? '',
             'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
-            'total' => floatval($inv['total'] ?? 0),
-            'saldo_nuevo' => floatval($inv['total'] ?? 0),
-            'saldo' => floatval($inv['total'] ?? 0),
-            'total_cobrado' => 0,
-            'estado' => 1,
-            'articulos' => [
-                ['descripcion' => 'Renta y mantenimiento de la red']
-            ]
+            'total'             => floatval($inv['total'] ?? 0),
+            'saldo_nuevo'       => floatval($inv['total'] ?? 0),
+            'saldo'             => floatval($inv['total'] ?? 0),
+            'total_cobrado'     => 0,
+            'estado'            => 1,
+            'articulos'         => $articulos
         ];
     }
 
