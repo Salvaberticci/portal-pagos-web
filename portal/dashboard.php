@@ -200,13 +200,13 @@ $cache_time = 3600;
             <!-- Cabecera del Cliente -->
             <div class="glass-panel p-4 mb-4">
                 <div class="row g-3">
-                    <div class="col-md-3">
-                        <small class="text-muted d-block">Cliente</small>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block"><i class="fas fa-user me-1"></i> Cliente</small>
                         <span
                             class="fw-bold"><?php echo htmlspecialchars(trim(($c_perfil['nombre'] ?? '') . ' ' . ($c_perfil['apellidos'] ?? '')) ?: $nombre); ?></span>
                     </div>
-                    <div class="col-md-2">
-                        <small class="text-muted d-block">Estado</small>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block"><i class="fas fa-signal me-1"></i> Estado</small>
                         <?php
                         $statusClass = match ($estado_ws) {
                             'ACTIVO' => 'status-active',
@@ -218,13 +218,18 @@ $cache_time = 3600;
                         ?>
                         <span class="status-badge <?php echo $statusClass; ?>"><?php echo $estado_ws; ?></span>
                     </div>
-
-                    <div class="col-6">
-                        <small class="text-muted d-block">Dirección</small>
+                    <div class="col-md-3">
+                        <small class="text-muted d-block"><i class="fas fa-map-marker-alt me-1"></i> Zona</small>
+                        <span><?php echo htmlspecialchars($c_perfil['zona']['nombre'] ?? 'N/A'); ?></span>
+                    </div>
+                </div>
+                <div class="row g-3 mt-3 pt-3 border-top border-white border-opacity-10">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block"><i class="fas fa-home me-1"></i> Dirección</small>
                         <span><?php echo htmlspecialchars($c_perfil['direccion'] ?? 'N/A'); ?></span>
                     </div>
-                    <div class="col-6">
-                        <small class="text-muted d-block">Plan</small>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block"><i class="fas fa-wifi me-1"></i> Plan</small>
                         <span
                             class="fw-bold"><?php echo htmlspecialchars($c_perfil['plan_internet']['nombre'] ?? 'N/A'); ?></span>
                     </div>
