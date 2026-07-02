@@ -2,7 +2,7 @@
 
 ## Credenciales FTP
 
-### Para app.marateltru.com (Portal de Pagos)
+### Para app.marateltru.com (Portal de Pagos) ✅ USAR ESTA
 
 | Campo | Valor |
 |-------|-------|
@@ -11,7 +11,7 @@
 | Host | `ftp.marateltru.com` |
 | Puerto | 21 (FTPS explícito) |
 
-### Para marateltru.com (Dominio Principal - NO usar para el portal)
+### Para www.marateltru.com (Dominio Principal)
 
 | Campo | Valor |
 |-------|-------|
@@ -20,29 +20,41 @@
 | Host | `ftp.marateltru.com` |
 | Puerto | 21 (FTPS explícito) |
 
+### Para pagos.marateltru.com (Subdominio de Pagos)
+
+| Campo | Valor |
+|-------|-------|
+| Usuario | `adminpagosmarateltru@pagos.marateltru.com` |
+| Password | `admpagosMT2026*` |
+| Host | `ftp.marateltru.com` |
+| Puerto | 21 (FTPS explícito) |
+
 ## ⚠️ IMPORTANTE: Estructura de Directorios
 
+**El document root de `app.marateltru.com` es `public_html/portal/`**
+
 ```
-ftp://ftp.marateltru.com/
-├── portal/                  ← AQUÍ vive app.marateltru.com/portal/
-│   ├── dashboard.php
-│   ├── pago.php
-│   ├── index.php
-│   ├── login.php
-│   ├── verificar_pago.php
-│   ├── clear_cache.php
-│   ├── procesar_pago_cliente.php
-│   ├── api_verificar_pago.php
-│   ├── auth.php
-│   ├── security_helper.php
-│   ├── wisp_helper.php
-│   ├── referencia_helper.php
-│   ├── bdv_autoverify_helper.php
-│   ├── importar_pagos.php
-│   ├── simulador.php
-│   ├── css/
-│   │   └── style.css
-│   └── .htaccess
+ftp://ftp.marateltru.com/ (acceso con FTP APP)
+├── public_html/              ← Document root del dominio
+│   └── portal/               ← ✅ AQUÍ vive app.marateltru.com/portal/
+│       ├── dashboard.php
+│       ├── pago.php
+│       ├── index.php
+│       ├── login.php
+│       ├── verificar_pago.php
+│       ├── clear_cache.php
+│       ├── procesar_pago_cliente.php
+│       ├── api_verificar_pago.php
+│       ├── auth.php
+│       ├── security_helper.php
+│       ├── wisp_helper.php
+│       ├── referencia_helper.php
+│       ├── bdv_autoverify_helper.php
+│       ├── importar_pagos.php
+│       ├── simulador.php
+│       ├── css/
+│       │   └── style.css
+│       └── .htaccess
 ├── config/                  ← Configuración (database.php, WispHub, etc.)
 │   ├── database.php
 │   ├── wisp_hub.php
@@ -50,15 +62,17 @@ ftp://ftp.marateltru.com/
 ├── src/
 │   └── Services/
 │       └── WispHubClient.php
-└── public_html/             ← ❌ NO USAR - es para otro sitio
-    └── portal/              ← ❌ NO subir aquí, app.marateltru.com NO lee de aquí
+├── portal/                  ← ❌ NO USAR (tiene un index.php de mantenimiento)
+│   └── index.php            ← ❌ Tiene "ACTUALIZACION INMEDIATA"
+└── public_html/             ← Document root del dominio
 ```
 
 ### Directorio correcto para el portal:
-**`ftp://ftp.marateltru.com/portal/`**
+**`ftp://ftp.marateltru.com/public_html/portal/`**
 
-### Directorio INCORRECTO (NO usar):
-~~`ftp://ftp.marateltru.com/public_html/portal/`~~
+### Directorios INCORRECTOS (NO usar):
+~~`ftp://ftp.marateltru.com/portal/`~~ (tiene mantenimiento)
+~~`ftp://ftp.marateltru.com/public_html/`~~ (es el padre)
 
 ## Comandos FTP con curl
 
@@ -68,7 +82,7 @@ ftp://ftp.marateltru.com/
 C:\Windows\System32\curl.exe --ssl-reqd --insecure `
   -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
   -T "C:\ruta\local\archivo.php" `
-  "ftp://ftp.marateltru.com/portal/archivo.php"
+  "ftp://ftp.marateltru.com/public_html/portal/archivo.php"
 ```
 
 ### Subir múltiples archivos
@@ -76,8 +90,8 @@ C:\Windows\System32\curl.exe --ssl-reqd --insecure `
 ```powershell
 C:\Windows\System32\curl.exe --ssl-reqd --insecure `
   -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
-  -T "C:\ruta\dashboard.php" "ftp://ftp.marateltru.com/portal/dashboard.php" `
-  -T "C:\ruta\pago.php" "ftp://ftp.marateltru.com/portal/pago.php"
+  -T "C:\ruta\dashboard.php" "ftp://ftp.marateltru.com/public_html/portal/dashboard.php" `
+  -T "C:\ruta\pago.php" "ftp://ftp.marateltru.com/public_html/portal/pago.php"
 ```
 
 ### Listar archivos de un directorio
@@ -85,7 +99,7 @@ C:\Windows\System32\curl.exe --ssl-reqd --insecure `
 ```powershell
 C:\Windows\System32\curl.exe --ssl-reqd --insecure `
   -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
-  --list-only "ftp://ftp.marateltru.com/portal/"
+  --list-only "ftp://ftp.marateltru.com/public_html/portal/"
 ```
 
 ### Descargar un archivo (para verificar contenido)
@@ -94,7 +108,7 @@ C:\Windows\System32\curl.exe --ssl-reqd --insecure `
 C:\Windows\System32\curl.exe --ssl-reqd --insecure `
   -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
   -o "C:\temp\verificar.php" `
-  "ftp://ftp.marateltru.com/portal/dashboard.php"
+  "ftp://ftp.marateltru.com/public_html/portal/dashboard.php"
 ```
 
 ### Verificar que un archivo contiene cierto texto
@@ -103,7 +117,7 @@ C:\Windows\System32\curl.exe --ssl-reqd --insecure `
 C:\Windows\System32\curl.exe --ssl-reqd --insecure `
   -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
   -o "C:\temp\check.php" `
-  "ftp://ftp.marateltru.com/portal/dashboard.php"
+  "ftp://ftp.marateltru.com/public_html/portal/dashboard.php"
 C:\Windows\System32\findstr.exe "TextoABuscar" "C:\temp\check.php"
 ```
 
@@ -159,8 +173,8 @@ Página de verificación de estado de pagos y facturas pendientes.
 ### Los cambios no se ven después de subir por FTP
 
 1. **Verificar que se subió al directorio correcto:**
-   - ✅ `ftp://ftp.marateltru.com/portal/`
-   - ❌ `ftp://ftp.marateltru.com/public_html/portal/`
+   - ✅ `ftp://ftp.marateltru.com/public_html/portal/`
+   - ❌ `ftp://ftp.marateltru.com/portal/` (tiene archivo de mantenimiento)
 
 2. **Ejecutar clear_cache.php:**
    ```
@@ -176,7 +190,7 @@ Página de verificación de estado de pagos y facturas pendientes.
    C:\Windows\System32\curl.exe --ssl-reqd --insecure `
      -u "adminappmarateltru@app.marateltru.com:admappMT2026*" `
      -o "C:\temp\verify.php" `
-     "ftp://ftp.marateltru.com/portal/dashboard.php"
+  "ftp://ftp.marateltru.com/public_html/portal/dashboard.php"
    C:\Windows\System32\findstr.exe "Continuar" "C:\temp\verify.php"
    ```
 
