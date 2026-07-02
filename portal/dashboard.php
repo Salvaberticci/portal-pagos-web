@@ -87,7 +87,7 @@ $cache_time = 3600;
     }
 
     if (!$wisp_service_id) {
-        header('Location: auth.php?logout=1');
+        header('Location: index.php?logout=1');
         exit;
     }
 
@@ -103,15 +103,24 @@ $cache_time = 3600;
     $clientServices = $wispClient->getServicesByCedula($cedula);
 
     $deuda_total = 0;
+    $notas_credito = []; // facturas con total negativo = saldo a favor
     foreach ($invoices as $inv) {
         $total = floatval($inv['total'] ?? 0);
         $cobrado = floatval($inv['total_cobrado'] ?? 0);
+        if ($total < 0) {
+            $notas_credito[] = $inv;
+            continue;
+        }
         if ($total > 0 && $cobrado < $total) {
             $saldo = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
             if ($saldo < 0.005)
                 $saldo = $total - $cobrado;
             $deuda_total += $saldo;
         }
+    }
+    $total_credito = 0;
+    foreach ($notas_credito as $nc) {
+        $total_credito += abs(floatval($nc['total'] ?? 0));
     }
 
     // Estado del servicio (por defecto del perfil)
@@ -153,7 +162,7 @@ $cache_time = 3600;
                     <div>
                         <span class="me-3 text-muted d-none d-md-inline" style="font-size: 0.9rem;"><i
                                 class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($nombre); ?></span>
-                        <a href="auth.php?logout=1" class="btn btn-sm btn-glass text-danger border-danger"><i
+                        <a href="index.php?logout=1" class="btn btn-sm btn-glass text-danger border-danger"><i
                                 class="fas fa-sign-out-alt"></i> Salir</a>
                     </div>
                 </div>
@@ -268,8 +277,9 @@ $cache_time = 3600;
                         $totalInvs = 0;
                         $unpaid = 0;
                         foreach ($invoices as $inv) {
-                            $c = floatval($inv['total_cobrado'] ?? 0);
                             $t = floatval($inv['total'] ?? $inv['monto'] ?? 0);
+                            if ($t < 0) continue; // nota de crédito
+                            $c = floatval($inv['total_cobrado'] ?? 0);
                             if ($c < $t) {
                                 $totalInvs++;
                                 if ($c <= 0)
@@ -289,21 +299,29 @@ $cache_time = 3600;
                 </div>
                 <?php
                 $pending_invoices = $invoices;
-                $totalInvs = count($pending_invoices);
+                // Filtrar facturas con total positivo (excluir notas de crédito con total < 0)
+                $positive_count = 0;
+                foreach ($pending_invoices as $inv) {
+                    if (floatval($inv['total'] ?? $inv['monto'] ?? 0) > 0) $positive_count++;
+                }
                 ?>
 
-                <?php if ($totalInvs > 0): ?>
+                <?php if ($positive_count > 0): ?>
                     
                     <!-- Sección de Facturas Pendientes (Sin Abonos) -->
-                    <?php if (count($pending_invoices) > 0): ?>
+                    <?php if ($positive_count > 0): ?>
                         <div class="mb-4">
                             <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.8rem; letter-spacing: 0.5px;">
                                 <i class="fas fa-exclamation-circle text-primary me-2"></i> Recibos Pendientes
                             </h6>
                             <div class="recibos-list">
-                                <?php foreach ($pending_invoices as $inv):
+                                <?php 
+                                $displayedAny = false;
+                                foreach ($pending_invoices as $inv):
                                     $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
                                     $inv_monto = floatval($inv['total'] ?? $inv['monto'] ?? $inv['monto_pendiente'] ?? 0);
+                                    if ($inv_monto < 0) continue; // nota de crédito
+                                    $displayedAny = true;
                                     $inv_monto_bs = $inv_monto * $tasa_bcv;
                                     $inv_desc = wisp_extract_desc($inv, $inv_id);
                                     $fecha_emi = $inv['fecha_emision'] ?? '';
@@ -353,7 +371,11 @@ $cache_time = 3600;
                                         <!-- Barra de acento inferior -->
                                         <div class="recibo-accent-bar"></div>
                                     </div>
-                                <?php endforeach; ?>
+                                <?php endforeach; 
+                                if (!$displayedAny):
+                                ?>
+                                    <p class="text-muted text-center py-3 mb-0">No hay recibos pendientes.</p>
+                                <?php endif; ?>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -371,6 +393,48 @@ $cache_time = 3600;
                         <div class="mb-3" style="font-size:3rem;">&#127881;</div>
                         <h6 class="fw-bold text-success">&#161;Sin deudas pendientes!</h6>
                         <p class="text-muted mb-0 small">No tienes recibos pendientes de pago.</p>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($notas_credito)): ?>
+                    <div class="mb-4">
+                        <h6 class="text-uppercase fw-bold mb-3" style="font-size: 0.8rem; letter-spacing: 0.5px; color: #10b981;">
+                            <i class="fas fa-check-circle me-2" style="color: #10b981;"></i> Saldo a Favor / Notas de Crédito
+                            <span class="ms-2 badge bg-success-subtle text-success" style="font-size: 0.7rem; vertical-align: middle;">$<?php echo number_format($total_credito, 2); ?></span>
+                        </h6>
+                        <div class="recibos-list">
+                            <?php foreach ($notas_credito as $nc):
+                                $nc_id = $nc['id'] ?? 0;
+                                $nc_monto = abs(floatval($nc['total'] ?? 0));
+                                $nc_desc = wisp_extract_desc($nc, $nc_id);
+                                $fecha_nc = $nc['fecha_emision'] ?? '';
+                                ?>
+                                <div class="recibo-card" style="border-color: rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.05);">
+                                    <div class="recibo-body" style="width: 100%;">
+                                        <div class="recibo-top">
+                                            <div class="recibo-info">
+                                                <span class="recibo-num" style="color: #10b981;">Nota de Crédito #<?php echo $nc_id; ?></span>
+                                                <?php if ($fecha_nc): ?>
+                                                    <span class="recibo-fecha"><i class="fas fa-calendar-alt me-1"></i><?php echo date('d M Y', strtotime($fecha_nc)); ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="recibo-montos">
+                                                <span class="recibo-usd" style="color: #10b981;">+$<?php echo number_format($nc_monto, 2); ?></span>
+                                            </div>
+                                        </div>
+                                        <div class="recibo-desc-row">
+                                            <span class="recibo-desc"><?php echo htmlspecialchars($nc_desc); ?></span>
+                                        </div>
+                                        <hr class="recibo-divider">
+                                        <div class="recibo-row recibo-status-recibo">
+                                            <span class="recibo-status-text" style="color: #10b981; font-weight: 600;"><i class="fas fa-check-circle me-1"></i>Disponible como saldo a favor</span>
+                                        </div>
+                                    </div>
+                                    <div class="recibo-accent-bar" style="background: linear-gradient(90deg, #10b981, #34d399);"></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0"><i class="fas fa-info-circle me-1"></i> Este saldo se descuenta autom&aacute;ticamente de tu pr&oacute;ximo recibo.</p>
                     </div>
                 <?php endif; ?>
             </div>

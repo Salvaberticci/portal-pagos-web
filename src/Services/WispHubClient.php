@@ -434,7 +434,59 @@ class WispHubClient
         ]);
     }
 
+    /**
+     * Crea una factura en WispHub.
+     * Endpoint: POST /facturas/
+     *
+     * @param string $username    Usuario en WispHub (ej. "usuario@empresa")
+     * @param float  $amount      Monto total de la factura
+     * @param string $description Descripci├│n del art├¡culo/servicio
+     * @param string $dueDate     Fecha de vencimiento (YYYY-MM-DD)
+     * @param string $serviceId   ID del servicio en WispHub
+     * @return array Resultado con status y data (messages contiene el ID de la nueva factura)
+     */
+    /**
+     * Crea una nota de crédito (factura con monto negativo) en WispHub.
+     * Sirve para registrar saldo a favor cuando un cliente paga de más.
+     * La nota de crédito se resta automáticamente del balance del cliente.
+     */
+    public function createCreditNote(string $username, float $amount, string $description): array
+    {
+        $total = round(abs($amount), 2);
+        return $this->request('POST', 'facturas/', [
+            'tipo_factura'     => 1,
+            'cliente'          => $username,
+            'fecha_emision'    => date('Y-m-d'),
+            'fecha_pago'       => date('Y-m-d'),
+            'fecha_vencimiento'=> date('Y-m-d', strtotime('+90 days')),
+            'impuesto'         => 0,
+            'descuento'        => 0,
+            'articulos'        => [[
+                'cantidad'    => 1,
+                'descripcion' => mb_substr($description, 0, 255),
+                'precio'      => -$total,
+            ]],
+        ]);
+    }
 
+    public function createInvoice(string $username, float $amount, string $description, string $dueDate, string $serviceId): array
+    {
+        $total = round($amount, 2);
+        return $this->request('POST', 'facturas/', [
+            'tipo_factura'     => 1,
+            'cliente'          => $username,
+            'fecha_emision'    => date('Y-m-d'),
+            'fecha_pago'       => date('Y-m-d'),
+            'fecha_vencimiento'=> $dueDate,
+            'impuesto'         => 0,
+            'descuento'        => 0,
+            'articulos'        => [[
+                'cantidad'    => 1,
+                'descripcion' => mb_substr($description, 0, 255),
+                'precio'      => $total,
+            ]],
+        ]);
+    }
 
     /**
      * Obtiene el perfil completo de un cliente/servicio de WispHub.

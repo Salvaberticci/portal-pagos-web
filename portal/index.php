@@ -1,9 +1,112 @@
-<?php
+<?php /* v2 */
 require_once 'security_helper.php';
 enforce_https();
+
+// Handle logout via GET (must be BEFORE the login check)
+if (isset($_GET['logout'])) {
+    if (isset($_SESSION['cliente_cedula'])) {
+        log_security_event('LOGOUT', 'Cierre de sesión', $_SESSION['cliente_cedula']);
+    }
+    session_destroy();
+    header('Location: index.php');
+    exit;
+}
+
 if (isset($_SESSION['cliente_cedula'])) {
     header('Location: dashboard.php');
     exit;
+}
+
+// Handle login POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        @include_once '../config/test_mode.php';
+        if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
+        if (!defined('DEV_MODE')) define('DEV_MODE', false);
+
+        require_once __DIR__ . '/../vendor/autoload.php';
+        require_once __DIR__ . '/../src/Services/WispHubClient.php';
+        $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+        if (DEV_MODE) {
+            require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
+            $wispClient = new \Services\WispHubDevModeClient($wispConfig);
+        } else {
+            $wispClient = new \Services\WispHubClient($wispConfig);
+        }
+    } catch (\Throwable $e) {
+        error_log("[LOGIN] " . $e->getMessage());
+        $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
+        header('Location: index.php');
+        exit;
+    }
+
+    try {
+        $cedula = isset($_POST['cedula']) ? trim($_POST['cedula']) : '';
+
+        if (!check_rate_limit('login', 5, 300)) {
+            $_SESSION['login_error'] = "Demasiados intentos. Por favor, intenta de nuevo en unos minutos.";
+            header('Location: index.php');
+            exit;
+        }
+
+        $csrf_token = isset($_POST['csrf_token']) ? $_POST['csrf_token'] : '';
+        if (!verify_csrf_token($csrf_token)) {
+            log_security_event('CSRF_VIOLATION', 'Fallo de verificación CSRF', $cedula);
+            $_SESSION['login_error'] = "Petición inválida. Recarga la página.";
+            header('Location: index.php');
+            exit;
+        }
+
+        if (empty($cedula)) {
+            $_SESSION['login_error'] = "Por favor, ingresa tu cédula.";
+            header('Location: index.php');
+            exit;
+        }
+
+        $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
+        if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 8) {
+            $_SESSION['login_error'] = "Usuario no encontrado";
+            header('Location: index.php');
+            exit;
+        }
+
+        $clientInfo = $wispClient->getClientByDocument($cedula);
+        if ($clientInfo['status'] === 0) {
+        $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
+        header('Location: index.php');
+        exit;
+    }
+    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'] ?? $clientInfo['data']['data']['id_servicio'] ?? '')) {
+        $clientInfo = $wispClient->findClientByDocument($cedula);
+        if ($clientInfo['status'] === 0) {
+            $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
+            header('Location: index.php');
+            exit;
+        }
+    }
+
+    if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
+        $cliente = $clientInfo['data']['data'];
+        session_regenerate_id(true);
+        $_SESSION['cliente_cedula'] = $cedula;
+        $_SESSION['cliente_nombre'] = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
+        $_SESSION['cliente_telefono'] = $cliente['telefono'] ?? '';
+        $_SESSION['wisp_service_id'] = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
+        log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso', $cedula);
+        header('Location: dashboard.php');
+        exit;
+    } else {
+        log_security_event('LOGIN_FAILED', "Cédula no encontrada: $cedula", $cedula);
+        $_SESSION['login_error'] = "Usuario no encontrado";
+        header('Location: index.php');
+        exit;
+    }
+    } catch (\Throwable $e) {
+        error_log("[LOGIN_POST] " . $e->getMessage());
+        $_SESSION['login_error'] = "Error al procesar la solicitud. Intenta de nuevo.";
+        header('Location: index.php');
+        exit;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -105,7 +208,7 @@ if (isset($_SESSION['cliente_cedula'])) {
             <div id="login-error-data" data-msg="<?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?>"
                 style="display:none;"></div>
 
-            <form action="auth.php" method="POST">
+            <form action="index.php" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <div class="mb-4">
                     <h5 class="fw-bold text-gradient mb-3"><i class="fas fa-id-card me-2"></i>Documento de Identidad
@@ -165,6 +268,7 @@ if (isset($_SESSION['cliente_cedula'])) {
     <script>
         // Concatenar el tipo de cédula y el número al enviar el formulario
         const form = document.querySelector('form');
+        form.action = 'index.php';
         const tipoCedula = document.getElementById('tipo_cedula');
         const cedulaNumero = document.getElementById('cedula_numero');
         const cedulaHidden = document.getElementById('cedula_hidden');

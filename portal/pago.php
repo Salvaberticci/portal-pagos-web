@@ -168,11 +168,13 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     foreach ($invoices as $inv) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
         $total = floatval($inv['total'] ?? 0);
+        // Saltar notas de crédito (total negativo)
+        if ($total <= 0) continue;
         $cobrado = floatval($inv['total_cobrado'] ?? 0);
         // Siempre calculamos el monto pendiente basado en el total cobrado actualizado
         $monto = max(0, $total - $cobrado);
         // Saltar facturas completamente pagadas
-        if ($total > 0 && $cobrado >= $total)
+        if ($cobrado >= $total)
             continue;
         $deuda_total += $monto;
         $monto_bs = $monto * $tasa_bcv;
@@ -821,7 +823,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     btnCerrar.classList.add('d-none');
                 } else if (tipo === 'verificacion') {
                     icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>';
-                    title.textContent = 'Verificación Exitosa';
+                    title.textContent = 'Verificación Bancaria Exitosa';
                     title.className = 'fw-bold mb-2';
                     title.style.color = 'var(--primary)';
                     msg.innerHTML = mensaje;

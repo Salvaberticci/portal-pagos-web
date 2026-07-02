@@ -16,10 +16,10 @@
  */
 
 return [
-    'host'     => 'localhost',
+    'host'     => 'sh00002.hostgator.co',
     'port'     => 3306,
-    'dbname'   => 'portal_pagos',
-    'user'     => 'root',
-    'password' => '',
+    'dbname'   => 'darwinra_bdmarateltru',
+    'user'     => 'darwinra_bdmarateltruadmin',
+    'password' => 'Adminbdmarateltru2026',
     'charset'  => 'utf8mb4',
 ];
