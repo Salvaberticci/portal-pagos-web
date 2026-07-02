@@ -408,7 +408,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 <div class="mb-4">
                     <button type="button" class="btn btn-pagar w-100 py-3" id="btn_pagar"
                         onclick="mostrarModalConfirmacion()" disabled>
-                        <i class="fas fa-credit-card me-2"></i> Pagar
+                        <i class="fas fa-credit-card me-2"></i> Continuar
                     </button>
                 </div>
             </form>
