@@ -397,8 +397,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 <div class="glass-panel p-4 mb-3">
                     <label class="label-premium">Numero de Referencia</label>
                     <input type="text" name="referencia" class="form-control glass-input"
-                        placeholder="Ingresa tu referencia" id="input_referencia" inputmode="numeric"
-                        pattern="[0-9]{6,20}" maxlength="20" minlength="6" required>
+                        placeholder="Selecciona un m&eacute;todo de pago primero" id="input_referencia" inputmode="numeric"
+                        pattern="[0-9]{6,20}" maxlength="20" minlength="6" required disabled>
+                    <div id="ref_validation_msg" class="mt-1" style="font-size: 0.78rem; color: var(--warning); display: none;">
+                        <i class="fas fa-info-circle me-1"></i> Deben ser m&iacute;nimo 6 n&uacute;meros
+                    </div>
                 </div>
 
                 <!-- Boton Pagar -->
@@ -460,7 +463,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         <button type="button" class="btn btn-glass flex-fill" data-bs-dismiss="modal">Cancelar</button>
                         <button type="button" class="btn btn-pagar flex-fill" id="btn_confirmar_pago"
                             onclick="ejecutarPago()">
-                            <i class="fas fa-check-circle me-2"></i> Confirmar Pago
+                            <i class="fas fa-check-circle me-2"></i> Confirmar
                         </button>
                     </div>
                 </div>
@@ -589,10 +592,19 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 document.getElementById('input_metodo').value = metodo;
 
                 var refInput = document.getElementById('input_referencia');
-                // Siempre permitir de 6 a 8 dígitos máximo, para todos los métodos
-                refInput.setAttribute('maxlength', '8');
+                refInput.disabled = false;
+                if (metodo.indexOf('vil') !== -1) {
+                    refInput.setAttribute('maxlength', '8');
+                    refInput.setAttribute('minlength', '8');
+                    refInput.setAttribute('pattern', '[0-9]{8}');
+                    refInput.placeholder = 'Ingresa tu referencia (8 d\u00edgitos)';
+                } else {
+                    refInput.setAttribute('maxlength', '15');
+                    refInput.setAttribute('pattern', '[0-9]{6,15}');
+                    refInput.placeholder = 'Ingresa tu referencia';
+                }
                 refInput.setAttribute('minlength', '6');
-                refInput.setAttribute('pattern', '[0-9]{6,8}');
+                refInput.focus();
 
                 var bancosMetodo = metodosBancos[metodo] || [];
                 var panelBanco = document.getElementById('panel-banco');
@@ -660,11 +672,20 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             function updatePagarBtn() {
                 var ref = document.getElementById('input_referencia').value.trim();
                 var btn = document.getElementById('btn_pagar');
-                btn.disabled = !selectedMetodo || !/^\d{6,15}$/.test(ref) || selectedIds.length === 0;
+                var maxlen = parseInt(document.getElementById('input_referencia').getAttribute('maxlength') || '15');
+                var minlen = parseInt(document.getElementById('input_referencia').getAttribute('minlength') || '6');
+                var re = new RegExp('^\\d{' + minlen + ',' + maxlen + '}$');
+                btn.disabled = !selectedMetodo || !re.test(ref) || selectedIds.length === 0;
             }
 
             document.getElementById('input_referencia').addEventListener('input', function () {
                 this.value = this.value.replace(/\D/g, '');
+                var msg = document.getElementById('ref_validation_msg');
+                if (this.value.length > 0 && this.value.length < 6) {
+                    msg.style.display = 'block';
+                } else {
+                    msg.style.display = 'none';
+                }
                 updatePagarBtn();
             });
 

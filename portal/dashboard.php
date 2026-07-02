@@ -350,9 +350,6 @@ $cache_time = 3600;
                                             <!-- Descripción -->
                                             <div class="recibo-desc-row">
                                                 <span class="recibo-desc"><?php echo htmlspecialchars($inv_desc); ?></span>
-                                                <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>&recibo_id=<?php echo $inv_id; ?>" class="btn-pagar">
-                                                    <i class="fas fa-credit-card"></i> Pagar
-                                                </a>
                                             </div>
 
                                             <hr class="recibo-divider">
@@ -384,7 +381,7 @@ $cache_time = 3600;
 
                     <div class="text-center mt-4">
                         <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>" class="btn btn-premium btn-lg px-5">
-                            <i class="fas fa-credit-card me-2"></i> Ir a Pagar
+                            <i class="fas fa-credit-card me-2"></i> Continuar
                         </a>
                     </div>
 
@@ -457,15 +454,15 @@ $cache_time = 3600;
 
             .recibo-card {
                 position: relative;
-                display: flex;
-                align-items: flex-start;
-                gap: 14px;
+                display: block;
+                width: 100%;
                 padding: 16px 18px;
                 border-radius: 16px;
                 border: 1.5px solid var(--border-glass);
                 background: var(--glass-bg);
                 overflow: hidden;
                 transition: all 0.25s ease;
+                box-sizing: border-box;
             }
 
             .recibo-card:hover {
@@ -478,29 +475,9 @@ $cache_time = 3600;
                 border-color: rgba(239, 68, 68, 0.4);
             }
 
-            /* Icono */
-            .recibo-icon-wrap {
-                flex-shrink: 0;
-                width: 46px;
-                height: 46px;
-                border-radius: 12px;
-                background: rgba(59, 130, 246, 0.1);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 1.25rem;
-                color: var(--primary);
-            }
-
-            .recibo-vencida .recibo-icon-wrap {
-                background: rgba(239, 68, 68, 0.1);
-                color: #ef4444;
-            }
-
             /* Cuerpo */
             .recibo-body {
-                flex: 1;
-                min-width: 0;
+                width: 100%;
             }
 
             .recibo-top {
@@ -515,6 +492,8 @@ $cache_time = 3600;
                 display: flex;
                 flex-direction: column;
                 gap: 2px;
+                flex: 1;
+                min-width: 0;
             }
 
             .recibo-num {
@@ -599,7 +578,7 @@ $cache_time = 3600;
                 margin-top: 1px;
             }
 
-            /* Fila inferior: descripción + botón */
+            /* Fila inferior: descripción */
             .recibo-desc-row {
                 display: flex;
                 align-items: center;
@@ -611,6 +590,11 @@ $cache_time = 3600;
                 font-size: 0.8rem;
                 color: var(--text-muted);
                 line-height: 1.4;
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             /* Botón Pagar */
