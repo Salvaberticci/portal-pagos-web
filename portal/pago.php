@@ -1,4 +1,6 @@
 <?php
+header("Cache-Control: no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
 require_once 'security_helper.php';
 enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
