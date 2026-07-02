@@ -1,6 +1,7 @@
 <?php
 header("Cache-Control: no-cache, must-revalidate, max-age=0");
 header("Pragma: no-cache");
+header("X-Version: v3");
 session_start();
 if (!isset($_SESSION['cliente_cedula'])) {
     header('Location: index.php');
