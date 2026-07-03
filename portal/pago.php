@@ -747,8 +747,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             }
 
             function ejecutarPago() {
-                bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion')).hide();
                 document.getElementById('loadingOverlay').style.display = 'flex';
+                bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion')).hide();
 
                 var ref = document.getElementById('input_referencia').value.trim();
 
@@ -866,6 +866,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     btnConfirm.classList.remove('d-none');
                     if (typeof onConfirm === 'function') {
                         btnConfirm.onclick = function () {
+                            document.getElementById('loadingOverlay').style.display = 'flex';
                             bootstrap.Modal.getInstance(document.getElementById('modalResultado')).hide();
                             onConfirm();
                         };
