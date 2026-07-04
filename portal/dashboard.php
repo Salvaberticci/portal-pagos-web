@@ -189,9 +189,6 @@ $cache_time = 3600;
                     <h2 class="mb-1 text-gradient">Pago Pendiente</h2>
                     <p class="text-muted mb-0">Selecciona un recibo para realizar tu pago.</p>
                 </div>
-                <a href="dashboard.php?refreshed=1" class="btn btn-sm btn-glass text-info border-info" title="Refrescar datos">
-                    <i class="fas fa-sync-alt me-1"></i> Refrescar
-                </a>
             </div>
 
             <?php if ($pago_msg): ?>

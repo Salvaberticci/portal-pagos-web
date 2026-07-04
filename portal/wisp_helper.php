@@ -3,7 +3,7 @@
 function wisp_get_cache($serviceId) {
     $cacheDir = __DIR__ . '/../cache';
     $cacheFile = $cacheDir . '/wisp_' . preg_replace('/[^a-zA-Z0-9_]/', '', $serviceId) . '.json';
-    $ttl = 10;
+    $ttl = 1;
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return json_decode(file_get_contents($cacheFile), true);
     }
