@@ -285,7 +285,12 @@ try {
         $wispStatus = $wispResult['status'] ?? 200;
 
         // ── Si es pago parcial: registrar compromiso en WispHub sobre la factura creada ──
-        if ($shouldCreatePromise && $saldoRestante > 0.01 && $nuevaFacturaId && in_array($wispStatus, [200, 201])) {
+        // NOTA: WispHub devuelve status 400 cuando el pago es parcial (total_cobrado < total),
+        //       aunque el pago sí fue registrado correctamente. Por eso también aceptamos 400
+        //       siempre que el monto haya sido efectivamente aplicado (amount_applied > 0).
+        $wispPaymentApplied = floatval($wispResult['amount_applied'] ?? 0) > 0;
+        $wispOk = in_array($wispStatus, [200, 201]) || ($wispStatus === 400 && $wispPaymentApplied);
+        if ($shouldCreatePromise && $saldoRestante > 0.01 && $nuevaFacturaId && $wispOk) {
             // Sumar +1 día a la fecha límite en WispHub para que el cliente tenga
             // el día completo de servicio (ej: 15/07 → 16/07 en WispHub)
             $fechaLimiteWisp = date('Y-m-d', strtotime($fechaLimitePromesa . ' +1 day'));
@@ -337,7 +342,12 @@ try {
     }
 
     // Verificar resultado del registro en WispHub
-    $wispSuccess = $wispResult && in_array($wispResult['status'] ?? 0, [200, 201]);
+    // NOTA: WispHub devuelve 400 en pagos parciales aunque el pago haya sido aplicado.
+    //       También consideramos exitoso si amount_applied > 0.
+    $wispSuccess = $wispResult && (
+        in_array($wispResult['status'] ?? 0, [200, 201]) ||
+        ($wispResult['status'] === 400 && floatval($wispResult['amount_applied'] ?? 0) > 0)
+    );
     $bankVerified = !empty($verificacion_data);
 
     if ($wispSuccess || $bankVerified) {
