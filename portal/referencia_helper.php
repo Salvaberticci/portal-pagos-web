@@ -86,10 +86,26 @@ function getReferenciaInfo(string $referencia): ?array {
     $pdo = getDb();
     if (!$pdo) return null;
     try {
-        $ref_6 = strlen($referencia) >= 6 ? substr($referencia, -6) : $referencia;
-        // La comprobación en la BD local también debe ser siempre por los últimos 6 dígitos
-        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE RIGHT(referencia, 6) = ? LIMIT 1");
-        $stmt->execute([$ref_6]);
+        $refClean = preg_replace('/\D/', '', $referencia); // solo dígitos
+
+        // 1. Búsqueda exacta (prioridad absoluta)
+        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE referencia = ? LIMIT 1");
+        $stmt->execute([$refClean]);
+        $row = $stmt->fetch();
+        if ($row) return $row;
+
+        // 2. Búsqueda por sufijo — solo si la referencia tiene más de 6 dígitos.
+        //    Se comparan los últimos 8 dígitos para reducir falsos positivos.
+        //    (Antes era 6 dígitos, lo que causaba colisiones: ej. 60741024 y 741024
+        //    comparten los mismos últimos 6 dígitos y se detectaban como duplicado.)
+        if (strlen($refClean) <= 6) {
+            // Ref corta: solo aceptar coincidencia exacta (ya verificada arriba)
+            return null;
+        }
+
+        $suffix = substr($refClean, -8);
+        $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE RIGHT(referencia, 8) = ? LIMIT 1");
+        $stmt->execute([$suffix]);
         $row = $stmt->fetch();
         return $row ?: null;
     } catch (PDOException $e) {
