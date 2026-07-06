@@ -270,11 +270,21 @@ try {
             }
         }
 
+        // Artificio para enviar el monto en Bs a WispHub en la referencia (para no pagar extra ni hacer conciliación compleja)
+        // Regla: Últimos 8 caracteres de referencia + guion + monto entero en Bs (sin decimales). Ej: 60741024-130
+        $monto_bs_final = isset($monto_banco_bs) && $monto_banco_bs > 0 ? $monto_banco_bs : $monto_bs;
+        $ref_8_chars = str_pad(substr($referencia, -8), 8, '0', STR_PAD_LEFT);
+        
+        // Quitar decimales y dejar solo el número entero (130.60 -> 130)
+        $monto_plano = intval($monto_bs_final);
+        
+        $referencia_wisp = $ref_8_chars . '-' . $monto_plano;
+
         // Nuevo flujo: registrar directo con las facturas seleccionadas
         $wispResult = $wispClient->registerPaymentAndActivate(
             $id_contrato_asociado,
             $monto_pago_wisp,
-            $referencia,
+            $referencia_wisp,
             $wispDate,
             \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
             false,
