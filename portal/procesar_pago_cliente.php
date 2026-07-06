@@ -196,14 +196,39 @@ try {
         $precioPlan = 0;
 
         if ($monto_usd < $totalFactura && $totalFactura > 0 && !empty($invoice_ids)) {
-            // Obtener datos del perfil para precio_plan y fecha_pago
-            if (!isset($wispData)) {
-                require_once __DIR__ . '/wisp_helper.php';
-                $wispData = wisp_get_cached_data($wispClient, $id_contrato_asociado);
-            }
-            $precioPlan = floatval($wispData['profile']['precio_plan'] ?? $totalFactura);
+            // Función recursiva para obtener el precio real del plan buscando la factura original
+            $getTruePlanPrice = function($wispClient, $invId, $fallbackPrice) use (&$getTruePlanPrice) {
+                $detail = $wispClient->getInvoiceDetail((string)$invId);
+                if (empty($detail)) return $fallbackPrice;
+                
+                $parentInvoiceId = 0;
+                if (!empty($detail['articulos'])) {
+                    foreach ($detail['articulos'] as $art) {
+                        $desc = $art['descripcion'] ?? '';
+                        if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m)) {
+                            $parentInvoiceId = $m[1];
+                            break;
+                        }
+                    }
+                }
+                
+                if ($parentInvoiceId) {
+                    return $getTruePlanPrice($wispClient, $parentInvoiceId, $fallbackPrice);
+                }
+                return floatval($detail['total'] ?? $fallbackPrice);
+            };
+
+            // Obtener el precio real de la factura raíz original
+            $precioPlan = $getTruePlanPrice($wispClient, $firstInvoiceId, $totalFactura);
+            if ($precioPlan <= 0) $precioPlan = $totalFactura; // fallback de seguridad
+
             $diasExtra = round(30 * ($monto_usd / max($precioPlan, 1)));
-            $fechaLimitePromesa = date('Y-m-d', strtotime($fecha_pago . " + $diasExtra days"));
+            
+            // CORRECCIÓN: Los días extra deben sumarse a la fecha de vencimiento original
+            // de la factura, NO a la fecha actual del pago. Así se respeta el ciclo (ej: del 1 al 16).
+            $fechaBasePromesa = !empty($fechaVencOriginal) ? $fechaVencOriginal : $fecha_pago;
+            $fechaLimitePromesa = date('Y-m-d', strtotime($fechaBasePromesa . " + $diasExtra days"));
+            
             $saldoRestante = round($totalFactura - $monto_usd, 2);
             $shouldCreatePromise = true;
         }
