@@ -1,5 +1,10 @@
 # Guia FTP - Portal de Pagos Maratel
 
+## Cache URL
+```
+https://app.marateltru.com/portal/clear_cache.php?token=m4r4t3lt2026
+```
+
 ## Credenciales FTP
 
 ### Para app.marateltru.com (Portal de Pagos) ✅ USAR ESTA
@@ -237,3 +242,53 @@ git push
 | DB | `darwinra_BDmainMarateltru` |
 | Usuario | `darwinra_bdppalmarateltruadm` |
 | Password | `Adminbdmarateltru2026` |
+
+## Changelog - Cambios Recientes
+
+### 2026-07-07 — Corrección fecha promesa + Filtro facturas padre + Referencia real del banco
+**Archivos:** `portal/procesar_pago_cliente.php`, `portal/pago.php`, `portal/api_verificar_pago.php`
+- **procesar_pago_cliente.php:**
+  - Fecha base promesa cambiada de `fechaVencOriginal` a `fechaEmiOriginal` (usa el día de emisión/pago como base, no el vencimiento)
+  - Ahora usa la referencia REAL del banco (últimos 8 dígitos) extraída de la API, no lo que el cliente tecleó (que a veces omite dígitos)
+  - `$accion_pre` (pre-burn) ahora se guarda en `$_SESSION['pago_data']['accion']` para el modal
+  - Cobertura ahora usa `$fechaPromesaLocal` cuando existe
+- **pago.php:**
+  - Eliminado el rescate de facturas abonadas desde BD local (ya no es necesario porque WispHub crea facturas "Saldo pendiente tras abono")
+  - Nuevo filtro: si una factura padre tiene un hijo "Saldo pendiente tras abono - Factura #X", la factura padre NO se muestra (solo se ve la hija con el saldo real)
+- **api_verificar_pago.php:**
+  - Cobertura ahora usa `fecha_emision` de la factura en vez de `+X days from today`
+
+### 2026-07-07 — Eliminados registros de prueba en DB
+- Eliminados 6 registros de `pagos_registrados` para service_id=902 (Cliente OFICINA Prueba) en BD remota
+- IDs eliminados: 1398, 1399, 1400, 1793, 1795, 1797
+
+### 2026-07-06 — Fix rastreo recursivo precio + Tests
+**Archivos:** `portal/procesar_pago_cliente.php`
+- Reemplazado `$precioPlan` simple por función recursiva `$getTruePlanPrice()` que viaja por la cadena de facturas "Saldo pendiente tras abono - Factura #N" hasta encontrar la factura original
+- Creado `test_simulador_abonos.php` con 3 tests: formato referencia, promesa ciclo atrasado, rastreo recursivo
+
+### 2026-07-06 — Ref formato WispHub con monto BS
+**Archivos:** `portal/procesar_pago_cliente.php`
+- Referencia enviada a WispHub ahora incluye monto en BS: `últimos8dígitos-guion-montoEnteroBS` (ej: `60741024-130`)
+
+### 2026-07-04 — Cache TTL 1s + Refrescar eliminado
+**Archivos:** `portal/wisp_helper.php`, `portal/dashboard.php`
+- TTL del cache reducido de 60s → 1s para cambios inmediatos
+- Botón "Refrescar" eliminado del dashboard
+
+### 2026-07-04 — Fix duplicado referencia + WispHub 400 en parciales
+**Archivos:** `portal/referencia_helper.php`, `portal/procesar_pago_cliente.php`
+- `getReferenciaInfo()` ahora busca primero coincidencia EXACTA, luego últimos 8 dígitos (antes solo 6, causaba colisiones como 60741024 vs 741024)
+- `procesar_pago_cliente.php` ahora acepta HTTP 400 de WispHub si `amount_applied > 0` (pagos parciales)
+
+### 2026-07-02 — Fix validación referencia API (6-15 dígitos)
+**Archivos:** `portal/api_verificar_pago.php`
+- Validación de referencia cambiada de 6-8 a 6-15 dígitos (transferencias/Zelle pueden tener hasta 15)
+
+### 2026-07-02 — Cobertura + Fecha promesa + Nota crédito
+**Archivos:** `portal/procesar_pago_cliente.php`, `portal/api_verificar_pago.php`, `src/Services/WispHubClient.php`
+- Pago fraccionado: crea factura por saldo restante en WispHub ANTES de registrar el pago
+- Fecha promesa: `diasServicio = round(30 * (monto_usd / precioPlan))`
+- WispHub recibe +1 día en fecha promesa (portal muestra original)
+- Excesos crean Nota de Crédito (factura negativa) en WispHub vía `createCreditNote()`
+- Loading spinner se muestra ANTES de ocultar modal de confirmación
