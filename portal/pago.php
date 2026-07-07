@@ -110,59 +110,26 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
     $invoices = $wisp_cached['invoices'];
 
-    // Rescate de facturas abonadas parcialmente de la BD local
-    require_once __DIR__ . '/referencia_helper.php';
-    $pdo_pago = getDb();
-    if ($pdo_pago) {
-        // Agrupar y sumar todos los abonos por factura (soporta múltiples abonos al mismo recibo)
-        $stmt_ab = $pdo_pago->prepare(
-            "SELECT 
-                facturas,
-                SUM(total_cobrado) AS total_cobrado_acumulado,
-                MAX(total)         AS total,
-                MAX(created_at)    AS created_at
-             FROM pagos_registrados 
-             WHERE service_id = ? 
-             AND facturas != ''
-             AND created_at > DATE_SUB(NOW(), INTERVAL 60 DAY) 
-             GROUP BY facturas
-             HAVING total_cobrado_acumulado < MAX(total)"
-        );
-        $stmt_ab->execute([$wisp_service_id]);
-        foreach ($stmt_ab->fetchAll() as $row) {
-            $inv_id_db = trim($row['facturas'] ?? '');
-            $total_cobrado_acum = floatval($row['total_cobrado_acumulado']);
-            if (!empty($inv_id_db)) {
-                $found = false;
-                foreach ($invoices as &$inv) {
-                    if ((int)($inv['id'] ?? $inv['id_factura'] ?? 0) === (int)$inv_id_db) {
-                        $found = true;
-                        // Usar el acumulado de BD local si es mayor que lo que dice WispHub
-                        $inv['total_cobrado'] = max(floatval($inv['total_cobrado'] ?? 0), $total_cobrado_acum);
-                        break;
-                    }
-                }
-                unset($inv); // Evitar el bug de referencia de PHP que duplica el último elemento
-                if (!$found) {
-                    $invoices[] = [
-                        'id' => (int)$inv_id_db,
-                        'id_factura' => (int)$inv_id_db,
-                        'fecha_emision' => date('Y-m-d', strtotime($row['created_at'])),
-                        'fecha_vencimiento' => date('Y-m-d', strtotime($row['created_at'] . ' + 1 day')),
-                        'total' => floatval($row['total']),
-                        'saldo_nuevo' => floatval($row['total']),
-                        'saldo' => floatval($row['total']),
-                        'total_cobrado' => $total_cobrado_acum,
-                        'estado' => 1,
-                        'articulos' => [['descripcion' => 'Abono pendiente (Recibo N° ' . $inv_id_db . ')']]
-                    ];
-                }
-            }
-        }
-    }
+    // (El rescate de facturas abonadas parcialmente de la BD local ha sido eliminado.
+    // WispHub ahora rastrea el saldo restante creando facturas de "Saldo pendiente tras abono",
+    // por lo que las facturas nativas de WispHub son suficientes y exactas.)
     // Usar balance combinado (WispHub + BD local) — ya calculado en wisp_helper
     $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : ($wisp_cached['balance'] ?? 0);
     $sf_local_pago = $wisp_cached['saldo_favor_local'] ?? 0;
+
+    // ── Filtrar duplicados: si hay una factura "Saldo pendiente tras abono - Factura #X",
+    // la factura #X padre ya fue parcialmente cobrada y NO debe mostrarse por separado.
+    // Solo se muestra la factura hija (el saldo real pendiente).
+    $idsConHijoPendiente = [];
+    foreach ($invoices as $inv) {
+        $articulos = $inv['articulos'] ?? [];
+        foreach ($articulos as $art) {
+            $desc = $art['descripcion'] ?? '';
+            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m)) {
+                $idsConHijoPendiente[(int)$m[1]] = true;
+            }
+        }
+    }
 
     $deuda_total = 0;
     $invoices_json = [];
@@ -178,6 +145,9 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         // Saltar facturas completamente pagadas
         if ($cobrado >= $total)
             continue;
+        // Saltar facturas padre que ya tienen un hijo de saldo pendiente en WispHub
+        // (evita mostrar la factura original junto con la factura de saldo)
+        if (isset($idsConHijoPendiente[(int)$id])) continue;
         $deuda_total += $monto;
         $monto_bs = $monto * $tasa_bcv;
         $desc = wisp_extract_desc($inv, $id);
@@ -198,6 +168,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
             'preseleccionado' => $preseleccionado,
         ];
     }
+
     $monto_a_pagar = $deuda_total;
 
     $json_bancos = @file_get_contents('../paginas/principal/bancos.json');

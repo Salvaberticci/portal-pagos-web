@@ -301,9 +301,10 @@ if ($tipo_pago === 'abono' && !empty($invoice_ids) && $deuda_referencia > 0) {
     $totalBase = $totalInv > 0 ? $totalInv : $deuda_referencia;
     if ($totalBase > 0) {
         // Dias ganados = round(30 * proporcion_total_acumulada) desde hoy
+        $fechaEmi = $invDetail['fecha_emision'] ?? date('Y-m-d');
         $proporcion = min(1.0, $totalAcumulado / $totalBase);
         $diasGanados = max(1, round(30 * $proporcion));
-        $cobertura_hasta = date('d/m/Y', strtotime("+{$diasGanados} days"));
+        $cobertura_hasta = date('d/m/Y', strtotime($fechaEmi . " +{$diasGanados} days"));
         $descripcion .= " Su servicio estará vigente hasta el {$cobertura_hasta}.";
     }
 }

@@ -156,6 +156,15 @@ try {
             $fecha_banco = $verificacion_data['movimiento']['fecha'] ?? null;
             $banco_descripcion = isset($verificacion_data['movimiento']['observacion']) ? trim($verificacion_data['movimiento']['observacion']) : null;
 
+            // Sobrescribir la referencia del cliente con los últimos 8 dígitos de la referencia
+            // real del banco. El cliente a veces omite dígitos al teclear (ej: 8998874 vs 38998874).
+            if (!empty($verificacion_data['movimiento']['referencia_banco'])) {
+                $ref_banco_raw = preg_replace('/\D/', '', $verificacion_data['movimiento']['referencia_banco']);
+                if (strlen($ref_banco_raw) >= 8) {
+                    $referencia = substr($ref_banco_raw, -8);
+                }
+            }
+
             require_once __DIR__ . '/referencia_helper.php';
             // Guardar pago en BD local INMEDIATAMENTE
             $db_ok = guardarPago(
@@ -224,9 +233,9 @@ try {
 
             $diasExtra = round(30 * ($monto_usd / max($precioPlan, 1)));
             
-            // CORRECCIÓN: Los días extra deben sumarse a la fecha de vencimiento original
-            // de la factura, NO a la fecha actual del pago. Así se respeta el ciclo (ej: del 1 al 16).
-            $fechaBasePromesa = !empty($fechaVencOriginal) ? $fechaVencOriginal : $fecha_pago;
+            // CORRECCIÓN FINAL: Los días extra deben sumarse a la fecha de EMISIÓN original (Día Pago)
+            // de la factura. Ejemplo: si el "Día Pago" es el 1 y paga $10 (15 días), la promesa será 1 + 15 = 16.
+            $fechaBasePromesa = !empty($fechaEmiOriginal) ? $fechaEmiOriginal : $fecha_pago;
             $fechaLimitePromesa = date('Y-m-d', strtotime($fechaBasePromesa . " + $diasExtra days"));
             
             $saldoRestante = round($totalFactura - $monto_usd, 2);
@@ -298,7 +307,18 @@ try {
         // Artificio para enviar el monto en Bs a WispHub en la referencia (para no pagar extra ni hacer conciliación compleja)
         // Regla: Últimos 8 caracteres de referencia + guion + monto entero en Bs (sin decimales). Ej: 60741024-130
         $monto_bs_final = isset($monto_banco_bs) && $monto_banco_bs > 0 ? $monto_banco_bs : $monto_bs;
-        $ref_8_chars = str_pad(substr($referencia, -8), 8, '0', STR_PAD_LEFT);
+        
+        // Preferir la referencia real del banco (API verificada) sobre la que tecleó el cliente.
+        // El cliente a veces omite dígitos (ej: pone 8998874 en vez de 38998874).
+        // La referencia del banco siempre es la correcta y completa.
+        $ref_fuente = $referencia; // fallback: lo que tecleó el cliente
+        if (!empty($verificacion_data['movimiento']['referencia_banco'])) {
+            $ref_banco = preg_replace('/\D/', '', $verificacion_data['movimiento']['referencia_banco']);
+            if (strlen($ref_banco) >= 8) {
+                $ref_fuente = $ref_banco;
+            }
+        }
+        $ref_8_chars = substr($ref_fuente, -8);
         
         // Quitar decimales y dejar solo el número entero (130.60 -> 130)
         $monto_plano = intval($monto_bs_final);
@@ -461,10 +481,14 @@ try {
         // Se basa en $precioPlan (precio del plan = 30 días) y $fecha_pago
         // en vez de fecha de vencimiento de la factura
         $cobertura_hasta = '';
-        if ($accion === 'abono' && $totalFacturaOriginal > 0 && $fechaPagoOriginal) {
-            $basePlan = $precioPlan > 0 ? $precioPlan : $totalFacturaOriginal;
-            $diasExtra = round(30 * ($monto_usd / max($basePlan, 1)));
-            $cobertura_hasta = date('d/m/Y', strtotime($fechaPagoOriginal . ' + ' . $diasExtra . ' days'));
+        if ($accion_pre === 'abono' && isset($diasExtra)) {
+            if (!empty($fechaPromesaLocal)) {
+                $cobertura_hasta = date('d/m/Y', strtotime($fechaPromesaLocal));
+            } else {
+                $cobertura_hasta = date('d/m/Y', strtotime($fechaPagoOriginal . ' + ' . $diasExtra . ' days'));
+            }
+        } else if ($accion_pre === 'completo' || $accion_pre === 'exceso') {
+             // ... lógica adicional si es necesario
         }
 
         // Guardar pago_data en sesión para el modal de resultado
@@ -473,7 +497,7 @@ try {
             'monto_usd'  => $monto_usd,
             'monto_bs'   => $monto_bs,
             'service_id' => $id_contrato_asociado,
-            'accion'     => $accion,
+            'accion'     => $accion_pre,
             'cobertura_hasta' => $cobertura_hasta,
             'invoice_total'   => $invoice_total,
         ];
