@@ -233,9 +233,48 @@ try {
 
             $diasExtra = round(30 * ($monto_usd / max($precioPlan, 1)));
             
-            // CORRECCIÓN FINAL: Los días extra deben sumarse a la fecha de EMISIÓN original (Día Pago)
-            // de la factura. Ejemplo: si el "Día Pago" es el 1 y paga $10 (15 días), la promesa será 1 + 15 = 16.
-            $fechaBasePromesa = !empty($fechaEmiOriginal) ? $fechaEmiOriginal : $fecha_pago;
+            // Función recursiva para extraer la fecha de inicio del período desde la factura raíz.
+            // Las facturas de "Saldo pendiente" no tienen "Periodo del..." en la descripción,
+            // así que debemos navegar la cadena de facturas hasta encontrar la original.
+            $getTruePeriodStart = function($wispClient, $invId, $fallbackDate) use (&$getTruePeriodStart) {
+                $detail = $wispClient->getInvoiceDetail((string)$invId);
+                if (empty($detail)) return $fallbackDate;
+                
+                $meses = ['Ene'=>'01','Feb'=>'02','Mar'=>'03','Abr'=>'04','May'=>'05','Jun'=>'06',
+                          'Jul'=>'07','Ago'=>'08','Sep'=>'09','Oct'=>'10','Nov'=>'11','Dic'=>'12'];
+                
+                $parentInvoiceId = 0;
+                if (!empty($detail['articulos'])) {
+                    foreach ($detail['articulos'] as $art) {
+                        $desc = $art['descripcion'] ?? '';
+                        // Buscar "Periodo del X/Mes./Año" en la descripción
+                        if (preg_match('/Periodo del\s+(\d{1,2})\/([A-Za-z.]+)\/(\d{4})/i', $desc, $m)) {
+                            $day = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                            $monthStr = ucfirst(strtolower(str_replace('.', '', $m[2])));
+                            if (isset($meses[$monthStr])) {
+                                return $m[3] . '-' . $meses[$monthStr] . '-' . $day;
+                            }
+                        }
+                        // Si es "Saldo pendiente", seguir la cadena hacia la factura padre
+                        if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m2)) {
+                            $parentInvoiceId = $m2[1];
+                        } elseif (preg_match('/Saldo Pendiente de Pago de la Factura (\d+)/i', $desc, $m2)) {
+                            $parentInvoiceId = $m2[1];
+                        }
+                    }
+                }
+                
+                if ($parentInvoiceId) {
+                    return $getTruePeriodStart($wispClient, $parentInvoiceId, $fallbackDate);
+                }
+                // Si no tiene ni período ni padre, usar fecha_pago de la factura como fallback
+                return $detail['fecha_pago'] ? substr($detail['fecha_pago'], 0, 10) : $fallbackDate;
+            };
+
+            // Obtener la fecha base real del período desde la factura raíz
+            $fechaBasePromesa = $getTruePeriodStart($wispClient, $firstInvoiceId, 
+                !empty($fechaEmiOriginal) ? $fechaEmiOriginal : $fecha_pago);
+
             $fechaLimitePromesa = date('Y-m-d', strtotime($fechaBasePromesa . " + $diasExtra days"));
             
             $saldoRestante = round($totalFactura - $monto_usd, 2);

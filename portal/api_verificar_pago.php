@@ -300,11 +300,46 @@ if ($tipo_pago === 'abono' && !empty($invoice_ids) && $deuda_referencia > 0) {
     $totalAcumulado += $monto_usd; // sumar el pago actual
     $totalBase = $totalInv > 0 ? $totalInv : $deuda_referencia;
     if ($totalBase > 0) {
-        // Dias ganados = round(30 * proporcion_total_acumulada) desde hoy
-        $fechaEmi = $invDetail['fecha_emision'] ?? date('Y-m-d');
+        // Función recursiva para extraer la fecha de inicio del período desde la factura raíz.
+        // Las facturas de "Saldo pendiente" no tienen "Periodo del..." en la descripción,
+        // así que debemos navegar la cadena hasta encontrar la original.
+        $getTruePeriodStart = function($wispClient, $invId, $fallbackDate) use (&$getTruePeriodStart) {
+            $detail = $wispClient->getInvoiceDetail((string)$invId);
+            if (empty($detail)) return $fallbackDate;
+            
+            $meses = ['Ene'=>'01','Feb'=>'02','Mar'=>'03','Abr'=>'04','May'=>'05','Jun'=>'06',
+                      'Jul'=>'07','Ago'=>'08','Sep'=>'09','Oct'=>'10','Nov'=>'11','Dic'=>'12'];
+            
+            $parentInvoiceId = 0;
+            if (!empty($detail['articulos'])) {
+                foreach ($detail['articulos'] as $art) {
+                    $desc = $art['descripcion'] ?? '';
+                    if (preg_match('/Periodo del\s+(\d{1,2})\/([A-Za-z.]+)\/(\d{4})/i', $desc, $m)) {
+                        $day = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+                        $monthStr = ucfirst(strtolower(str_replace('.', '', $m[2])));
+                        if (isset($meses[$monthStr])) {
+                            return $m[3] . '-' . $meses[$monthStr] . '-' . $day;
+                        }
+                    }
+                    if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m2)) {
+                        $parentInvoiceId = $m2[1];
+                    } elseif (preg_match('/Saldo Pendiente de Pago de la Factura (\d+)/i', $desc, $m2)) {
+                        $parentInvoiceId = $m2[1];
+                    }
+                }
+            }
+            
+            if ($parentInvoiceId) {
+                return $getTruePeriodStart($wispClient, $parentInvoiceId, $fallbackDate);
+            }
+            return $detail['fecha_pago'] ? substr($detail['fecha_pago'], 0, 10) : $fallbackDate;
+        };
+
+        $fechaBase = $getTruePeriodStart($wispClient, $firstId, $invDetail['fecha_emision'] ?? date('Y-m-d'));
+
         $proporcion = min(1.0, $totalAcumulado / $totalBase);
         $diasGanados = max(1, round(30 * $proporcion));
-        $cobertura_hasta = date('d/m/Y', strtotime($fechaEmi . " +{$diasGanados} days"));
+        $cobertura_hasta = date('d/m/Y', strtotime($fechaBase . " +{$diasGanados} days"));
         $descripcion .= " Su servicio estará vigente hasta el {$cobertura_hasta}.";
     }
 }
