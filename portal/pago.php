@@ -662,8 +662,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     return;
                 }
                 var ref = document.getElementById('input_referencia').value.trim();
-                if (!ref || !/^\d{6,15}$/.test(ref)) {
-                    mostrarModalResultado('error', 'La referencia debe tener entre 6 y 15 d\u00edgitos.');
+                var refMinLen = parseInt(document.getElementById('input_referencia').getAttribute('minlength') || '6');
+                var refMaxLen = parseInt(document.getElementById('input_referencia').getAttribute('maxlength') || '15');
+                var refRegex = new RegExp('^\\d{' + refMinLen + ',' + refMaxLen + '}$');
+                if (!ref || !refRegex.test(ref)) {
+                    mostrarModalResultado('error', 'La referencia debe tener entre ' + refMinLen + ' y ' + refMaxLen + ' d\u00edgitos.');
                     return;
                 }
                 if (!selectedMetodo || !selectedBanco) {
@@ -853,7 +856,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     msg.textContent = mensaje;
                 }
 
-                new bootstrap.Modal(document.getElementById('modalResultado')).show();
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('modalResultado')).show();
             }
 
             document.getElementById('paymentForm').addEventListener('submit', function () {
