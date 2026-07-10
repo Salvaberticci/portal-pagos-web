@@ -32,10 +32,11 @@ class WispHubClient
         $verifySsl = $config['verify_ssl'] ?? true;
 
         $this->http = new Client([
-            'base_uri' => $this->baseUrl,
-            'timeout'  => 5,
-            'verify'   => $verifySsl,
-            'headers'  => [
+            'base_uri'       => $this->baseUrl,
+            'timeout'        => 3,
+            'connect_timeout'=> 2,
+            'verify'         => $verifySsl,
+            'headers'        => [
                 'Authorization' => "Api-Key {$this->apiKey}",
                 'Content-Type'  => 'application/json',
                 'Accept'        => 'application/json',
@@ -547,7 +548,7 @@ class WispHubClient
         }
         $variantes = array_unique($variantes);
         foreach ($variantes as $ced) {
-            $result = $this->request('GET', 'clientes/', ['cedula' => $ced]);
+            $result = $this->request('GET', 'clientes/', ['cedula' => $ced, 'limit' => 1]);
             if ($result['status'] === 200 && !empty($result['data']['results'])) {
                 return ['status' => 200, 'data' => ['data' => $result['data']['results'][0]]];
             }
@@ -564,9 +565,22 @@ class WispHubClient
      * @param int    $maxPages M├íximo de p├íginas a recorrer (default 50)
      * @return array ['status' => 200|404, 'data' => [...datos del cliente...]]
      */
-    public function findClientByDocument(string $document, int $maxPages = 50): array
+    public function findClientByDocument(string $document, int $maxPages = 3): array
     {
         $cleanDoc = preg_replace('/[^0-9]/', '', $document);
+        // Primero intentar una b├║squeda directa por cedula con solo d├¡gitos
+        $result = $this->request('GET', 'clientes/', ['cedula' => $cleanDoc, 'limit' => 5]);
+        if ($result['status'] === 200 && !empty($result['data']['results'])) {
+            foreach ($result['data']['results'] as $c) {
+                $cedula = $c['cedula'] ?? $c['documento'] ?? '';
+                $cedulaClean = preg_replace('/[^0-9]/', '', $cedula);
+                $cedulaBase  = preg_replace('/[^0-9]/', '', preg_replace('/-.*$/', '', $cedula));
+                if ($cedulaClean === $cleanDoc || $cedulaBase === $cleanDoc || $cedula === $document) {
+                    return ['status' => 200, 'data' => ['data' => $c]];
+                }
+            }
+        }
+        // Fallback: paginar clientes (m├íx 3 p├íginas = 900 clientes)
         $limit = 300;
         for ($page = 0; $page < $maxPages; $page++) {
             $result = $this->request('GET', 'clientes/', ['offset' => $page * $limit, 'limit' => $limit]);
@@ -582,12 +596,11 @@ class WispHubClient
                     return ['status' => 200, 'data' => ['data' => $c]];
                 }
             }
-            // Si devolvi├│ menos resultados que el l├¡mite, no hay m├ís p├íginas
             if (count($clients) < $limit) {
                 break;
             }
         }
-        return ['status' => 404, 'data' => ['message' => "Cliente no encontrado despu├®s de revisar $maxPages p├íginas"]];
+        return ['status' => 404, 'data' => ['message' => "Cliente no encontrado despu├®s de revisar hasta $maxPages p├íginas"]];
     }
 
     /**

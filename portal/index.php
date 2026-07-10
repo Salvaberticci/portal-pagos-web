@@ -70,14 +70,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $tStart = microtime(true);
         $clientInfo = $wispClient->getClientByDocument($cedula);
+        $tGetDoc = microtime(true);
         if ($clientInfo['status'] === 0) {
+        error_log("[LOGIN] getClientByDocument falló tras " . round($tGetDoc - $tStart, 3) . "s: " . ($clientInfo['error'] ?? 'sin error'));
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
         header('Location: index.php');
         exit;
     }
     if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'] ?? $clientInfo['data']['data']['id_servicio'] ?? '')) {
+        error_log("[LOGIN] getClientByDocument sin resultados en " . round($tGetDoc - $tStart, 3) . "s, probando findClientByDocument...");
         $clientInfo = $wispClient->findClientByDocument($cedula);
+        $tFindDoc = microtime(true);
+        error_log("[LOGIN] findClientByDocument completado en " . round($tFindDoc - $tGetDoc, 3) . "s");
         if ($clientInfo['status'] === 0) {
             $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
             header('Location: index.php');
