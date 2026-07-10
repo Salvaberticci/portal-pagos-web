@@ -72,12 +72,6 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
     require_once __DIR__ . '/wisp_helper.php';
     $wisp_cached = wisp_get_cached_data($wispClient, $wisp_service_id);
-    $saldo_favor = $wispClient->getClientBalance($wisp_service_id);
-
-    // Permitir probar el diseño visual añadiendo ?test_saldo=5 a la URL
-    if (isset($_GET['test_saldo'])) {
-        $saldo_favor = floatval($_GET['test_saldo']);
-    }
     $c_perfil = $wisp_cached['profile'];
 
     if (empty($c_perfil)) {
