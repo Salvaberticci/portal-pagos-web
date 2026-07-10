@@ -676,6 +676,9 @@ class WispHubClient
         $variantes[] = $soloDigitos;
         $variantes[] = "V$soloDigitos";
         $variantes[] = "E$soloDigitos";
+        $variantes[] = "J$soloDigitos";
+        $variantes[] = "P$soloDigitos";
+        $variantes[] = "G$soloDigitos";
         $variantes = array_unique($variantes);
 
         $seen = [];

@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
-        if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 8) {
+        if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 10) {
             $_SESSION['login_error'] = "Usuario no encontrado";
             header('Location: index.php');
             exit;
@@ -275,7 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         form.addEventListener('submit', function (e) {
             var num = cedulaNumero.value;
-            if (num.length < 6 || num.length > 8) {
+            if (num.length < 6 || num.length > 10) {
                 e.preventDefault();
                 document.getElementById('login-error-modal').style.display = 'flex';
                 return;
