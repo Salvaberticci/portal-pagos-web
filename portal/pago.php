@@ -439,16 +439,16 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
         <!-- Modal Resultado -->
         <div class="modal fade" id="modalResultado" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-scrollable" style="margin-top: 1.5rem;">
                 <div class="modal-content glass-panel p-0">
-                    <div class="modal-body text-center py-5 px-4">
-                        <div id="result_icon" class="mb-3" style="font-size:4rem;"></div>
-                        <h4 class="fw-bold mb-2" id="result_title"></h4>
-                        <p class="text-muted mb-0" id="result_message"></p>
-                        <div id="result_details" class="mt-3 text-start d-none"></div>
+                    <div class="modal-body text-center pt-3 pb-2 px-3">
+                        <div id="result_icon" class="mb-2" style="font-size:3.5rem;"></div>
+                        <h5 class="fw-bold mb-1" id="result_title"></h5>
+                        <p class="text-muted mb-0" id="result_message" style="font-size: 0.9rem;"></p>
+                        <div id="result_details" class="mt-2 text-start d-none"></div>
                     </div>
-                    <div class="modal-footer border-0 justify-content-center px-4 pb-4">
-                        <button type="button" class="btn btn-glass" id="btn_cerrar_resultado"
+                    <div class="modal-footer border-0 justify-content-center px-3 pb-3 pt-0">
+                        <button type="button" class="btn btn-glass btn-sm" id="btn_cerrar_resultado"
                             data-bs-dismiss="modal">Cerrar</button>
                         <button type="button" class="btn btn-pagar d-none" id="btn_confirmar_pago_resultado">
                             <i class="fas fa-check-circle me-2"></i> Confirmar y Pagar
@@ -801,7 +801,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     }
                     if (data) {
                         details.classList.remove('d-none');
-                        var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
+                        var dHtml = '<div class="table-responsive mt-2"><table class="table table-sm table-premium mb-0" style="font-size:0.85rem;">';
                         if (data.referencia) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia</td><td style="font-weight:700;color:var(--text-main);">' + data.referencia + '</td></tr>';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto USD</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                         if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referncia </td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
@@ -820,7 +820,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     msg.innerHTML = mensaje;
                     if (data) {
                         details.classList.remove('d-none');
-                        var dHtml = '<div class="table-responsive mt-2"><table class="table table-premium mb-0">';
+                        var dHtml = '<div class="table-responsive mt-2"><table class="table table-sm table-premium mb-0" style="font-size:0.85rem;">';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Verificado</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
                         if (data.movimiento && data.movimiento.referencia_banco) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia Bancaria</td><td style="font-weight:700;color:var(--text-main);">' + data.movimiento.referencia_banco.slice(-8) + '</td></tr>';
                         if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto en Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
