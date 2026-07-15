@@ -564,11 +564,11 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     refInput.setAttribute('maxlength', '8');
                     refInput.setAttribute('minlength', '8');
                     refInput.setAttribute('pattern', '[0-9]{8}');
-                    refInput.placeholder = 'Ingresa tu referencia M\u00ednimo 6 D\u00edgitos';
+                    refInput.placeholder = 'C\u00f3digo de referencia de 8 d\u00edgitos';
                 } else {
-                    refInput.setAttribute('maxlength', '15');
-                    refInput.setAttribute('pattern', '[0-9]{6,15}');
-                    refInput.placeholder = 'Ingresa tu referencia M\u00ednimo 6 D\u00edgitos';
+                    refInput.setAttribute('maxlength', '8');
+                    refInput.setAttribute('pattern', '[0-9]{8}');
+                    refInput.placeholder = 'C\u00f3digo de referencia de 8 d\u00edgitos';
                 }
                 refInput.setAttribute('minlength', '6');
                 refInput.focus();
