@@ -840,14 +840,19 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         };
                     }
                 } else if (titulo && titulo.includes('REFERENCIA')) {
+                    var md = document.querySelector('#modalResultado .modal-dialog');
+                    if (md) { md.style.width = '95%'; md.style.maxWidth = '95%'; }
                     icon.innerHTML = '<span style="position:relative;display:inline-flex;align-items:center;justify-content:center;">' +
-                        '<i class="fas fa-exclamation-triangle" style="color:#eab308;"></i>' +
-                        '<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font-size:1.5rem;font-weight:900;">!</span>' +
+                        '<i class="fas fa-exclamation-triangle" style="color:#eab308;font-size:4.5rem;"></i>' +
+                        '<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font-size:1.8rem;font-weight:900;">!</span>' +
                         '</span>';
                     title.textContent = titulo;
+                    title.style.color = '#eab308';
                     title.className = 'fw-bold mb-2';
-                    title.style.color = '#3b82f6';
-                    msg.textContent = mensaje;
+                    msg.innerHTML = mensaje + '<br><small class="text-muted">Verifica que el n\u00famero de referencia y la fecha sean correctos.<\/small>';
+                    btnCerrar.textContent = 'Cerrar e ingresar otra referencia';
+                    btnCerrar.classList.remove('btn-sm');
+                    btnCerrar.style.fontSize = 'inherit';
                 } else {
                     icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';
                     title.textContent = titulo || 'Error';
@@ -856,8 +861,17 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     msg.textContent = mensaje;
                 }
 
-                bootstrap.Modal.getOrCreateInstance(document.getElementById('modalResultado')).show();
+                var mi = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalResultado'));
+                mi.show();
             }
+
+            function restaurarModalResultado() {
+                var d = document.querySelector('#modalResultado .modal-dialog');
+                if (d) { d.style.width = ''; d.style.maxWidth = ''; }
+                var bc = document.getElementById('btn_cerrar_resultado');
+                if (bc) { bc.textContent = 'Cerrar'; bc.classList.add('btn-sm'); bc.style.fontSize = ''; }
+            }
+            document.getElementById('modalResultado').addEventListener('hidden.bs.modal', restaurarModalResultado);
 
             document.getElementById('paymentForm').addEventListener('submit', function () {
                 document.getElementById('loadingOverlay').style.display = 'flex';
