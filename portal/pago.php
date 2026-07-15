@@ -841,18 +841,40 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     }
                 } else if (titulo && titulo.includes('REFERENCIA')) {
                     var md = document.querySelector('#modalResultado .modal-dialog');
-                    if (md) { md.style.width = '95%'; md.style.maxWidth = '95%'; }
+                    if (md) {
+                        md.classList.add('modal-dialog-centered');
+                        md.style.removeProperty('margin-top');
+                        md.style.width = '95%';
+                        md.style.maxWidth = '95%';
+                        md.style.minHeight = '70vh';
+                    }
+                    var mc = document.querySelector('#modalResultado .modal-content');
+                    if (mc) {
+                        mc.style.minHeight = '70vh';
+                    }
+                    var mb = document.querySelector('#modalResultado .modal-body');
+                    if (mb) {
+                        mb.style.display = 'flex';
+                        mb.style.flexDirection = 'column';
+                        mb.style.alignItems = 'center';
+                        mb.style.justifyContent = 'center';
+                        mb.style.padding = '2rem 1.5rem';
+                        mb.style.flex = '1';
+                    }
                     icon.innerHTML = '<span style="position:relative;display:inline-flex;align-items:center;justify-content:center;">' +
-                        '<i class="fas fa-exclamation-triangle" style="color:#eab308;font-size:4.5rem;"></i>' +
-                        '<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font-size:1.8rem;font-weight:900;">!</span>' +
+                        '<i class="fas fa-exclamation-triangle" style="color:#eab308;font-size:5rem;"></i>' +
+                        '<span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#000;font-size:2rem;font-weight:900;">!</span>' +
                         '</span>';
                     title.textContent = titulo;
                     title.style.color = '#eab308';
-                    title.className = 'fw-bold mb-2';
+                    title.className = 'fw-bold mb-3';
+                    title.style.fontSize = '1.5rem';
                     msg.innerHTML = mensaje + '<br><small class="text-muted">Verifica que el n\u00famero de referencia y la fecha sean correctos.<\/small>';
+                    msg.style.fontSize = '1rem';
                     btnCerrar.textContent = 'Cerrar e ingresar otra referencia';
                     btnCerrar.classList.remove('btn-sm');
-                    btnCerrar.style.fontSize = 'inherit';
+                    btnCerrar.style.fontSize = '1.1rem';
+                    btnCerrar.style.padding = '0.75rem 1.5rem';
                 } else {
                     icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';
                     title.textContent = titulo || 'Error';
@@ -867,9 +889,17 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
             function restaurarModalResultado() {
                 var d = document.querySelector('#modalResultado .modal-dialog');
-                if (d) { d.style.width = ''; d.style.maxWidth = ''; }
+                if (d) { d.classList.remove('modal-dialog-centered'); d.style.width = ''; d.style.maxWidth = ''; d.style.minHeight = ''; }
+                var mc = document.querySelector('#modalResultado .modal-content');
+                if (mc) { mc.style.minHeight = ''; }
+                var mb = document.querySelector('#modalResultado .modal-body');
+                if (mb) { mb.style.display = ''; mb.style.flexDirection = ''; mb.style.alignItems = ''; mb.style.justifyContent = ''; mb.style.padding = ''; mb.style.flex = ''; }
                 var bc = document.getElementById('btn_cerrar_resultado');
-                if (bc) { bc.textContent = 'Cerrar'; bc.classList.add('btn-sm'); bc.style.fontSize = ''; }
+                if (bc) { bc.textContent = 'Cerrar'; bc.classList.add('btn-sm'); bc.style.fontSize = ''; bc.style.padding = ''; }
+                var t = document.getElementById('result_title');
+                if (t) { t.style.fontSize = ''; }
+                var m = document.getElementById('result_message');
+                if (m) { m.style.fontSize = ''; }
             }
             document.getElementById('modalResultado').addEventListener('hidden.bs.modal', restaurarModalResultado);
 
