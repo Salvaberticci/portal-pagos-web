@@ -41,10 +41,10 @@ if (!empty($verificacion_data['movimiento']['referencia_banco'])) {
     }
 }
 $ref_8_chars = substr($ref_fuente, -8);
-$monto_plano = intval($monto_banco_bs);
+$monto_plano = number_format($monto_banco_bs, 2, ',', '');
 $referencia_wisp = $ref_8_chars . '-' . $monto_plano;
 
-echo "[2] Ref a enviar a WispHub  : " . $referencia_wisp . " (Formato: ultimos_8_digitos-montobs)\n\n";
+echo "[2] Ref a enviar a WispHub  : " . $referencia_wisp . " (Formato: ultimos_8_digitos-montobs_con_coma)\n\n";
 
 echo "--- SIMULANDO LÓGICA DEL FRONTEND (UI) ---\n";
 // En pago.php, línea 828, hace esto en Javascript:
