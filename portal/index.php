@@ -19,6 +19,7 @@ if (isset($_SESSION['cliente_cedula'])) {
 
 // Handle login POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    @set_time_limit(90);
     try {
         @include_once '../config/test_mode.php';
         if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
@@ -288,6 +289,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             cedulaHidden.value = tipoCedula.value + num;
             document.getElementById('login-loading').style.display = 'flex';
+            // Timeout: si el servidor no responde en 25s, ocultar loading y mostrar error
+            setTimeout(function () {
+                var ld = document.getElementById('login-loading');
+                if (ld && ld.style.display === 'flex') {
+                    ld.style.display = 'none';
+                    document.getElementById('modal-error-msg').textContent =
+                        'El servidor est\u00e1 tardando demasiado. Intenta de nuevo en unos minutos.';
+                    document.getElementById('login-error-modal').style.display = 'flex';
+                }
+            }, 25000);
         });
 
         // Asegurar que solo se ingresen números en el campo
