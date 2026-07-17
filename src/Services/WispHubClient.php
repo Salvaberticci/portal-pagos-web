@@ -4,6 +4,8 @@ namespace Services;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Promise;
+use GuzzleHttp\Psr7\Request;
 
 class WispHubClient
 {
@@ -530,23 +532,40 @@ class WispHubClient
     {
         $soloDigitos = preg_replace('/[^0-9]/', '', $document);
         $variantes = $soloDigitos !== '' ? [$soloDigitos] : [];
-        // Original con letra (V20788775)
         if (!in_array($document, $variantes)) {
             $variantes[] = $document;
         }
-        // Sin gui├│n con letra (V16533735-9 → V16533735)
         $sinSufijo = preg_replace('/-.*$/', '', $document);
         if (!in_array($sinSufijo, $variantes)) {
             $variantes[] = $sinSufijo;
         }
         $variantes = array_values(array_unique($variantes));
+
+        // Enviar todas las variantes EN PARALELO y tomar la primera que responda OK
+        $promises = [];
         foreach ($variantes as $ced) {
-            $result = $this->request('GET', 'clientes/', ['cedula' => $ced, 'limit' => 1]);
-            if ($result['status'] === 200 && !empty($result['data']['results'])) {
-                return ['status' => 200, 'data' => ['data' => $result['data']['results'][0]]];
+            $url = 'clientes/?' . http_build_query(['cedula' => $ced, 'limit' => 1]);
+            $promises[$ced] = $this->http->getAsync($url);
+        }
+
+        try {
+            $resultados = Promise\settle($promises)->wait();
+        } catch (\Throwable $e) {
+            error_log('[WispHubClient] getClientByDocument paralelo fallo: ' . $e->getMessage());
+            return ['status' => 0, 'error' => $e->getMessage()];
+        }
+
+        foreach ($resultados as $ced => $r) {
+            if ($r['state'] === 'fulfilled') {
+                $response = $r['value'];
+                $body = json_decode((string)$response->getBody(), true);
+                if ($response->getStatusCode() === 200 && !empty($body['results'])) {
+                    error_log("[WispHubClient] getClientByDocument OK variante=$ced");
+                    return ['status' => 200, 'data' => ['data' => $body['results'][0]]];
+                }
             }
         }
-        return ['status' => 404, 'data' => ['message' => 'Cliente no encontrado']];
+        return ['status' => 404, 'data' => ['message' => 'Cliente no encontrado en ' . count($variantes) . ' variantes']];
     }
 
     /**
