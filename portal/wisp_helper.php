@@ -3,7 +3,7 @@
 function wisp_get_cache($serviceId) {
     $cacheDir = __DIR__ . '/../cache';
     $cacheFile = $cacheDir . '/wisp_' . preg_replace('/[^a-zA-Z0-9_]/', '', $serviceId) . '.json';
-    $ttl = 60;
+    $ttl = 300; // 5 minutos para reducir llamadas a la API
     if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
         return json_decode(file_get_contents($cacheFile), true);
     }
@@ -62,26 +62,47 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         if ($cached !== null) return $cached;
     }
 
-    $profileRes = $wispClient->getServiceProfile($serviceId);
-    $c_perfil = $profileRes['data'] ?? [];
+    // Perfil del servicio
+    $c_perfil = [];
+    try {
+        $profileRes = $wispClient->getServiceProfile($serviceId);
+        $c_perfil = $profileRes['data'] ?? [];
+    } catch (\Throwable $e) {
+        error_log('[wisp_helper] getServiceProfile falló: ' . $e->getMessage());
+    }
 
-    $detailRes = $wispClient->getServiceDetail($serviceId);
-    if ($detailRes['status'] === 200 && !empty($detailRes['data'])) {
-        $c_perfil = array_merge($c_perfil, $detailRes['data']);
+    try {
+        $detailRes = $wispClient->getServiceDetail($serviceId);
+        if (!empty($detailRes['data'])) {
+            $c_perfil = array_merge($c_perfil, $detailRes['data']);
+        }
+    } catch (\Throwable $e) {
+        error_log('[wisp_helper] getServiceDetail falló: ' . $e->getMessage());
     }
 
     $clientId = $c_perfil['usuario'] ?? null;
 
-    // Usar GET /facturas/ con filtro por cliente y estado pendiente para obtener articulos con descripcion
+    // Facturas pendientes
     $invoicesPendingAPI = [];
     if ($clientId) {
-        $invoicesPendingAPI = $wispClient->getInvoices([
-            'cliente' => $clientId,
-            'estado'  => 1,
-            'limit'   => 50,
-        ]);
+        try {
+            $invoicesPendingAPI = $wispClient->getInvoices([
+                'cliente' => $clientId,
+                'estado'  => 1,
+                'limit'   => 50,
+            ]);
+        } catch (\Throwable $e) {
+            error_log('[wisp_helper] getInvoices falló: ' . $e->getMessage());
+        }
     }
-    $balance = $wispClient->getClientBalance($serviceId);
+
+    // Saldo a favor en WispHub
+    $balance = 0.0;
+    try {
+        $balance = $wispClient->getClientBalance($serviceId);
+    } catch (\Throwable $e) {
+        error_log('[wisp_helper] getClientBalance falló: ' . $e->getMessage());
+    }
 
     // Normalizar y estructurar la respuesta para el dashboard
     $invoices = [];
@@ -115,30 +136,41 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         ];
     }
 
+    // Último pago
     $ultimo_pago = null;
     if (!empty($clientId)) {
-        $ultimo_pago = $wispClient->getLastPaidInvoice($clientId);
+        try {
+            $ultimo_pago = $wispClient->getLastPaidInvoice($clientId);
+        } catch (\Throwable $e) {
+            error_log('[wisp_helper] getLastPaidInvoice falló: ' . $e->getMessage());
+        }
     }
 
     // Sumar saldo a favor guardado en BD local (pagos con exceso) al balance de WispHub
-    // Usamos require_once para evitar doble declaración si ya fue incluido
     $saldo_favor_local = 0.0;
     $refHelper = __DIR__ . '/referencia_helper.php';
     if (file_exists($refHelper)) {
         require_once $refHelper;
-        $saldo_favor_local = getSaldoFavor($serviceId);
+        try {
+            $saldo_favor_local = getSaldoFavor($serviceId);
+        } catch (\Throwable $e) {
+            error_log('[wisp_helper] getSaldoFavor falló: ' . $e->getMessage());
+        }
     }
     $balance_total = round($balance + $saldo_favor_local, 2);
 
     $data = [
         'profile'           => $c_perfil,
         'invoices'          => $invoices,
-        'balance'           => $balance_total,          // WispHub + BD local
-        'balance_wisphub'   => $balance,                // Solo WispHub (para debug)
-        'saldo_favor_local' => $saldo_favor_local,      // Solo BD local
+        'balance'           => $balance_total,
+        'balance_wisphub'   => $balance,
+        'saldo_favor_local' => $saldo_favor_local,
         'ultimo_pago'       => $ultimo_pago,
     ];
 
-    wisp_set_cache($serviceId, $data);
+    // Solo cachear si obtuvimos datos del perfil, para no cachear una respuesta vacía por fallo de red
+    if (!empty($c_perfil)) {
+        wisp_set_cache($serviceId, $data);
+    }
     return $data;
 }

@@ -103,7 +103,12 @@ $cache_time = 3600;
     $ultimo_pago = $wisp_cached['ultimo_pago'];
 
     // Obtener todos los servicios del cliente
-    $clientServices = $wispClient->getServicesByCedula($cedula);
+    $clientServices = [];
+    try {
+        $clientServices = $wispClient->getServicesByCedula($cedula);
+    } catch (\Throwable $e) {
+        error_log('[dashboard] getServicesByCedula falló: ' . $e->getMessage());
+    }
 
     $deuda_total = 0;
     $notas_credito = []; // facturas con total negativo = saldo a favor

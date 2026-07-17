@@ -136,20 +136,25 @@ if ($wispConfig) {
 
 // 6. Base de datos MySQL
 test('MySQL: conexion', function() {
-    require_once __DIR__ . '/../config/database.php';
+    require_once __DIR__ . '/referencia_helper.php';
     $pdo = getDb();
+    if (!$pdo) return 'sin conexion';
     $stmt = $pdo->query('SELECT 1');
     return 'ok';
 });
 
 test('MySQL: SELECT NOW()', function() {
+    require_once __DIR__ . '/referencia_helper.php';
     $pdo = getDb();
+    if (!$pdo) return 'sin conexion';
     $stmt = $pdo->query('SELECT NOW() as t');
     return $stmt->fetch()['t'];
 });
 
 test('MySQL: pagos_registrados COUNT', function() {
+    require_once __DIR__ . '/referencia_helper.php';
     $pdo = getDb();
+    if (!$pdo) return 'sin conexion';
     $stmt = $pdo->query('SELECT COUNT(*) as c FROM pagos_registrados');
     return $stmt->fetch()['c'] . ' registros';
 });
