@@ -525,29 +525,18 @@ class WispHubClient
      */
     public function getClientByDocument(string $document): array
     {
-        $variantes = [$document];
-        // Con letra → sin letra (V20788775 → 20788775)
-        if (preg_match('/^[A-Z]/i', $document)) {
-            $variantes[] = preg_replace('/^[A-Z]/i', '', $document);
-        }
-        // Solo d├¡gitos (V16533735-9 → 165337359)
         $soloDigitos = preg_replace('/[^0-9]/', '', $document);
-        if (!in_array($soloDigitos, $variantes) && $soloDigitos !== '') {
-            $variantes[] = $soloDigitos;
+        $variantes = $soloDigitos !== '' ? [$soloDigitos] : [];
+        // Original con letra (V20788775)
+        if (!in_array($document, $variantes)) {
+            $variantes[] = $document;
         }
-        // Sin sufijo despu├®s de gui├│n (V16533735-9 → V16533735)
+        // Sin gui├│n con letra (V16533735-9 → V16533735)
         $sinSufijo = preg_replace('/-.*$/', '', $document);
         if (!in_array($sinSufijo, $variantes)) {
             $variantes[] = $sinSufijo;
-            // Y su versi├│n sin letra
-            if (preg_match('/^[A-Z]/i', $sinSufijo)) {
-                $sinSufijoNum = preg_replace('/^[A-Z]/i', '', $sinSufijo);
-                if (!in_array($sinSufijoNum, $variantes)) {
-                    $variantes[] = $sinSufijoNum;
-                }
-            }
         }
-        $variantes = array_unique($variantes);
+        $variantes = array_values(array_unique($variantes));
         foreach ($variantes as $ced) {
             $result = $this->request('GET', 'clientes/', ['cedula' => $ced, 'limit' => 1]);
             if ($result['status'] === 200 && !empty($result['data']['results'])) {
@@ -566,7 +555,7 @@ class WispHubClient
      * @param int    $maxPages M├íximo de p├íginas a recorrer (default 50)
      * @return array ['status' => 200|404, 'data' => [...datos del cliente...]]
      */
-    public function findClientByDocument(string $document, int $maxPages = 3): array
+    public function findClientByDocument(string $document, int $maxPages = 1): array
     {
         $cleanDoc = preg_replace('/[^0-9]/', '', $document);
         // Primero intentar una b├║squeda directa por cedula con solo d├¡gitos
