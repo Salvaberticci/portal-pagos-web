@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Services;
 
@@ -49,7 +49,7 @@ class WispHubClient
      * Realiza una petici├│n HTTP a la API de WispHub.
      * Incluye rate limiting b├ísico (200ms entre requests).
      */
-    private function request(string $method, string $uri, array $data = []): array
+    private function request(string $method, string $uri, array $data = [], ?float $timeout = null): array
     {
         // Per-request cache: deduplica llamadas GET id├®nticas en el mismo proceso
         $cacheKey = '';
@@ -68,6 +68,9 @@ class WispHubClient
         $this->lastRequestTime = microtime(true);
 
         $opts = [];
+        if ($timeout !== null) {
+            $opts['timeout'] = $timeout;
+        }
         if (!empty($data)) {
             if ($method === 'GET') {
                 $opts['query'] = $data;
@@ -237,7 +240,7 @@ class WispHubClient
      */
     public function getInvoices(array $filters = []): array
     {
-        $result = $this->request('GET', 'facturas/', $filters);
+        $result = $this->request('GET', 'facturas/', $filters, 3);
         if ($result['status'] === 200 && !empty($result['data']['results'])) {
             return $result['data']['results'];
         }
