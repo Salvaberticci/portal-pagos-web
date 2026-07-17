@@ -1,0 +1,208 @@
+<?php
+header('Content-Type: text/html; charset=utf-8');
+?><!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Diagnóstico de Conexión</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:20px;max-width:800px;margin:auto}
+  h1{color:#3b82f6;text-align:center}
+  table{width:100%;border-collapse:collapse;margin:10px 0}
+  th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #334155}
+  th{background:#1e293b;color:#94a3b8;font-size:0.85rem}
+  .ok{color:#10b981;font-weight:700}
+  .slow{color:#eab308;font-weight:700}
+  .fail{color:#ef4444;font-weight:700}
+  .summary{background:#1e293b;border-radius:8px;padding:15px;margin:15px 0}
+  button{background:#3b82f6;color:#fff;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:1rem;margin:10px 0}
+  button:hover{background:#2563eb}
+  pre{background:#0f172a;border:1px solid #334155;padding:10px;border-radius:4px;overflow-x:auto;font-size:0.85rem}
+</style>
+</head>
+<body>
+<h1>Diagnostico del Servidor</h1>
+<p style="text-align:center;color:#94a3b8">Tiempos en segundos · <?php echo date('Y-m-d H:i:s'); ?></p>
+
+<?php
+$results = [];
+$totalFail = 0; $totalSlow = 0;
+
+function test(string $label, callable $fn): void {
+    global $results, $totalFail, $totalSlow;
+    $start = microtime(true);
+    try {
+        $info = $fn();
+        $elapsed = round((microtime(true) - $start) * 1000) / 1000;
+        $status = $elapsed > 4 ? 'fail' : ($elapsed > 2 ? 'slow' : 'ok');
+        if ($status === 'fail') $totalFail++;
+        if ($status === 'slow') $totalSlow++;
+        $results[] = ['label' => $label, 'tiempo' => $elapsed, 'status' => $status, 'info' => $info];
+    } catch (\Throwable $e) {
+        $elapsed = round((microtime(true) - $start) * 1000) / 1000;
+        $results[] = ['label' => $label, 'tiempo' => $elapsed, 'status' => 'fail', 'info' => $e->getMessage()];
+        $totalFail++;
+    }
+}
+
+function tcp(string $host, int $port = 443, int $timeout = 5): string {
+    $start = microtime(true);
+    $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
+    $elapsed = round((microtime(true) - $start) * 1000) / 1000;
+    if ($fp) { fclose($fp); return "{$elapsed}s";
+    } else { return "FALLÓ ({$errstr})"; }
+}
+
+function ssl(string $host, int $port = 443, int $timeout = 5): string {
+    $ctx = stream_context_create(['ssl' => ['capture_peer_cert' => true, 'verify_peer' => false]]);
+    $start = microtime(true);
+    $fp = @stream_socket_client("ssl://{$host}:{$port}", $errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $ctx);
+    $elapsed = round((microtime(true) - $start) * 1000) / 1000;
+    if ($fp) { fclose($fp); return "{$elapsed}s";
+    } else { return "FALLÓ ({$errstr})"; }
+}
+
+// 1. Servidor
+test('PHP version', fn() => phpversion());
+test('Hostname', fn() => gethostname());
+test('IP del servidor', fn() => $_SERVER['SERVER_ADDR'] ?? $_SERVER['SERVER_NAME'] ?? '?');
+test('max_execution_time', fn() => ini_get('max_execution_time'));
+test('PHP memory_limit', fn() => ini_get('memory_limit'));
+
+// 2. DNS
+test('DNS: api.wisphub.net', fn() => gethostbyname('api.wisphub.net'));
+test('DNS: app.marateltru.com', fn() => gethostbyname('app.marateltru.com'));
+test('DNS: google.com', fn() => gethostbyname('google.com'));
+
+// 3. TCP
+test('TCP: api.wisphub.net:443', fn() => tcp('api.wisphub.net'));
+test('TCP: app.marateltru.com:443', fn() => tcp('app.marateltru.com'));
+test('TCP: google.com:443', fn() => tcp('google.com'));
+test('TCP: localhost:80', fn() => tcp('localhost', 80, 2));
+
+// 4. SSL
+test('SSL: api.wisphub.net', fn() => ssl('api.wisphub.net'));
+test('SSL: app.marateltru.com', fn() => ssl('app.marateltru.com'));
+test('SSL: google.com', fn() => ssl('google.com'));
+
+// 5. WispHub API
+$wispConfig = @include __DIR__ . '/../config/wisp_hub.php';
+if ($wispConfig) {
+    $apiKey = $wispConfig['api_key'] ?? '';
+    $baseUrl = $wispConfig['base_url'] ?? 'https://api.wisphub.net/api';
+
+    test('WispHub GET /clientes/?limit=1 (curl)', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/clientes/?limit=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        return $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+    });
+
+    test('WispHub GET /clientes/?cedula=20788775 (curl)', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/clientes/?cedula=20788775&limit=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        return $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+    });
+
+    test('WispHub GET /facturas/?estado=1&limit=1 (curl)', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/facturas/?estado=1&limit=1');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        return $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+    });
+} else {
+    $results[] = ['label' => 'WispHub config', 'tiempo' => 0, 'status' => 'fail', 'info' => 'No se pudo cargar config/wisp_hub.php'];
+}
+
+// 6. Base de datos MySQL
+test('MySQL: conexion', function() {
+    require_once __DIR__ . '/../config/database.php';
+    $pdo = getDb();
+    $stmt = $pdo->query('SELECT 1');
+    return 'ok';
+});
+
+test('MySQL: SELECT NOW()', function() {
+    $pdo = getDb();
+    $stmt = $pdo->query('SELECT NOW() as t');
+    return $stmt->fetch()['t'];
+});
+
+test('MySQL: pagos_registrados COUNT', function() {
+    $pdo = getDb();
+    $stmt = $pdo->query('SELECT COUNT(*) as c FROM pagos_registrados');
+    return $stmt->fetch()['c'] . ' registros';
+});
+
+// 7. Archivos
+test('File: composer.json', fn() => strlen(file_get_contents(__DIR__ . '/../composer.json')) . ' bytes');
+test('File: cache write/delete', function() {
+    $f = __DIR__ . '/../cache/_diag_' . time() . '.tmp';
+    file_put_contents($f, str_repeat('x', 10000));
+    $r = filesize($f) . ' bytes';
+    unlink($f);
+    return $r;
+});
+
+$total = round(array_sum(array_column($results, 'tiempo')), 3);
+$max = round(max(array_column($results, 'tiempo')), 3);
+?>
+
+<div class="summary">
+  <strong>Total pruebas:</strong> <?php echo $total; ?>s &nbsp;|&nbsp;
+  <strong>Mas lenta:</strong> <?php echo $max; ?>s &nbsp;|&nbsp;
+  <strong style="color:#eab308"><?php echo $totalSlow; ?> lentas</strong> &nbsp;|&nbsp;
+  <strong style="color:#ef4444"><?php echo $totalFail; ?> fallos</strong>
+</div>
+
+<table>
+  <tr><th>#</th><th>Prueba</th><th>Tiempo (s)</th><th>Estado</th><th>Detalle</th></tr>
+  <?php foreach ($results as $i => $r): ?>
+  <tr>
+    <td><?php echo $i + 1; ?></td>
+    <td><?php echo htmlspecialchars($r['label']); ?></td>
+    <td><?php echo $r['tiempo']; ?></td>
+    <td class="<?php echo $r['status']; ?>">
+      <?php echo ['ok' => '✅', 'slow' => '⚠️', 'fail' => '❌'][$r['status']] ?? '?'; ?>
+    </td>
+    <td style="font-size:0.85rem;max-width:300px;word-break:break-all">
+      <?php echo htmlspecialchars(substr((string)$r['info'], 0, 150)); ?>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+</table>
+
+<h3>Interpretacion rapida</h3>
+<ul style="color:#94a3b8;font-size:0.9rem">
+  <li>⚠️ <strong>DNS</strong> &gt;1s → resolutor de HostGator lento</li>
+  <li>⚠️ <strong>TCP/SSL</strong> &gt;2s → latencia de red entre HostGator y el destino</li>
+  <li>⚠️ <strong>WispHub</strong> &gt;3s → API de WispHub lenta o saturada</li>
+  <li>⚠️ <strong>MySQL</strong> &gt;1s → base de datos remota lenta (HostGator)</li>
+  <li>❌ <strong>Fallos</strong> → servicio caido o bloqueado</li>
+</ul>
+
+<p style="text-align:center;margin-top:30px">
+  <button onclick="location.reload()">Ejecutar de nuevo</button>
+</p>
+</body>
+</html>
