@@ -293,7 +293,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         <?php if ($tasa_bcv > 0): ?>
                             <div class="recibo-total-row">
                                 <span class="text-muted small">Tasa BCV:</span>
-                                <span class="small">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?> / $1</span>
+                                <span class="small">Bs <?php echo number_format($tasa_bcv, 2, ',', '.'); ?></span>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -404,7 +404,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                             </div>
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted small">Tasa BCV:</span>
-                                <span class="small" id="confirm_tasa">Bs 0,00 / $1</span>
+                                <span class="small" id="confirm_tasa">Bs 0,00</span>
                             </div>
                             <div class="d-flex justify-content-between">
                                 <span class="text-muted">Saldo a Favor:</span>
@@ -703,7 +703,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                     document.getElementById('confirm_saldo').parentElement.style.color = '';
                 }
 
-                document.getElementById('confirm_tasa').textContent = 'Bs ' + tasaBcv.toFixed(2).replace('.', ',') + ' / $1';
+                document.getElementById('confirm_tasa').textContent = 'Bs ' + tasaBcv.toFixed(2).replace('.', ',');
                 document.getElementById('confirm_metodo').textContent = selectedMetodo;
                 document.getElementById('confirm_banco').textContent = selectedBanco.nombre_banco;
                 document.getElementById('confirm_referencia').textContent = ref;

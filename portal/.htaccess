@@ -12,3 +12,18 @@
         Deny from all
     </IfModule>
 </FilesMatch>
+
+# ─── Enrutamiento Multi-Nodo ──────────────────────────────────────────────────
+# Permite usar /portal/jalisco, /portal/bosque, /portal/km23, etc.
+# Internamente, todas las rutas sirven el mismo index.php pero con ?nodo=jalisco
+# Esto hace que wisphub_credentials.php detecte el nodo correcto y use la API Key adecuada.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Si el archivo o directorio existe físicamente, no redirigir
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Rutas del estilo /portal/NODO o /portal/NODO/ → index.php?nodo=NODO
+    RewriteRule ^([a-z0-9_-]+)/?$ index.php?nodo=$1 [L,QSA]
+</IfModule>

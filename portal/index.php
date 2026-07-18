@@ -34,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $wispClient = new \Services\WispHubClient($wispConfig);
         }
+        // Capturar el account_ref activo (detectado por URL en wisphub_credentials.php)
+        $activeAccountRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
     } catch (\Throwable $e) {
         error_log("[LOGIN] " . $e->getMessage());
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
@@ -95,11 +97,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
         $cliente = $clientInfo['data']['data'];
         session_regenerate_id(true);
-        $_SESSION['cliente_cedula'] = $cedula;
-        $_SESSION['cliente_nombre'] = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
-        $_SESSION['cliente_telefono'] = $cliente['telefono'] ?? '';
-        $_SESSION['wisp_service_id'] = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
-        log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso', $cedula);
+        $_SESSION['cliente_cedula']    = $cedula;
+        $_SESSION['cliente_nombre']    = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
+        $_SESSION['cliente_telefono']  = $cliente['telefono'] ?? '';
+        $_SESSION['wisp_service_id']   = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
+        $_SESSION['wisp_account_ref']  = $activeAccountRef; // ← NUEVO: guardar el nodo
+        log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso [' . $activeAccountRef . ']', $cedula);
         header('Location: dashboard.php');
         exit;
     } else {
@@ -248,8 +251,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     Aceptar <i class="fas fa-arrow-right ms-2"></i>
                 </button>
             </form>
-
         </div>
+    </div>
+    
+    <!-- Muestra el nodo activo en la esquina inferior izquierda -->
+    <?php @include_once __DIR__ . '/../config/wisphub_credentials.php'; ?>
+    <div style="position: fixed; bottom: 10px; left: 10px; color: var(--text-muted, #6b7280); font-size: 0.8rem; z-index: 1000; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; backdrop-filter: blur(4px);">
+        <?php
+        $activeRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
+        $nodeName = 'Sitelco (Principal)';
+        if ($activeRef === 'jalisco') {
+            $nodeName = 'Jalisco';
+        } 
+        echo '<i class="fas fa-network-wired me-1"></i> Nodo: ' . htmlspecialchars($nodeName);
+        ?>
     </div>
 
     <div id="login-error-modal" class="modal-overlay">
