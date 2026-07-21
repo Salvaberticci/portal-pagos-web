@@ -104,32 +104,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Si no se encontró en la cuenta detectada, probar las otras cuentas
-    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data'])) {
-        global $WISPHUB_ACCOUNTS;
-        if (!empty($WISPHUB_ACCOUNTS)) {
-            foreach ($WISPHUB_ACCOUNTS as $altRef => $altAcct) {
-                if ($altRef === $activeAccountRef) continue;
-                try {
-                    $altClient = new \Services\WispHubClient([
-                        'api_key'    => $altAcct['api_key'],
-                        'base_url'   => $altAcct['base_url'],
-                        'verify_ssl' => $altAcct['verify_ssl'],
-                    ]);
-                    $clientInfo = $altClient->getClientByDocument($cedula);
-                    if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
-                        $activeAccountRef = $altRef;
-                        $GLOBALS['currentNodo'] = $altRef;
-                        error_log("[LOGIN] Cliente encontrado en cuenta alternativa: {$altRef}");
-                        break;
-                    }
-                } catch (\Throwable $e) {
-                    continue;
-                }
-            }
-        }
-    }
-
     if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
         $cliente = $clientInfo['data']['data'];
         session_regenerate_id(true);
@@ -142,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . nodoUrl('dashboard.php'));
         exit;
     } else {
-        log_security_event('LOGIN_FAILED', "Cédula no encontrada en ninguna cuenta: $cedula", $cedula);
+        log_security_event('LOGIN_FAILED', "Cédula no encontrada: $cedula", $cedula);
         $_SESSION['login_error'] = "Usuario no encontrado";
         header('Location: ' . nodoUrl('index.php'));
         exit;
