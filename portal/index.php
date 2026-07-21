@@ -228,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div id="login-error-data" data-msg="<?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?>"
                 style="display:none;"></div>
 
-            <form action="index.php" method="POST">
+            <form action="<?php echo nodoUrl('index.php'); ?>" method="POST">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <div class="mb-4">
                     <h5 class="fw-bold text-gradient mb-3"><i class="fas fa-id-card me-2"></i>Documento de Identidad

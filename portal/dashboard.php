@@ -176,7 +176,7 @@ $cache_time = 3600;
                         <span class="ms-2 badge" style="background:rgba(255,255,255,0.1);color:var(--text-muted,#6b7280);font-size:0.75rem;border:1px solid rgba(255,255,255,0.1);">
                             <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($nodeName); ?>
                         </span>
-                        <a href="index.php?logout=1" class="ms-2 btn btn-sm btn-glass text-danger border-danger"><i
+                        <a href="index.php?logout=1<?php echo $activeRef !== 'sitelco' ? '&nodo='.$activeRef : ''; ?>" class="ms-2 btn btn-sm btn-glass text-danger border-danger"><i
                                 class="fas fa-sign-out-alt"></i> Salir</a>
                     </div>
                 </div>
