@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; require 'src/Services/WispHubClient.php'; require 'config/wisphub_credentials.php';  = ['api_key' => WISP_HUB_ACCOUNTS['default']['api_key'], 'base_url' => WISP_HUB_BASE_URL, 'verify_ssl' => WISP_HUB_VERIFY_SSL];  = new \Services\WispHubClient(); var_dump(->getClientByDocument('11123456')); ?>  
