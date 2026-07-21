@@ -2,18 +2,28 @@
 require_once 'security_helper.php';
 enforce_https();
 
+// Detectar el nodo activo para preservarlo en redirects
+@include_once __DIR__ . '/../config/wisphub_credentials.php';
+$currentNodo = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
+
+// Helper: agrega ?nodo= a una URL si hay un nodo detectado
+function nodoUrl(string $base): string {
+    global $currentNodo;
+    return ($currentNodo && $currentNodo !== 'sitelco') ? $base . '?nodo=' . $currentNodo : $base;
+}
+
 // Handle logout via GET (must be BEFORE the login check)
 if (isset($_GET['logout'])) {
     if (isset($_SESSION['cliente_cedula'])) {
         log_security_event('LOGOUT', 'Cierre de sesión', $_SESSION['cliente_cedula']);
     }
     session_destroy();
-    header('Location: index.php');
+    header('Location: ' . nodoUrl('index.php'));
     exit;
 }
 
 if (isset($_SESSION['cliente_cedula'])) {
-    header('Location: dashboard.php');
+    header('Location: ' . nodoUrl('dashboard.php'));
     exit;
 }
 
@@ -39,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Throwable $e) {
         error_log("[LOGIN] " . $e->getMessage());
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-        header('Location: index.php');
+        header('Location: ' . nodoUrl('index.php'));
         exit;
     }
 
@@ -48,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!check_rate_limit('login', 5, 300)) {
             $_SESSION['login_error'] = "Demasiados intentos. Por favor, intenta de nuevo en unos minutos.";
-            header('Location: index.php');
+            header('Location: ' . nodoUrl('index.php'));
             exit;
         }
 
@@ -56,20 +66,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!verify_csrf_token($csrf_token)) {
             log_security_event('CSRF_VIOLATION', 'Fallo de verificación CSRF', $cedula);
             $_SESSION['login_error'] = "Petición inválida. Recarga la página.";
-            header('Location: index.php');
+            header('Location: ' . nodoUrl('index.php'));
             exit;
         }
 
         if (empty($cedula)) {
             $_SESSION['login_error'] = "Por favor, ingresa tu cédula.";
-            header('Location: index.php');
+            header('Location: ' . nodoUrl('index.php'));
             exit;
         }
 
         $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
         if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 10) {
             $_SESSION['login_error'] = "Usuario no encontrado";
-            header('Location: index.php');
+            header('Location: ' . nodoUrl('index.php'));
             exit;
         }
 
@@ -79,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($clientInfo['status'] === 0) {
         error_log("[LOGIN] getClientByDocument falló tras " . round($tGetDoc - $tStart, 3) . "s: " . ($clientInfo['error'] ?? 'sin error'));
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-        header('Location: index.php');
+        header('Location: ' . nodoUrl('index.php'));
         exit;
     }
     if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'] ?? $clientInfo['data']['data']['id_servicio'] ?? '')) {
@@ -89,8 +99,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log("[LOGIN] findClientByDocument completado en " . round($tFindDoc - $tGetDoc, 3) . "s");
         if ($clientInfo['status'] === 0) {
             $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-            header('Location: index.php');
+            header('Location: ' . nodoUrl('index.php'));
             exit;
+        }
+    }
+
+    // Si no se encontró en la cuenta detectada, probar las otras cuentas
+    if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data'])) {
+        global $WISPHUB_ACCOUNTS;
+        if (!empty($WISPHUB_ACCOUNTS)) {
+            foreach ($WISPHUB_ACCOUNTS as $altRef => $altAcct) {
+                if ($altRef === $activeAccountRef) continue;
+                try {
+                    $altClient = new \Services\WispHubClient([
+                        'api_key'    => $altAcct['api_key'],
+                        'base_url'   => $altAcct['base_url'],
+                        'verify_ssl' => $altAcct['verify_ssl'],
+                    ]);
+                    $clientInfo = $altClient->getClientByDocument($cedula);
+                    if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
+                        $activeAccountRef = $altRef;
+                        $GLOBALS['currentNodo'] = $altRef;
+                        error_log("[LOGIN] Cliente encontrado en cuenta alternativa: {$altRef}");
+                        break;
+                    }
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
         }
     }
 
@@ -101,20 +137,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['cliente_nombre']    = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
         $_SESSION['cliente_telefono']  = $cliente['telefono'] ?? '';
         $_SESSION['wisp_service_id']   = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
-        $_SESSION['wisp_account_ref']  = $activeAccountRef; // ← NUEVO: guardar el nodo
+        $_SESSION['wisp_account_ref']  = $activeAccountRef;
         log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso [' . $activeAccountRef . ']', $cedula);
-        header('Location: dashboard.php');
+        header('Location: ' . nodoUrl('dashboard.php'));
         exit;
     } else {
-        log_security_event('LOGIN_FAILED', "Cédula no encontrada: $cedula", $cedula);
+        log_security_event('LOGIN_FAILED', "Cédula no encontrada en ninguna cuenta: $cedula", $cedula);
         $_SESSION['login_error'] = "Usuario no encontrado";
-        header('Location: index.php');
+        header('Location: ' . nodoUrl('index.php'));
         exit;
     }
     } catch (\Throwable $e) {
         error_log("[LOGIN_POST] " . $e->getMessage());
         $_SESSION['login_error'] = "Error al procesar la solicitud. Intenta de nuevo.";
-        header('Location: index.php');
+        header('Location: ' . nodoUrl('index.php'));
         exit;
     }
 }
