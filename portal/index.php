@@ -300,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         // Concatenar el tipo de cédula y el número al enviar el formulario
         const form = document.querySelector('form');
-        form.action = 'index.php';
+        // form.action is already set by PHP to include ?nodo= if needed
         const tipoCedula = document.getElementById('tipo_cedula');
         const cedulaNumero = document.getElementById('cedula_numero');
         const cedulaHidden = document.getElementById('cedula_hidden');
