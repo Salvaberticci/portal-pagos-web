@@ -130,6 +130,58 @@ if ($wispConfig) {
         curl_close($ch);
         return $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
     });
+
+    test('WispHub GET /clientes/902/perfil/', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/clientes/902/perfil/');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        $detalle = $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+        if ($http === 200) {
+            $data = json_decode($resp, true);
+            if (isset($data['data']['nombre'])) $detalle .= ' - ' . $data['data']['nombre'];
+        }
+        return $detalle;
+    });
+
+    test('WispHub GET /clientes/902/saldo/', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/clientes/902/saldo/');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        $detalle = $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+        if ($http === 200) {
+            $data = json_decode($resp, true);
+            if (isset($data['data']['saldo'])) $detalle .= ' - Saldo: ' . $data['data']['saldo'];
+        }
+        return $detalle;
+    });
+
+    test('WispHub GET /clientes/902/', function() use ($baseUrl, $apiKey) {
+        $ch = curl_init($baseUrl . '/clientes/902/');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5,
+            CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+        ]);
+        $resp = curl_exec($ch);
+        $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        return $error ? "FALLÓ: {$error}" : "HTTP {$http} " . strlen($resp) . 'b';
+    });
 } else {
     $results[] = ['label' => 'WispHub config', 'tiempo' => 0, 'status' => 'fail', 'info' => 'No se pudo cargar config/wisp_hub.php'];
 }
