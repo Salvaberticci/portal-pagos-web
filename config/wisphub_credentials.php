@@ -27,7 +27,7 @@ $WISPHUB_ACCOUNTS = [
         'label'      => 'Wiven - Nodo Jalisco',
         'api_key'    => 'krxbkpsX.y06PZ1NdvMk1PPoI4Wc2vCWLa0gDSJqO',
         'api_secret' => '',
-        'base_url'   => 'https://api.wisphub.net/api',
+        'base_url'   => 'https://api.wisphub.io/api',
         'verify_ssl' => false,
         'nodos'      => ['jalisco'],
     ],
