@@ -397,7 +397,7 @@ $cache_time = 3600;
 
 
                     <div class="text-center mt-4">
-                        <a href="pago.php?id_contrato=<?php echo $wisp_service_id; ?>" class="btn btn-premium btn-lg px-5">
+                        <a href="pago.php?id_contrato=<?php echo $wisp_service_id . ($activeRef !== 'sitelco' ? '&nodo=' . $activeRef : ''); ?>" class="btn btn-premium btn-lg px-5">
                             <i class="fas fa-credit-card me-2"></i> Continuar
                         </a>
                     </div>
