@@ -260,6 +260,7 @@ git push
 - **Lista de skip ampliada** — Más nombres PHP ignorados por el regex de detección de URL
 - **security_helper.php** — Session timeout ahora preserva `?nodo=` en el redirect
 - **login.php** — Legacy login corregido para preservar nodo en todos sus redirects
+- **test_nodo.php** — Script de test para verificar preservación de nodo (acceso: `https://app.marateltru.com/portal/test_nodo.php?nodo=jalisco`)
 - **Cédulas de prueba:** Jalisco `V-9174522` (DALIA CAMACHO), Pampanito `15217235` (Beatriz Araujo)
 **Archivos:** `portal/procesar_pago_cliente.php`, `portal/pago.php`, `portal/api_verificar_pago.php`
 - **procesar_pago_cliente.php:**
