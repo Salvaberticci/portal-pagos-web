@@ -245,7 +245,20 @@ git push
 
 ## Changelog - Cambios Recientes
 
-### 2026-07-07 — Corrección fecha promesa + Filtro facturas padre + Referencia real del banco
+### 2026-07-23 — Fix completo preservación de nodo + Cuenta Pampanito
+**Archivos:** `config/wisphub_credentials.php`, `portal/index.php`, `portal/dashboard.php`, `portal/pago.php`, `portal/procesar_pago_cliente.php`
+
+- **Cuenta Pampanito agregada** — Nueva API key para `wisphub.app` con nodos `pampanito`, `trujillo`, `staana`
+- **Badge dinámico** — El label del nodo se toma de `$WISPHUB_ACCOUNTS['label']` automáticamente, sin if/else hardcodeados
+- **base_url Jalisco corregida** — Cambiado de `api.wisphub.net` a `api.wisphub.io` (el 403 era porque la API key llegaba al servidor equivocado)
+- **_wisp_detect_nodo reordenado** — La detección por sesión ahora va ANTES del regex de URL, evitando que capture nombres de archivos PHP como `procesar_pago_cliente` y los trate como nodo
+- **JS form.action eliminado** — `form.action = 'index.php'` sobrescribía el `?nodo=jalisco` que PHP generaba
+- **index.php fuerza re-login si nodo cambia** — Si la sesión tiene un nodo diferente al de la URL, se destruye la sesión y redirige al login correcto
+- **procesar_pago_cliente.php** — Redirect post-pago ahora incluye `&nodo=jalisco` o `&nodo=pampanito`
+- **dashboard.php** — Botón "Continuar" va a `pago.php?id=X&nodo=jalisco`
+- **pago.php** — Links "volver" e "Ir al Dashboard" preservan el nodo
+- **Lista de skip ampliada** — Más nombres PHP ignorados por el regex de detección de URL
+- **Cédulas de prueba:** Jalisco `V-9174522` (DALIA CAMACHO), Pampanito `15217235` (Beatriz Araujo)
 **Archivos:** `portal/procesar_pago_cliente.php`, `portal/pago.php`, `portal/api_verificar_pago.php`
 - **procesar_pago_cliente.php:**
   - Fecha base promesa cambiada de `fechaVencOriginal` a `fechaEmiOriginal` (usa el día de emisión/pago como base, no el vencimiento)
