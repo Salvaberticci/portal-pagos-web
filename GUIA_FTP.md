@@ -258,6 +258,8 @@ git push
 - **dashboard.php** — Botón "Continuar" va a `pago.php?id=X&nodo=jalisco`
 - **pago.php** — Links "volver" e "Ir al Dashboard" preservan el nodo
 - **Lista de skip ampliada** — Más nombres PHP ignorados por el regex de detección de URL
+- **security_helper.php** — Session timeout ahora preserva `?nodo=` en el redirect
+- **login.php** — Legacy login corregido para preservar nodo en todos sus redirects
 - **Cédulas de prueba:** Jalisco `V-9174522` (DALIA CAMACHO), Pampanito `15217235` (Beatriz Araujo)
 **Archivos:** `portal/procesar_pago_cliente.php`, `portal/pago.php`, `portal/api_verificar_pago.php`
 - **procesar_pago_cliente.php:**

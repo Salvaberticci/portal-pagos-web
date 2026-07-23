@@ -15,10 +15,11 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Session idle timeout (30 min)
 if (isset($_SESSION['_last_activity']) && (time() - $_SESSION['_last_activity'] > 1800)) {
+    $timeoutNodo = $_SESSION['wisp_account_ref'] ?? 'sitelco';
     session_unset();
     session_destroy();
     if (isset($_SERVER['HTTP_HOST'])) {
-        header('Location: index.php');
+        header('Location: index.php' . ($timeoutNodo !== 'sitelco' ? '?nodo=' . $timeoutNodo : ''));
         exit;
     }
 }

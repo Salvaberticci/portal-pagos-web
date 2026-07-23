@@ -5,6 +5,9 @@ require_once 'security_helper.php';
 if (!defined('TEST_USER_CEDULA')) define('TEST_USER_CEDULA', '');
 if (!defined('DEV_MODE')) define('DEV_MODE', false);
 
+$legacyNodo = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? $_GET['nodo'] ?? 'sitelco');
+$legacyNodoParam = $legacyNodo !== 'sitelco' ? '?nodo=' . $legacyNodo : '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         require_once __DIR__ . '/../vendor/autoload.php';
@@ -19,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Exception $e) {
         error_log("[LOGIN_INIT] Error: " . $e->getMessage());
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 
@@ -27,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!check_rate_limit('login', 5, 300)) {
         $_SESSION['login_error'] = "Demasiados intentos. Por favor, intenta de nuevo en unos minutos.";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 
@@ -35,52 +38,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($csrf_token)) {
         log_security_event('CSRF_VIOLATION', 'Fallo de verificación CSRF en inicio de sesión', $cedula);
         $_SESSION['login_error'] = "Petición de seguridad inválida. Por favor, recarga la página.";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 
     if (empty($cedula)) {
         $_SESSION['login_error'] = "Por favor, ingresa tu cédula.";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 
     $numeroSolo = preg_replace('/^[A-Z]/i', '', $cedula);
     if (strlen($numeroSolo) < 6 || strlen($numeroSolo) > 10) {
         $_SESSION['login_error'] = "Usuario no encontrado";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 
     $clientInfo = $wispClient->getClientByDocument($cedula);
     if ($clientInfo['status'] === 0) {
         $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
     if ($clientInfo['status'] !== 200 || empty($clientInfo['data']['data']['service_id'] ?? $clientInfo['data']['data']['id_servicio'] ?? '')) {
         $clientInfo = $wispClient->findClientByDocument($cedula);
         if ($clientInfo['status'] === 0) {
             $_SESSION['login_error'] = "Servicio temporalmente no disponible. Intenta de nuevo en unos minutos.";
-            header('Location: index.php');
+            header('Location: index.php' . $legacyNodoParam);
             exit;
         }
     }
 
     if ($clientInfo['status'] === 200 && !empty($clientInfo['data']['data'])) {
         $cliente = $clientInfo['data']['data'];
+        $activeRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? 'sitelco');
         session_regenerate_id(true);
         $_SESSION['cliente_cedula'] = $cedula;
         $_SESSION['cliente_nombre'] = trim(($cliente['nombre'] ?? '') . ' ' . ($cliente['apellidos'] ?? '')) ?: 'Cliente';
         $_SESSION['cliente_telefono'] = $cliente['telefono'] ?? '';
         $_SESSION['wisp_service_id'] = $cliente['service_id'] ?? $cliente['id_servicio'] ?? '';
+        $_SESSION['wisp_account_ref']  = $activeRef;
         log_security_event('LOGIN_SUCCESS', 'Inicio de sesión exitoso (WispHub)', $cedula);
-        header('Location: dashboard.php');
+        header('Location: dashboard.php' . ($activeRef !== 'sitelco' ? '?nodo=' . $activeRef : ''));
         exit;
     } else {
         log_security_event('LOGIN_FAILED', "Cédula no encontrada en WispHub: $cedula", $cedula);
         $_SESSION['login_error'] = "Usuario no encontrado";
-        header('Location: index.php');
+        header('Location: index.php' . $legacyNodoParam);
         exit;
     }
 } else {
@@ -90,6 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         session_destroy();
     }
-    header('Location: index.php');
+    header('Location: index.php' . $legacyNodoParam);
     exit;
 }
