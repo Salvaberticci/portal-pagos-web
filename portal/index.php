@@ -23,6 +23,12 @@ if (isset($_GET['logout'])) {
 }
 
 if (isset($_SESSION['cliente_cedula'])) {
+    $sessionNodo = $_SESSION['wisp_account_ref'] ?? 'sitelco';
+    if ($currentNodo !== $sessionNodo) {
+        session_destroy();
+        header('Location: ' . nodoUrl('index.php'));
+        exit;
+    }
     header('Location: ' . nodoUrl('dashboard.php'));
     exit;
 }

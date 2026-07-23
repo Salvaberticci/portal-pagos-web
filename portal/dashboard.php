@@ -4,7 +4,9 @@ header("Pragma: no-cache");
 header("X-Version: v3");
 session_start();
 if (!isset($_SESSION['cliente_cedula'])) {
-    header('Location: index.php');
+    @include_once __DIR__ . '/../config/wisphub_credentials.php';
+    $_dn = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? 'sitelco');
+    header('Location: index.php' . ($_dn !== 'sitelco' ? '?nodo=' . $_dn : ''));
     exit;
 }
 
@@ -90,7 +92,8 @@ $cache_time = 3600;
     }
 
     if (!$wisp_service_id) {
-        header('Location: index.php?logout=1');
+        $nodoLogout = $_SESSION['wisp_account_ref'] ?? 'sitelco';
+        header('Location: index.php?logout=1' . ($nodoLogout !== 'sitelco' ? '&nodo=' . $nodoLogout : ''));
         exit;
     }
 

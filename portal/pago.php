@@ -4,7 +4,9 @@ header("Pragma: no-cache");
 require_once 'security_helper.php';
 enforce_https();
 if (!isset($_SESSION['cliente_cedula'])) {
-    header('Location: index.php');
+    @include_once __DIR__ . '/../config/wisphub_credentials.php';
+    $_dn = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? 'sitelco');
+    header('Location: index.php' . ($_dn !== 'sitelco' ? '?nodo=' . $_dn : ''));
     exit;
 }
 
@@ -29,7 +31,8 @@ $cedula = $_SESSION['cliente_cedula'];
 session_write_close();
 
 if (empty($wisp_service_id)) {
-    header('Location: dashboard.php');
+    $nodoAct = $_SESSION['wisp_account_ref'] ?? 'sitelco';
+    header('Location: dashboard.php' . ($nodoAct !== 'sitelco' ? '?nodo=' . $nodoAct : ''));
     exit;
 }
 
@@ -75,7 +78,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     $c_perfil = $wisp_cached['profile'];
 
     if (empty($c_perfil)) {
-        header('Location: dashboard.php');
+        $nodoAct2 = $_SESSION['wisp_account_ref'] ?? 'sitelco';
+        header('Location: dashboard.php' . ($nodoAct2 !== 'sitelco' ? '?nodo=' . $nodoAct2 : ''));
         exit;
     }
 
