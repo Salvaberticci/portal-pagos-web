@@ -46,6 +46,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
     $wispClient = new \Services\WispHubClient($wispConfig);
 }
 
+$pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? 'sitelco');
+
 // Send loading overlay to browser before slow API calls
 ?>
 <!DOCTYPE html>
@@ -196,16 +198,13 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
 
         <header class="glass-header py-3">
             <div class="container d-flex align-items-center">
-                <a href="dashboard.php" class="text-decoration-none me-3">
+                <a href="dashboard.php<?php echo $pagoNodoRef !== 'sitelco' ? '?nodo=' . $pagoNodoRef : ''; ?>" class="text-decoration-none me-3">
                     <i class="fas fa-chevron-left fa-lg"></i>
                 </a>
                 <h5 class="mb-0 fw-bold text-gradient">Pagar Mensualidad</h5>
                 <div class="ms-auto d-flex align-items-center gap-2">
-                    <?php @include_once __DIR__ . '/../config/wisphub_credentials.php';
-                    $activeRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
-                    $nodeName = $WISPHUB_ACCOUNTS[$activeRef]['label'] ?? ($activeRef === 'jalisco' ? 'Jalisco' : 'Sitelco (Principal)'); ?>
                     <span class="badge" style="background:rgba(255,255,255,0.1);color:var(--text-muted,#6b7280);font-size:0.75rem;border:1px solid rgba(255,255,255,0.1);">
-                        <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($nodeName); ?>
+                        <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($WISPHUB_ACCOUNTS[$pagoNodoRef]['label'] ?? ($pagoNodoRef === 'jalisco' ? 'Jalisco' : 'Sitelco (Principal)')); ?>
                     </span>
                     <button class="theme-toggle" id="themeToggleBtn" title="Cambiar Tema">
                         <i class="fas fa-sun"></i>
@@ -464,7 +463,7 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                         <button type="button" class="btn btn-pagar d-none" id="btn_confirmar_pago_resultado">
                             <i class="fas fa-check-circle me-2"></i> Confirmar y Pagar
                         </button>
-                        <a href="dashboard.php" class="btn btn-pagar d-none" id="btn_ir_dashboard">
+                        <a href="dashboard.php<?php echo $pagoNodoRef !== 'sitelco' ? '?nodo=' . $pagoNodoRef : ''; ?>" class="btn btn-pagar d-none" id="btn_ir_dashboard">
                             <i class="fas fa-arrow-left me-2"></i> Ir al Dashboard
                         </a>
                     </div>
