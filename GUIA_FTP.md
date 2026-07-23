@@ -262,6 +262,8 @@ git push
 - **login.php** — Legacy login corregido para preservar nodo en todos sus redirects
 - **test_nodo.php** — Script de test para verificar preservación de nodo (acceso: `https://app.marateltru.com/portal/test_nodo.php?nodo=jalisco`)
 - **Cédulas de prueba:** Jalisco `V-9174522` (DALIA CAMACHO), Pampanito `15217235` (Beatriz Araujo)
+
+### 2026-07-07 — Corrección fecha promesa + Filtro facturas padre + Referencia real del banco
 **Archivos:** `portal/procesar_pago_cliente.php`, `portal/pago.php`, `portal/api_verificar_pago.php`
 - **procesar_pago_cliente.php:**
   - Fecha base promesa cambiada de `fechaVencOriginal` a `fechaEmiOriginal` (usa el día de emisión/pago como base, no el vencimiento)
