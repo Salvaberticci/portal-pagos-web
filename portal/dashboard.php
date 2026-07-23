@@ -175,7 +175,7 @@ $cache_time = 3600;
                                 class="fas fa-user-circle me-1"></i> <?php echo htmlspecialchars($nombre); ?></span>
                         <?php @include_once __DIR__ . '/../config/wisphub_credentials.php';
                         $activeRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
-                        $nodeName = $activeRef === 'jalisco' ? 'Jalisco' : 'Sitelco (Principal)'; ?>
+                        $nodeName = $WISPHUB_ACCOUNTS[$activeRef]['label'] ?? ($activeRef === 'jalisco' ? 'Jalisco' : 'Sitelco (Principal)'); ?>
                         <span class="ms-2 badge" style="background:rgba(255,255,255,0.1);color:var(--text-muted,#6b7280);font-size:0.75rem;border:1px solid rgba(255,255,255,0.1);">
                             <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($nodeName); ?>
                         </span>

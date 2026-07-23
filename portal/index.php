@@ -275,10 +275,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div style="position: fixed; bottom: 10px; left: 10px; color: var(--text-muted, #6b7280); font-size: 0.8rem; z-index: 1000; background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 4px; backdrop-filter: blur(4px);">
         <?php
         $activeRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco';
-        $nodeName = 'Sitelco (Principal)';
-        if ($activeRef === 'jalisco') {
-            $nodeName = 'Jalisco';
-        } 
+        $nodeName = $WISPHUB_ACCOUNTS[$activeRef]['label'] ?? ($activeRef === 'jalisco' ? 'Jalisco' : 'Sitelco (Principal)');
         echo '<i class="fas fa-network-wired me-1"></i> Nodo: ' . htmlspecialchars($nodeName);
         ?>
     </div>

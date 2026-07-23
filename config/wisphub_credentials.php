@@ -31,15 +31,15 @@ $WISPHUB_ACCOUNTS = [
         'verify_ssl' => false,
         'nodos'      => ['jalisco'],
     ],
+    'pampanito' => [
+        'label'      => 'Pampanito - Trujillo - Sta Ana',
+        'api_key'    => 'oB9ajTrx.EeE7reMaY5QzypPFB9aUmlwObcO1t2oP',
+        'api_secret' => '',
+        'base_url'   => 'https://api.wisphub.app/api',
+        'verify_ssl' => false,
+        'nodos'      => ['pampanito', 'trujillo', 'staana'],
+    ],
     // ── Agrega nuevas cuentas aquí siguiendo el mismo formato ──
-    // 'merida' => [
-    //     'label'      => 'Nodo Mérida',
-    //     'api_key'    => 'TU_API_KEY_AQUI',
-    //     'api_secret' => '',
-    //     'base_url'   => 'https://api.wisphub.net/api',
-    //     'verify_ssl' => true,
-    //     'nodos'      => ['merida'],
-    // ],
 ];
 
 // ─── DETECCIÓN AUTOMÁTICA DEL NODO ACTIVO ────────────────────────────────────
@@ -94,6 +94,11 @@ switch ($_nodo_detectado) {
     case 'sitelco':
     default:
         $_account_ref = 'sitelco';
+        break;
+    case 'pampanito':
+    case 'trujillo':
+    case 'staana':
+        $_account_ref = 'pampanito';
         break;
     // Agrega nuevos casos aquí cuando tengas más cuentas:
     // case 'merida':
