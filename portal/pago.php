@@ -226,7 +226,8 @@ if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
                 </div>
             <?php endif; ?>
 
-            <form id="paymentForm" action="procesar_pago_cliente.php" method="POST" enctype="multipart/form-data">
+            <?php $_formNodo = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($_SESSION['wisp_account_ref'] ?? 'sitelco'); ?>
+            <form id="paymentForm" action="procesar_pago_cliente.php<?php echo $_formNodo !== 'sitelco' ? '?nodo=' . $_formNodo : ''; ?>" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(generate_csrf_token()); ?>">
                 <input type="hidden" name="id_contrato" value="<?php echo $wisp_service_id; ?>">
                 <input type="hidden" name="tasa_dolar" value="<?php echo $tasa_bcv; ?>">

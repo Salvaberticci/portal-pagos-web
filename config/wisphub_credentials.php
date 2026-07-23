@@ -48,7 +48,7 @@ $WISPHUB_ACCOUNTS = [
 //   - Subdominios: jalisco.midominio.com → detecta 'jalisco'
 //   - Rutas limpias: /portal/jalisco → detecta 'jalisco' (via htaccess rewrite)
 function _wisp_detect_nodo(): string {
-    // 1. Intentar desde parámetro GET (prioridad máxima, evita que regex capte index.php)
+    // 1. Intentar desde parámetro GET (prioridad máxima)
     if (!empty($_GET['nodo'])) {
         return strtolower(preg_replace('/[^a-z0-9_-]/i', '', $_GET['nodo']));
     }
@@ -58,19 +58,20 @@ function _wisp_detect_nodo(): string {
     if (count($subdomains) >= 3) {
         return $subdomains[0];
     }
-    // 3. Intentar desde PATH_INFO o REQUEST_URI (rutas limpias /portal/jalisco)
+    // 3. Intentar desde la sesión (el cliente ya inició sesión y guardamos su nodo)
+    //    VA ANTES del regex de URL para evitar que capture nombres de archivos PHP
+    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['wisp_account_ref'])) {
+        return $_SESSION['wisp_account_ref'];
+    }
+    // 4. Intentar desde PATH_INFO o REQUEST_URI (rutas limpias /portal/jalisco)
     $uri = $_SERVER['REQUEST_URI'] ?? '';
     if (preg_match('#/portal/([a-z0-9_-]+)#i', $uri, $m)) {
         $captured = strtolower($m[1]);
         // Ignorar nombres de archivos PHP conocidos
-        $skip = ['index', 'dashboard', 'pago', 'diagnostico', 'clear_cache'];
+        $skip = ['index', 'dashboard', 'pago', 'diagnostico', 'clear_cache', 'procesar_pago_cliente', 'api_verificar_pago', 'security_helper', 'referencia_helper', 'wisp_helper', 'auth', 'verificar_pago', 'simulador', 'login', 'check_ref', 'check_invoice_state', 'cron_promesas', 'importar_pagos'];
         if (!in_array($captured, $skip, true)) {
             return $captured;
         }
-    }
-    // 4. Intentar desde la sesión (el cliente ya inició sesión y guardamos su nodo)
-    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['wisp_account_ref'])) {
-        return $_SESSION['wisp_account_ref'];
     }
     return 'sitelco'; // Cuenta por defecto
 }
