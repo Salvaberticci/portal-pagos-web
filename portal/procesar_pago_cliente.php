@@ -316,36 +316,9 @@ try {
                 error_log("[procesar_pago] Nota de cr\u00e9dito #{$creditNoteId} creada en WispHub por \${$excesoAmount} (exceso pago #{$firstInvoiceId})");
             } else {
                 error_log("[procesar_pago] Fallo crear nota de cr\u00e9dito: " . json_encode($ncResult));
-                $monto_pago_wisp = $monto_usd; // fallback: intentar con monto completo
-            }
-        }
-
-        // -- Si es pago parcial: crear factura de saldo ANTES del pago --
-        // (WispHub duplica el monto si se crea despu�s de registrar el pago)
-        if ($shouldCreatePromise && $saldoRestante > 0.01) {
-            if (!isset($wispData)) {
-                require_once __DIR__ . '/wisp_helper.php';
-                $wispData = wisp_get_cached_data($wispClient, $id_contrato_asociado);
-            }
-            $username = $wispData['profile']['usuario'] ?? '';
-            if (empty($username) && !empty($firstInvoiceId)) {
-                $invDetail = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
-                $username = is_array($invDetail['cliente'] ?? null) ? ($invDetail['cliente']['usuario'] ?? '') : ($invDetail['cliente'] ?? $invDetail['usuario'] ?? '');
-            }
-
-            $descNueva = 'Saldo pendiente tras abono - Factura #' . $firstInvoiceId;
-            $createResult = $wispClient->createInvoice(
-                $username, $saldoRestante, $descNueva, $fechaLimitePromesa, $id_contrato_asociado
-            );
-            if (in_array($createResult['status'] ?? 0, [200, 201])) {
-                $msg = $createResult['data']['messages'] ?? $createResult['data']['message'] ?? '';
-                if (is_array($msg)) $msg = implode(' ', $msg);
-                preg_match('/factura\s*#?(\d+)/i', $msg, $m);
-                $nuevaFacturaId = isset($m[1]) ? (int)$m[1] : 0;
-                error_log("[procesar_pago] Factura saldo pendiente #{$nuevaFacturaId} creada en WispHub (\${$saldoRestante})");
-            } else {
-                error_log("[procesar_pago] Fallo crear factura saldo pendiente: " . json_encode($createResult));
-                $nuevaFacturaId = 0;
+                $monto_pago_wisp = $monto_usd; // fallback: i        // -- Si es pago parcial: crear factura de saldo ANTES del pago --
+        // ELIMINADO: WispHub maneja nativamente los pagos por partes.
+        // Ya no creamos la factura duplicada de "Saldo pendiente tras abono".            $nuevaFacturaId = 0;
             }
         }
 
@@ -386,19 +359,19 @@ try {
 
         // -- Si es pago parcial: registrar compromiso en WispHub sobre la factura creada --
         // NOTA: WispHub devuelve status 400 cuando el pago es parcial (total_cobrado < total),
-        //       aunque el pago s� fue registrado correctamente. Por eso tambi�n aceptamos 400
+        //       aunque el pago sí fue registrado correctamente. Por eso también aceptamos 400
         //       siempre que el monto haya sido efectivamente aplicado (amount_applied > 0).
         $wispPaymentApplied = floatval($wispResult['amount_applied'] ?? 0) > 0;
         $wispOk = in_array($wispStatus, [200, 201]) || ($wispStatus === 400 && $wispPaymentApplied);
-        if ($shouldCreatePromise && $saldoRestante > 0.01 && $nuevaFacturaId && $wispOk) {
-            // Sumar +1 d�a a la fecha l�mite en WispHub para que el cliente tenga
-            // el d�a completo de servicio (ej: 15/07 ? 16/07 en WispHub)
+        if ($shouldCreatePromise && $saldoRestante > 0.01 && $wispOk) {
+            // Sumar +1 día a la fecha límite en WispHub para que el cliente tenga
+            // el día completo de servicio (ej: 15/07 -> 16/07 en WispHub)
             $fechaLimiteWisp = date('Y-m-d', strtotime($fechaLimitePromesa . ' +1 day'));
             $promiseResult = $wispClient->addPaymentPromise(
-                $nuevaFacturaId, $fechaLimiteWisp, $saldoRestante, 1
+                $firstInvoiceId, $fechaLimiteWisp, $saldoRestante, 1
             );
             if (in_array($promiseResult['status'] ?? 0, [200, 201])) {
-                error_log("[procesar_pago] Promesa creada en WispHub: Factura #{$nuevaFacturaId}, vence {$fechaLimiteWisp}");
+                error_log("[procesar_pago] Promesa creada en WispHub: Factura original #{$firstInvoiceId}, vence {$fechaLimiteWisp}");
             } else {
                 error_log("[procesar_pago] Fallo crear promesa en WispHub: " . json_encode($promiseResult));
             }
@@ -421,7 +394,7 @@ try {
         );
 
         if ($auto_aprobado) {
-            $_SESSION['pago_msg'] = "�Tu pago fue verificado y registrado! Ref: $referencia.";
+            $_SESSION['pago_msg'] = "¡Tu pago fue verificado y registrado! Ref: $referencia.";
             // Guardar pago en BD local
             require_once __DIR__ . '/referencia_helper.php';
             $db_ok = guardarPago(
@@ -429,7 +402,7 @@ try {
                 $invoice_total, $accion ?? null, $id_contrato_asociado ?? '', $id_banco_destino, 
                 implode(',', $invoice_ids), null, null, null // No tenemos los datos crudos en el legacy
             );
-            if (!$db_ok) { error_log('[procesar_pago] guardarPago fall� en legacy para ref: ' . $referencia); }
+            if (!$db_ok) { error_log('[procesar_pago] guardarPago falló en legacy para ref: ' . $referencia); }
         } else {
             $razon = $GLOBALS['bdv_falla_motivo'] ?? 'Error desconocido.';
             $_SESSION['pago_err'] = "Error: $razon";
@@ -443,7 +416,7 @@ try {
 
     // Verificar resultado del registro en WispHub
     // NOTA: WispHub devuelve 400 en pagos parciales aunque el pago haya sido aplicado.
-    //       Tambi�n consideramos exitoso si amount_applied > 0.
+    //       También consideramos exitoso si amount_applied > 0.
     $wispSuccess = $wispResult && (
         in_array($wispResult['status'] ?? 0, [200, 201]) ||
         ($wispResult['status'] === 400 && floatval($wispResult['amount_applied'] ?? 0) > 0)
@@ -459,47 +432,47 @@ try {
             $amount_unused  = floatval($wispResult['amount_unused'] ?? 0);
             $pagos_count    = count($wispResult['payments_registered'] ?? []);
 
-            // CORRECCI�N: WispHub a veces devuelve amount_applied=0 cuando el cliente ya hizo
+            // CORRECCIÓN: WispHub a veces devuelve amount_applied=0 cuando el cliente ya hizo
             // un abono previo y la factura no aparece como "pendiente" en WispHub.
             // En ese caso calculamos manualmente: aplicado = min(pagado, deuda_pendiente)
             if ($amount_applied == 0 && $monto_usd > 0 && $invoice_total > 0) {
                 $amount_applied = min($monto_pago_wisp, $invoice_total);
                 $amount_unused  = max(0, round($monto_usd - $invoice_total, 2)); // monto_usd original para saber exceso real
-                // Simular que s� hubo un registro (para no mostrar el aviso de "0 recibos")
+                // Simular que sí hubo un registro (para no mostrar el aviso de "0 recibos")
                 $pagos_count = !empty($invoice_ids) ? 1 : 0;
-                error_log("[procesar_pago] WispHub devolvi� amount_applied=0 para Ref: $referencia � corrigiendo con invoice_total=$invoice_total");
+                error_log("[procesar_pago] WispHub devolvió amount_applied=0 para Ref: $referencia — corrigiendo con invoice_total=$invoice_total");
             }
 
             if ($pagos_count > 0 && $amount_applied > 0) {
                 $msg_parts[] = "Se aplicaron <strong>$" . number_format($amount_applied, 2) . " USD</strong> a $pagos_count recibo(s).";
             }
 
-            // Si se cre� nota de cr�dito (pago en exceso), mostrar mensaje
+            // Si se creó nota de crédito (pago en exceso), mostrar mensaje
             if ($creditNoteCreated && $excesoAmount > 0.005) {
-                $msg_parts[] = "Se cre\u00f3 una <strong>NOTA DE CR\u00c9DITO por $" . number_format($excesoAmount, 2) . " USD</strong> como saldo a favor para tu pr\u00f3ximo recibo.";
+                $msg_parts[] = "Se creó una <strong>NOTA DE CRÉDITO por $" . number_format($excesoAmount, 2) . " USD</strong> como saldo a favor para tu próximo recibo.";
             } else {
                 // Fallback: calcular exceso manualmente
                 $amount_unused = max($amount_unused, round(max(0, $monto_usd - ($totalFactura ?: $invoice_total)), 2));
                 if ($amount_unused > 0.005) {
                     $saldo_favor_real = round($amount_unused, 2);
-                    $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($saldo_favor_real, 2) . " USD</strong> para tu pr&oacute;ximo recibo.";
+                    $msg_parts[] = "Te queda un <strong>SALDO A FAVOR de $" . number_format($saldo_favor_real, 2) . " USD</strong> para tu próximo recibo.";
                 }
 
                 if ($amount_applied > 0 && $amount_applied < $monto_usd && $amount_unused <= 0.005) {
-                    $msg_parts[] = "Se aplic&oacute; <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
+                    $msg_parts[] = "Se aplicó <strong>$" . number_format($amount_applied, 2) . " USD</strong> como abono a tu deuda.";
                 }
             }
 
-            // Aviso solo si realmente no se pudo pagar ning�n recibo
+            // Aviso solo si realmente no se pudo pagar ningún recibo
             $selected_count = count($invoice_ids);
             if ($selected_count > 0 && $pagos_count == 0) {
-                $msg_parts[] = "Nota: el pago qued� registrado manualmente. Contacta a soporte con tu referencia si no ves el cambio reflejado.";
+                $msg_parts[] = "Nota: el pago quedó registrado manualmente. Contacta a soporte con tu referencia si no ves el cambio reflejado.";
             }
         } else {
-            // WispHub fall� pero el banco aprob�
+            // WispHub falló pero el banco aprobó
             $errorMsg = $wispResult['error'] ?? json_encode($wispResult['data'] ?? 'Error desconocido');
-            error_log("[procesar_pago_cliente] WispHub rechaz� pero Banco aprob� (Ref: $referencia): " . $errorMsg);
-            $msg_parts[] = "<br><strong style='color:#dc2626;'>Aviso:</strong> El banco aprob� el pago, pero WispHub no pudo aplicarlo a tu factura autom�ticamente. Por favor contacta a soporte con tu n�mero de referencia. (Detalle: " . htmlspecialchars($errorMsg) . ")";
+            error_log("[procesar_pago_cliente] WispHub rechazó pero Banco aprobó (Ref: $referencia): " . $errorMsg);
+            $msg_parts[] = "<br><strong style='color:#dc2626;'>Aviso:</strong> El banco aprobó el pago, pero WispHub no pudo aplicarlo a tu factura automáticamente. Por favor contacta a soporte con tu número de referencia. (Detalle: " . htmlspecialchars($errorMsg) . ")";
         }
 
         $msg_parts[] = "Referencia: <strong>$referencia</strong>.";
@@ -593,15 +566,12 @@ try {
         
         if ($credito_usado > 0.005) {
             consumeSaldoFavor($id_contrato_asociado, $credito_usado);
-            error_log("[procesar_pago] Cr�dito consumido: \${$credito_usado} para Service: $id_contrato_asociado");
+            error_log("[procesar_pago] Crédito consumido: \${$credito_usado} para Service: $id_contrato_asociado");
         }
 
-        // Mensaje para pago parcial con factura creada en WispHub
-        if ($nuevaFacturaId && $saldoRestante > 0.01) {
-            $msg_parts[] = "<br>? Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Se gener� la Factura <strong>#" . $nuevaFacturaId . "</strong> por <strong>$" . number_format($saldoRestante, 2) . " USD</strong> como saldo pendiente. Compromiso de pago hasta el <strong>" . date('d/m/Y', strtotime($fechaLimitePromesa)) . "</strong>.";
-            $_SESSION['pago_msg'] = implode(' ', $msg_parts);
-        } elseif ($shouldCreatePromise && $saldoRestante > 0.01) {
-            $msg_parts[] = "<br>? Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Saldo pendiente: <strong>$" . number_format($saldoRestante, 2) . " USD</strong>.";
+        // Mensaje para pago parcial con factura gestionada nativamente en WispHub
+        if ($shouldCreatePromise && $saldoRestante > 0.01) {
+            $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Saldo pendiente en factura original: <strong>$" . number_format($saldoRestante, 2) . " USD</strong>. Compromiso de pago hasta el <strong>" . date('d/m/Y', strtotime($fechaLimitePromesa)) . "</strong>.";
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         } elseif ($exceso_real > 0.005) {
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);

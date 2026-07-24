@@ -31,10 +31,10 @@ Respuesta: `{"count":N,"results":[{"id":18426,"nombre":"Operacion Bancaria"},...
 - `monto_pendiente` se calcula: `saldo_nuevo > 0 ? saldo_nuevo : (estado pendiente ? total : total - cobrado)`
 
 ## Flujo de abono parcial
-1. WispHub recibe pago < total de factura
-2. WispHub crea factura "Saldo pendiente tras abono - Factura #X" por el saldo restante
-3. `wisp_helper.php` filtra: elimina factura padre #X, muestra solo la hija
-4. `dashboard.php` usa `monto_pendiente = total - total_cobrado` para el saldo real
+1. WispHub recibe pago < total de factura.
+2. WispHub procesa el pago nativamente (requiere tener 'Pagos por partes' activo en la cuenta WispHub) y mantiene la factura original abierta con saldo pendiente.
+3. El portal calcula los días extra proporcionales y agrega una Promesa de Pago a la factura original.
+4. `wisp_helper.php` lee el saldo restante desde `saldo_nuevo` y `dashboard.php` muestra el monto actualizado.
 
 ## Archivos clave
 - `config/wisphub_credentials.php` — credenciales + forma_pago_id por cuenta
