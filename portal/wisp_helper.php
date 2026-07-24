@@ -122,16 +122,30 @@ function wisp_get_cached_data($wispClient, $serviceId) {
             $articulos = [['descripcion' => $desc_fallback]];
         }
 
+        $invEstado = $inv['estado'] ?? 'Pendiente de Pago';
+        $invTotal = floatval($inv['total'] ?? 0);
+        $invCobrado = floatval($inv['total_cobrado'] ?? 0);
+        $invSaldoNuevo = floatval($inv['saldo_nuevo'] ?? 0);
+        // monto_pendiente: usar saldo_nuevo si está disponible y es > 0,
+        // si no, total - cobrado; si ambos son 0 pero estado es pendiente, usar total
+        $invPendiente = max(0, $invTotal - $invCobrado);
+        if ($invSaldoNuevo > 0) {
+            $invPendiente = $invSaldoNuevo;
+        } elseif ($invPendiente === 0.0 && in_array($invEstado, ['Pendiente de Pago', 'Vencida', 'Pendiente', 'Vencido'])) {
+            $invPendiente = $invTotal;
+        }
+
         $invoices[] = [
             'id'                => $id,
             'id_factura'        => $id,
             'fecha_emision'     => $inv['fecha_emision'] ?? '',
             'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
-            'total'             => floatval($inv['total'] ?? 0),
-            'saldo_nuevo'       => floatval($inv['saldo_nuevo'] ?? $inv['total'] ?? 0),
-            'saldo'             => floatval($inv['saldo'] ?? $inv['total'] ?? 0),
-            'total_cobrado'     => floatval($inv['total_cobrado'] ?? 0),
-            'estado'            => 1,
+            'total'             => $invTotal,
+            'saldo_nuevo'       => $invSaldoNuevo,
+            'saldo'             => floatval($inv['saldo'] ?? $invTotal),
+            'total_cobrado'     => $invCobrado,
+            'estado'            => $invEstado,
+            'monto_pendiente'   => $invPendiente,
             'articulos'         => $articulos
         ];
     }
@@ -153,7 +167,6 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     foreach ($invoices as $inv) {
         $idInv = $inv['id'] ?? $inv['id_factura'] ?? 0;
         if (isset($idsConHijo[$idInv])) continue;
-        $inv['monto_pendiente'] = max(0, floatval($inv['total'] ?? 0) - floatval($inv['total_cobrado'] ?? 0));
         $invoicesFiltradas[] = $inv;
     }
     $invoices = $invoicesFiltradas;
