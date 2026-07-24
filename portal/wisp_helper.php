@@ -56,7 +56,14 @@ function wisp_extract_desc($inv, $id) {
 }
 
 function wisp_get_cached_data($wispClient, $serviceId) {
-    $forceRefresh = isset($_GET['refreshed']);
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        @session_start();
+    }
+    $forceRefresh = isset($_GET['refreshed']) || !empty($_SESSION['wisp_force_refresh']);
+    if ($forceRefresh) {
+        unset($_SESSION['wisp_force_refresh']);
+    }
+
     if (!$forceRefresh) {
         $cached = wisp_get_cache($serviceId);
         if ($cached !== null) return $cached;
@@ -138,16 +145,21 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         }
 
         $invEstado = $inv['estado'] ?? 'Pendiente de Pago';
-        $invTotal = floatval($inv['total'] ?? 0);
+        $invTotal = floatval($inv['total'] ?? $inv['sub_total'] ?? $inv['monto'] ?? 0);
+        $invSubTotal = floatval($inv['sub_total'] ?? $invTotal);
         $invCobrado = floatval($inv['total_cobrado'] ?? 0);
         $invSaldoNuevo = floatval($inv['saldo_nuevo'] ?? 0);
-        // monto_pendiente: usar saldo_nuevo si está disponible y es > 0,
-        // si no, total - cobrado; si ambos son 0 pero estado es pendiente, usar total
-        $invPendiente = max(0, $invTotal - $invCobrado);
+        $invSaldo = floatval($inv['saldo'] ?? 0);
+        // monto_pendiente: usar saldo_nuevo si > 0,
+        // si no, saldo si > 0,
+        // si no, total - cobrado; si eso da 0 pero estado es pendiente, usar total o sub_total
+        $invPendiente = (float)max(0, $invTotal - $invCobrado);
         if ($invSaldoNuevo > 0) {
             $invPendiente = $invSaldoNuevo;
-        } elseif ($invPendiente === 0.0 && in_array($invEstado, ['Pendiente de Pago', 'Vencida', 'Pendiente', 'Vencido'])) {
-            $invPendiente = $invTotal;
+        } elseif ($invSaldo > 0) {
+            $invPendiente = $invSaldo;
+        } elseif ($invPendiente == 0 && in_array($invEstado, ['Pendiente de Pago', 'Vencida', 'Pendiente', 'Vencido'])) {
+            $invPendiente = $invSubTotal > 0 ? $invSubTotal : $invTotal;
         }
 
         $invoices[] = [
@@ -156,8 +168,9 @@ function wisp_get_cached_data($wispClient, $serviceId) {
             'fecha_emision'     => $inv['fecha_emision'] ?? '',
             'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
             'total'             => $invTotal,
+            'sub_total'         => $invSubTotal,
             'saldo_nuevo'       => $invSaldoNuevo,
-            'saldo'             => floatval($inv['saldo'] ?? $invTotal),
+            'saldo'             => $invSaldo,
             'total_cobrado'     => $invCobrado,
             'estado'            => $invEstado,
             'monto_pendiente'   => $invPendiente,

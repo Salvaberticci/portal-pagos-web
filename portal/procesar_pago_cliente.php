@@ -316,9 +316,38 @@ try {
                 error_log("[procesar_pago] Nota de cr\u00e9dito #{$creditNoteId} creada en WispHub por \${$excesoAmount} (exceso pago #{$firstInvoiceId})");
             } else {
                 error_log("[procesar_pago] Fallo crear nota de cr\u00e9dito: " . json_encode($ncResult));
-                $monto_pago_wisp = $monto_usd; // fallback: i        // -- Si es pago parcial: crear factura de saldo ANTES del pago --
-        // ELIMINADO: WispHub maneja nativamente los pagos por partes.
-        // Ya no creamos la factura duplicada de "Saldo pendiente tras abono".            $nuevaFacturaId = 0;
+                $monto_pago_wisp = $monto_usd; // fallback: intentar con monto completo
+            }
+        }
+
+        // -- Si es pago parcial: crear factura de saldo ANTES del pago --
+        // IMPORTANTE: se crea ANTES de registrar el pago para evitar que WispHub
+        // duplique el monto. La factura de saldo es la que queda pendiente en el
+        // dashboard y la que recibe la Promesa de Pago.
+        if ($shouldCreatePromise && $saldoRestante > 0.01) {
+            if (!isset($wispData)) {
+                require_once __DIR__ . '/wisp_helper.php';
+                $wispData = wisp_get_cached_data($wispClient, $id_contrato_asociado);
+            }
+            $username = $wispData['profile']['usuario'] ?? '';
+            if (empty($username) && !empty($firstInvoiceId)) {
+                $invDetail2 = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+                $username = is_array($invDetail2['cliente'] ?? null) ? ($invDetail2['cliente']['usuario'] ?? '') : ($invDetail2['cliente'] ?? $invDetail2['usuario'] ?? '');
+            }
+
+            $descNueva = 'Saldo pendiente tras abono - Factura #' . $firstInvoiceId;
+            $createResult = $wispClient->createInvoice(
+                $username, $saldoRestante, $descNueva, $fechaLimitePromesa, $id_contrato_asociado
+            );
+            if (in_array($createResult['status'] ?? 0, [200, 201])) {
+                $msg = $createResult['data']['messages'] ?? $createResult['data']['message'] ?? '';
+                if (is_array($msg)) $msg = implode(' ', $msg);
+                preg_match('/factura\s*#?(\d+)/i', $msg, $m);
+                $nuevaFacturaId = isset($m[1]) ? (int)$m[1] : 0;
+                error_log("[procesar_pago] Factura saldo pendiente #{$nuevaFacturaId} creada en WispHub (\${$saldoRestante})");
+            } else {
+                error_log("[procesar_pago] Fallo crear factura saldo pendiente: " . json_encode($createResult));
+                $nuevaFacturaId = 0;
             }
         }
 
@@ -357,21 +386,21 @@ try {
 
         $wispStatus = $wispResult['status'] ?? 200;
 
-        // -- Si es pago parcial: registrar compromiso en WispHub sobre la factura creada --
+        // -- Si es pago parcial: registrar compromiso en WispHub sobre la nueva factura de saldo --
         // NOTA: WispHub devuelve status 400 cuando el pago es parcial (total_cobrado < total),
         //       aunque el pago sí fue registrado correctamente. Por eso también aceptamos 400
         //       siempre que el monto haya sido efectivamente aplicado (amount_applied > 0).
         $wispPaymentApplied = floatval($wispResult['amount_applied'] ?? 0) > 0;
         $wispOk = in_array($wispStatus, [200, 201]) || ($wispStatus === 400 && $wispPaymentApplied);
-        if ($shouldCreatePromise && $saldoRestante > 0.01 && $wispOk) {
+        if ($shouldCreatePromise && $saldoRestante > 0.01 && $nuevaFacturaId && $wispOk) {
             // Sumar +1 día a la fecha límite en WispHub para que el cliente tenga
             // el día completo de servicio (ej: 15/07 -> 16/07 en WispHub)
             $fechaLimiteWisp = date('Y-m-d', strtotime($fechaLimitePromesa . ' +1 day'));
             $promiseResult = $wispClient->addPaymentPromise(
-                $firstInvoiceId, $fechaLimiteWisp, $saldoRestante, 1
+                $nuevaFacturaId, $fechaLimiteWisp, $saldoRestante, 1
             );
             if (in_array($promiseResult['status'] ?? 0, [200, 201])) {
-                error_log("[procesar_pago] Promesa creada en WispHub: Factura original #{$firstInvoiceId}, vence {$fechaLimiteWisp}");
+                error_log("[procesar_pago] Promesa creada en WispHub: Factura saldo #{$nuevaFacturaId}, vence {$fechaLimiteWisp}");
             } else {
                 error_log("[procesar_pago] Fallo crear promesa en WispHub: " . json_encode($promiseResult));
             }
@@ -569,15 +598,20 @@ try {
             error_log("[procesar_pago] Crédito consumido: \${$credito_usado} para Service: $id_contrato_asociado");
         }
 
-        // Mensaje para pago parcial con factura gestionada nativamente en WispHub
-        if ($shouldCreatePromise && $saldoRestante > 0.01) {
-            $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Saldo pendiente en factura original: <strong>$" . number_format($saldoRestante, 2) . " USD</strong>. Compromiso de pago hasta el <strong>" . date('d/m/Y', strtotime($fechaLimitePromesa)) . "</strong>.";
+        // Mensaje para pago parcial con factura de saldo creada en WispHub
+        if ($nuevaFacturaId && $saldoRestante > 0.01) {
+            $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Se generó la Factura <strong>#" . $nuevaFacturaId . "</strong> por <strong>$" . number_format($saldoRestante, 2) . " USD</strong> como saldo pendiente. Compromiso de pago hasta el <strong>" . date('d/m/Y', strtotime($fechaLimitePromesa)) . "</strong>.";
+            $_SESSION['pago_msg'] = implode(' ', $msg_parts);
+        } elseif ($shouldCreatePromise && $saldoRestante > 0.01) {
+            $msg_parts[] = "<br>✅ Abono de <strong>$" . number_format($amount_applied, 2) . " USD</strong> registrado. Saldo pendiente: <strong>$" . number_format($saldoRestante, 2) . " USD</strong>.";
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         } elseif ($exceso_real > 0.005) {
             $_SESSION['pago_msg'] = implode(' ', $msg_parts);
         }
 
-        $redirect_url = 'dashboard.php?refreshed=1' . $_nodoParam;
+        // Usar session flag en lugar de ?refreshed=1 en la URL para forzar refresh de caché
+        $_SESSION['wisp_force_refresh'] = true;
+        $redirect_url = 'dashboard.php' . ($_nodoActivo !== 'sitelco' ? '?nodo=' . $_nodoActivo : '');
 
 
         // Log
