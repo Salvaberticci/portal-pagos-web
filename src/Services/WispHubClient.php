@@ -35,9 +35,9 @@ class WispHubClient
 
         $this->http = new Client([
             'base_uri'       => $this->baseUrl,
-            'timeout'        => 5,
-            'connect_timeout'=> 3,
-            'read_timeout'   => 5,
+            'timeout'        => 15,
+            'connect_timeout'=> 10,
+            'read_timeout'   => 15,
             'verify'         => $verifySsl,
             'headers'        => [
                 'Authorization' => "Api-Key {$this->apiKey}",

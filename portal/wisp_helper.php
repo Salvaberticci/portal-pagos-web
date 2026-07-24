@@ -71,6 +71,21 @@ function wisp_get_cached_data($wispClient, $serviceId) {
         error_log('[wisp_helper] getServiceProfile falló: ' . $e->getMessage());
     }
 
+    // Si getServiceProfile falló (timeout), intentar con findClientByDocument
+    // usando la cédula de la sesión como fallback
+    if (empty($c_perfil) && session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['cliente_cedula'])) {
+        try {
+            $cedula = $_SESSION['cliente_cedula'];
+            $fallbackRes = $wispClient->findClientByDocument($cedula);
+            if ($fallbackRes['status'] === 200 && !empty($fallbackRes['data']['data'])) {
+                $c_perfil = $fallbackRes['data']['data'];
+                error_log('[wisp_helper] Fallback findClientByDocument OK para cédula ' . $cedula);
+            }
+        } catch (\Throwable $e2) {
+            error_log('[wisp_helper] Fallback findClientByDocument también falló: ' . $e2->getMessage());
+        }
+    }
+
     try {
         $detailRes = $wispClient->getServiceDetail($serviceId);
         if (!empty($detailRes['data'])) {
