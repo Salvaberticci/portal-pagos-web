@@ -245,6 +245,14 @@ git push
 
 ## Changelog - Cambios Recientes
 
+### 2026-07-24 — Refactor flujo abono parcial: Promesa nativa WispHub + fix UTF-8
+**Archivos:** `portal/procesar_pago_cliente.php`, `AGENTS.md`
+
+- **Eliminación de factura duplicada** — Se removió el bloque que creaba manualmente la factura "Saldo pendiente tras abono - Factura #X". WispHub maneja esto nativamente cuando 'Pagos por partes' está activo en la cuenta.
+- **Promesa sobre factura original** — Ahora `addPaymentPromise()` se aplica directamente a `$firstInvoiceId` (la factura del mes) en lugar de a una nueva factura creada por el portal. Esto evita facturas duplicadas en WispHub.
+- **Fix mensajes UTF-8** — Corregidos todos los mensajes de éxito/error con caracteres corruptos (`\u00f3`, `\u00e9`, etc.) reemplazados por texto UTF-8 literal (`ó`, `é`, `✅`).
+- **AGENTS.md actualizado** — Flujo de abono parcial documentado correctamente (comportamiento nativo de WispHub).
+
 ### 2026-07-24 — Fix de detección de nodo por subdominio genérico ('app')
 **Archivos:** `config/wisphub_credentials.php`
 
