@@ -32,9 +32,10 @@ Respuesta: `{"count":N,"results":[{"id":18426,"nombre":"Operacion Bancaria"},...
 
 ## Flujo de abono parcial
 1. WispHub recibe pago < total de factura.
-2. WispHub procesa el pago nativamente (requiere tener 'Pagos por partes' activo en la cuenta WispHub) y mantiene la factura original abierta con saldo pendiente.
-3. El portal calcula los días extra proporcionales y agrega una Promesa de Pago a la factura original.
-4. `wisp_helper.php` lee el saldo restante desde `saldo_nuevo` y `dashboard.php` muestra el monto actualizado.
+2. El portal crea una nueva factura "Saldo pendiente tras abono - Factura #X" ANTES de registrar el pago.
+3. El portal registra el abono en WispHub.
+4. El portal calcula los días extra proporcionales y agrega una Promesa de Pago a la NUEVA factura de saldo.
+5. `wisp_helper.php` filtra: elimina de la vista la factura original (que WispHub ya cobró), y muestra solo la nueva factura hija con el saldo real pendiente.
 
 ## Archivos clave
 - `config/wisphub_credentials.php` — credenciales + forma_pago_id por cuenta

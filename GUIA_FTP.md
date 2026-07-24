@@ -245,13 +245,13 @@ git push
 
 ## Changelog - Cambios Recientes
 
-### 2026-07-24 — Refactor flujo abono parcial: Promesa nativa WispHub + fix UTF-8
-**Archivos:** `portal/procesar_pago_cliente.php`, `AGENTS.md`
+### 2026-07-24 — Restauración del flujo manual de abono parcial y fix URL cache
+**Archivos:** `portal/procesar_pago_cliente.php`, `portal/wisp_helper.php`, `AGENTS.md`
 
-- **Eliminación de factura duplicada** — Se removió el bloque que creaba manualmente la factura "Saldo pendiente tras abono - Factura #X". WispHub maneja esto nativamente cuando 'Pagos por partes' está activo en la cuenta.
-- **Promesa sobre factura original** — Ahora `addPaymentPromise()` se aplica directamente a `$firstInvoiceId` (la factura del mes) en lugar de a una nueva factura creada por el portal. Esto evita facturas duplicadas en WispHub.
-- **Fix mensajes UTF-8** — Corregidos todos los mensajes de éxito/error con caracteres corruptos (`\u00f3`, `\u00e9`, etc.) reemplazados por texto UTF-8 literal (`ó`, `é`, `✅`).
-- **AGENTS.md actualizado** — Flujo de abono parcial documentado correctamente (comportamiento nativo de WispHub).
+- **Restauración de factura duplicada:** Se deshizo el cambio previo. Ahora el portal vuelve a crear manualmente la factura "Saldo pendiente tras abono - Factura #X" **ANTES** de registrar el pago. Esto es necesario porque WispHub (particularmente en cuentas que no tienen "Pagos por partes" activado, como Jalisco/Pampanito) asume que la factura fue saldada y la cierra sin dejar saldo pendiente.
+- **Promesa sobre la factura hija:** La Promesa de Pago se inyecta nuevamente a la factura hija que se acaba de crear, para que el sistema reconozca correctamente la deuda pendiente.
+- **Fix `?refreshed=1` en URL:** Se eliminó el parámetro visible en la URL al ser redirigido de vuelta al dashboard tras un pago. En su lugar, se implementó la variable de sesión interna `$_SESSION['wisp_force_refresh']` para forzar la recarga del caché de forma invisible y limpia.
+- **AGENTS.md actualizado:** Se corrigió el documento para reflejar este flujo (creación manual previa de la factura hija).
 
 ### 2026-07-24 — Fix de detección de nodo por subdominio genérico ('app')
 **Archivos:** `config/wisphub_credentials.php`
