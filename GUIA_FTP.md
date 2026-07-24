@@ -245,6 +245,18 @@ git push
 
 ## Changelog - Cambios Recientes
 
+### 2026-07-24 — Fix forma_pago multi-cuenta + Filtro facturas saldo pendiente en Dashboard
+**Archivos:** `config/wisphub_credentials.php`, `config/wisp_hub.php`, `portal/wisp_helper.php`, `portal/dashboard.php`, `portal/pago.php`, `portal/procesar_pago_cliente.php`, `portal/bdv_autoverify_helper.php`, `portal/simulador.php`
+
+- **forma_pago_id por cuenta** — Cada cuenta ahora tiene su propio `forma_pago_operacion_bancaria`:
+  - Sitelco: `45181` (api.wisphub.net)
+  - Jalisco: `18426` (api.wisphub.io) ← descubierto vía endpoint `formas-de-pago/`
+  - Pampanito: `6645` (api.wisphub.app) ← descubierto vía endpoint `formas-de-pago/`
+- **Constante dinámica** `WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA` — Los callers (`procesar_pago_cliente.php`, `bdv_autoverify_helper.php`, `simulador.php`) ahora usan esta constante en vez del valor hardcodeado `45181`
+- **wisp_helper.php** — Fix de field mappings: `total_cobrado`, `saldo_nuevo` y `saldo` ahora usan valores reales de la API (antes eran 0 y copias de `total`). Nuevo filtro que elimina facturas padre cuando existe una factura hija "Saldo pendiente tras abono - Factura #X"
+- **dashboard.php** — Usa `monto_pendiente` en vez de `total` para mostrar el saldo real por factura
+- **pago.php** — Simplificada la lógica de filtrado (ahora lo hace `wisp_helper.php` centralizadamente)
+
 ### 2026-07-23 — Fix completo preservación de nodo + Cuenta Pampanito
 **Archivos:** `config/wisphub_credentials.php`, `portal/index.php`, `portal/dashboard.php`, `portal/pago.php`, `portal/procesar_pago_cliente.php`
 

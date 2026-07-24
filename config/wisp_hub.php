@@ -7,4 +7,5 @@ return [
     'cron_secret'  => defined('WISP_HUB_CRON_SECRET') ? WISP_HUB_CRON_SECRET : '',
     'verify_ssl'   => defined('WISP_HUB_VERIFY_SSL') ? WISP_HUB_VERIFY_SSL : false,
     'account_ref'  => defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : 'sitelco',
+    'forma_pago_operacion_bancaria' => defined('WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA') ? WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA : 45181,
 ];

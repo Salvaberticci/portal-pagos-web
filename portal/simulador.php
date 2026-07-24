@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $monto,
                     $ref,
                     date('Y-m-d H:i'),
-                    \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
+                    WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA,
                     true // force activate
                 );
                 if (in_array($res['status'], [200, 201])) {

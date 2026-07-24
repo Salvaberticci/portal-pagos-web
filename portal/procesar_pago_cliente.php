@@ -376,7 +376,7 @@ try {
             $monto_pago_wisp,
             $referencia_wisp,
             $wispDate,
-            \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA,
+            WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA,
             false,
             '',
             $invoice_ids

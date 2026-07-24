@@ -117,37 +117,17 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
     $saldo_favor = isset($_GET['test_saldo']) ? floatval($_GET['test_saldo']) : ($wisp_cached['balance'] ?? 0);
     $sf_local_pago = $wisp_cached['saldo_favor_local'] ?? 0;
 
-    // ── Filtrar duplicados: si hay una factura "Saldo pendiente tras abono - Factura #X",
-    // la factura #X padre ya fue parcialmente cobrada y NO debe mostrarse por separado.
-    // Solo se muestra la factura hija (el saldo real pendiente).
-    $idsConHijoPendiente = [];
-    foreach ($invoices as $inv) {
-        $articulos = $inv['articulos'] ?? [];
-        foreach ($articulos as $art) {
-            $desc = $art['descripcion'] ?? '';
-            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m)) {
-                $idsConHijoPendiente[(int)$m[1]] = true;
-            }
-        }
-    }
-
+    // (Las facturas de "Saldo pendiente tras abono" ya vienen filtradas desde wisp_helper)
     $deuda_total = 0;
     $invoices_json = [];
     $totalInvoices = count($invoices);
     foreach ($invoices as $inv) {
         $id = $inv['id'] ?? $inv['id_factura'] ?? 0;
         $total = floatval($inv['total'] ?? 0);
-        // Saltar notas de crédito (total negativo)
         if ($total <= 0) continue;
         $cobrado = floatval($inv['total_cobrado'] ?? 0);
-        // Siempre calculamos el monto pendiente basado en el total cobrado actualizado
         $monto = max(0, $total - $cobrado);
-        // Saltar facturas completamente pagadas
-        if ($cobrado >= $total)
-            continue;
-        // Saltar facturas padre que ya tienen un hijo de saldo pendiente en WispHub
-        // (evita mostrar la factura original junto con la factura de saldo)
-        if (isset($idsConHijoPendiente[(int)$id])) continue;
+        if ($cobrado >= $total) continue;
         $deuda_total += $monto;
         $monto_bs = $monto * $tasa_bcv;
         $desc = wisp_extract_desc($inv, $id);

@@ -176,7 +176,7 @@ function verificar_y_aprobar_pago_bdv(
                 $monto_usd, 
                 $referencia, 
                 $wispDate,
-                \Services\WispHubClient::FORMA_PAGO_OPERACION_BANCARIA, 
+                WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA, 
                 false, 
                 ''
             );

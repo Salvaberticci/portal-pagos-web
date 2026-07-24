@@ -1,4 +1,5 @@
 <?php
+@session_start();
 header('Content-Type: text/html; charset=utf-8');
 ?><!DOCTYPE html>
 <html lang="es">
@@ -67,9 +68,7 @@ require_once __DIR__ . '/../config/wisphub_credentials.php';
 function testDetect(array $get, array $server, array $session, string $expected): bool {
     $_GET = $get;
     $_SERVER = array_merge(['HTTP_HOST' => 'app.marateltru.com', 'REQUEST_URI' => '/portal/'], $server);
-    if (session_status() !== PHP_SESSION_ACTIVE) @session_start();
     $_SESSION = $session;
-    // La función ya está definida, solo la llamamos
     $result = _wisp_detect_nodo();
     // Mapear alias a account_ref
     $map = ['jalisco'=>'jalisco','wiven'=>'jalisco','km23'=>'sitelco','bosque'=>'sitelco','escuque'=>'sitelco','cumbres'=>'sitelco','sitelco'=>'sitelco','pampanito'=>'pampanito','trujillo'=>'pampanito','staana'=>'pampanito'];

@@ -336,7 +336,7 @@ $cache_time = 3600;
                                 $displayedAny = false;
                                 foreach ($pending_invoices as $inv):
                                     $inv_id = $inv['id'] ?? $inv['id_factura'] ?? 0;
-                                    $inv_monto = floatval($inv['total'] ?? $inv['monto'] ?? $inv['monto_pendiente'] ?? 0);
+                                    $inv_monto = floatval($inv['monto_pendiente'] ?? $inv['total'] ?? $inv['monto'] ?? 0);
                                     if ($inv_monto < 0) continue; // nota de crédito
                                     $displayedAny = true;
                                     $inv_monto_bs = $inv_monto * $tasa_bcv;

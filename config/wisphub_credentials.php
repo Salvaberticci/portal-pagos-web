@@ -20,7 +20,7 @@ $WISPHUB_ACCOUNTS = [
         'api_secret' => '',
         'base_url'   => 'https://api.wisphub.net/api',
         'verify_ssl' => false,
-        // Nodos que pertenecen a esta cuenta (para referencia, no usados en código)
+        'forma_pago_operacion_bancaria' => 45181,
         'nodos'      => ['km23', 'bosque', 'escuque', 'cumbres'],
     ],
     'jalisco' => [
@@ -29,6 +29,7 @@ $WISPHUB_ACCOUNTS = [
         'api_secret' => '',
         'base_url'   => 'https://api.wisphub.io/api',
         'verify_ssl' => false,
+        'forma_pago_operacion_bancaria' => 18426,
         'nodos'      => ['jalisco'],
     ],
     'pampanito' => [
@@ -37,6 +38,7 @@ $WISPHUB_ACCOUNTS = [
         'api_secret' => '',
         'base_url'   => 'https://api.wisphub.app/api',
         'verify_ssl' => false,
+        'forma_pago_operacion_bancaria' => 6645,
         'nodos'      => ['pampanito', 'trujillo', 'staana'],
     ],
     // ── Agrega nuevas cuentas aquí siguiendo el mismo formato ──
@@ -114,6 +116,7 @@ define('WISP_HUB_API_KEY',        $_creds['api_key']);
 define('WISP_HUB_API_SECRET',     $_creds['api_secret'] ?? '');
 define('WISP_HUB_BASE_URL',       $_creds['base_url'] ?? 'https://api.wisphub.net/api');
 define('WISP_HUB_VERIFY_SSL',     $_creds['verify_ssl'] ?? false);
+define('WISP_HUB_FORMA_PAGO_OPERACION_BANCARIA', $_creds['forma_pago_operacion_bancaria'] ?? 45181);
 define('WISP_HUB_CRON_SECRET',    'cambia_esta_clave_por_una_unica'); // Para los crons
 
 unset($_nodo_detectado, $_account_ref, $_creds);
