@@ -245,6 +245,12 @@ git push
 
 ## Changelog - Cambios Recientes
 
+### 2026-07-24 — Fix de detección de nodo por subdominio genérico ('app')
+**Archivos:** `config/wisphub_credentials.php`
+
+- **_wisp_detect_nodo:** Se reordenó la validación para priorizar la sesión (si existe `$_SESSION['wisp_account_ref']`) por encima del subdominio de la URL.
+- **Filtro de subdominios genéricos:** Se excluyen explícitamente los subdominios `app`, `www` y `portal` para que no sean interpretados como un alias de nodo, evitando que en producción (`app.marateltru.com`) se sobreescribiera la cuenta del usuario y se consultara incorrectamente al nodo por defecto (`sitelco`). Esto soluciona el problema de los tableros vacíos para Jalisco y Pampanito.
+
 ### 2026-07-24 — Fix perfil N/A: timeouts 5s→15s + fallback findClientByDocument
 **Archivos:** `src/Services/WispHubClient.php`, `portal/wisp_helper.php`, `portal/pago.php`, `AGENTS.md`, `GUIA_FTP.md`
 

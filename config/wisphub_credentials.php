@@ -54,16 +54,18 @@ function _wisp_detect_nodo(): string {
     if (!empty($_GET['nodo'])) {
         return strtolower(preg_replace('/[^a-z0-9_-]/i', '', $_GET['nodo']));
     }
-    // 2. Intentar desde el subdominio
+    // 2. Intentar desde la sesión (el cliente ya inició sesión y guardamos su nodo)
+    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['wisp_account_ref'])) {
+        return $_SESSION['wisp_account_ref'];
+    }
+    // 3. Intentar desde el subdominio
     $host = strtolower($_SERVER['HTTP_HOST'] ?? '');
     $subdomains = explode('.', $host);
     if (count($subdomains) >= 3) {
-        return $subdomains[0];
-    }
-    // 3. Intentar desde la sesión (el cliente ya inició sesión y guardamos su nodo)
-    //    VA ANTES del regex de URL para evitar que capture nombres de archivos PHP
-    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['wisp_account_ref'])) {
-        return $_SESSION['wisp_account_ref'];
+        $sub = $subdomains[0];
+        if (!in_array($sub, ['app', 'www', 'portal'], true)) {
+            return $sub;
+        }
     }
     // 4. Intentar desde PATH_INFO o REQUEST_URI (rutas limpias /portal/jalisco)
     $uri = $_SERVER['REQUEST_URI'] ?? '';
