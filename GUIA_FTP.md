@@ -245,6 +245,15 @@ git push
 
 ## Changelog - Cambios Recientes
 
+### 2026-07-24 — Fix perfil N/A: timeouts 5s→15s + fallback findClientByDocument
+**Archivos:** `src/Services/WispHubClient.php`, `portal/wisp_helper.php`, `portal/pago.php`, `AGENTS.md`, `GUIA_FTP.md`
+
+- **Timeouts aumentados** — constructor de `WispHubClient`: 5s→15s, connect 3s→10s, read 5s→15s
+- **Fallback perfil** — Si `getServiceProfile()` timeout, `wisp_helper.php` usa `findClientByDocument()` con la cédula de la sesión
+- **monto_pendiente corregido** — Ahora usa `saldo_nuevo` primero, luego `estado` real de la API. Facturas con `total_cobrado=total` pero estado "Pendiente de Pago" se muestran correctamente
+- **estado real** — `wisp_helper.php` pasa el string `estado` de la API (ya no hardcodea 1). `pago.php` usa `monto_pendiente` en lugar de `total-cobrado`
+- **AGENTS.md** — Creado con resumen operativo
+
 ### 2026-07-24 — Fix forma_pago multi-cuenta + Filtro facturas saldo pendiente en Dashboard
 **Archivos:** `config/wisphub_credentials.php`, `config/wisp_hub.php`, `portal/wisp_helper.php`, `portal/dashboard.php`, `portal/pago.php`, `portal/procesar_pago_cliente.php`, `portal/bdv_autoverify_helper.php`, `portal/simulador.php`
 

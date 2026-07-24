@@ -22,6 +22,14 @@ Authorization: Api-Key {api_key}
 ```
 Respuesta: `{"count":N,"results":[{"id":18426,"nombre":"Operacion Bancaria"},...]}`
 
+## Timeouts
+- `WispHubClient.php`: timeout=15s, connect_timeout=10s, read_timeout=15s (HostGator es lento)
+- Si `getServiceProfile()` falla (timeout), `wisp_helper.php` usa `findClientByDocument()` con la cédula de la sesión como fallback
+
+## Monto pendiente y estado
+- WispHub puede tener facturas con `total_cobrado = total` pero estado "Pendiente de Pago"
+- `monto_pendiente` se calcula: `saldo_nuevo > 0 ? saldo_nuevo : (estado pendiente ? total : total - cobrado)`
+
 ## Flujo de abono parcial
 1. WispHub recibe pago < total de factura
 2. WispHub crea factura "Saldo pendiente tras abono - Factura #X" por el saldo restante
