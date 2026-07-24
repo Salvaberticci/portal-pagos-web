@@ -94,6 +94,8 @@ if (empty($allAccounts)) {
 }
 if (!empty($allAccounts)) {
     $testedEndpoints = ['clientes/?limit=1', 'clientes/902/perfil/', 'clientes/902/saldo/', 'clientes/902/', 'facturas/?estado=1&limit=1'];
+    // Endpoints de escritura (POST) — probamos con GET para verificar que la ruta existe
+    $writeEndpoints = ['facturas/999999/registrar-pago/', 'facturas/', 'promesa-pago/', 'clientes/activar/'];
     foreach ($allAccounts as $ref => $acct) {
         $label = $acct['label'] ?? $ref;
         $apiKey = $acct['api_key'] ?? '';
@@ -104,6 +106,7 @@ if (!empty($allAccounts)) {
         $prefix = $isActive ? '★ ' : '  ';
         $shortKey = substr($apiKey, 0, 10) . '...';
 
+        // GET endpoints
         foreach ($testedEndpoints as $ep) {
             test("WispHub [{$label}] GET /{$ep}", function() use ($baseUrl, $apiKey, $verifySsl, $ep) {
                 $ch = curl_init($baseUrl . '/' . $ep);
@@ -126,6 +129,31 @@ if (!empty($allAccounts)) {
                     if (isset($data['data']['saldo'])) $detalle .= ' - Saldo: ' . $data['data']['saldo'];
                 }
                 return $detalle;
+            });
+        }
+
+        // POST endpoints — probar con GET para verificar que la ruta existe (debe dar 405)
+        foreach ($writeEndpoints as $ep) {
+            test("WispHub [{$label}] PATH /{$ep}", function() use ($baseUrl, $apiKey, $verifySsl, $ep) {
+                $ch = curl_init($baseUrl . '/' . $ep);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_NOBODY => true,
+                    CURLOPT_CONNECTTIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => $verifySsl,
+                    CURLOPT_HTTPHEADER => ["Authorization: Api-Key {$apiKey}"],
+                ]);
+                $resp = curl_exec($ch);
+                $http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $error = curl_error($ch);
+                $finalUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+                curl_close($ch);
+                // 405 = Method Not Allowed (esperado — la ruta existe pero requiere POST)
+                // 404 = Not Found (la ruta NO existe en este WispHub)
+                // 200 = aceptó GET (ruta funcional)
+                if ($error) return "FALLÓ: {$error}";
+                if ($http === 405) return "HTTP {$http} (OK — existe, requiere POST)";
+                if ($http === 404) return "HTTP {$http} (⚠️ RUTA NO EXISTE en este WispHub)";
+                if ($http === 200) return "HTTP {$http} (ruta funcional vía GET)";
+                return "HTTP {$http}";
             });
         }
     }

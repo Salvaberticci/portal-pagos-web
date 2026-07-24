@@ -261,6 +261,10 @@ git push
 - **security_helper.php** — Session timeout ahora preserva `?nodo=` en el redirect
 - **login.php** — Legacy login corregido para preservar nodo en todos sus redirects
 - **test_nodo.php** — Script de test para verificar preservación de nodo (acceso: `https://app.marateltru.com/portal/test_nodo.php?nodo=jalisco`)
+- **test_endpoints.php** — Script para testear endpoints POST de WispHub en todas las cuentas (`https://app.marateltru.com/portal/test_endpoints.php`)
+- **diagnostico.php** — Agregados tests de PATH para cada endpoint de escritura WispHub
+- **WispHubClient.php** — Agregado verbose logging en `registerPaymentAndActivate()` para debuggear fallos
+- **procesar_pago_cliente.php** — Logging del config `base_url` usado
 - **Cédulas de prueba:** Jalisco `V-9174522` (DALIA CAMACHO), Pampanito `15217235` (Beatriz Araujo)
 
 ### 2026-07-07 — Corrección fecha promesa + Filtro facturas padre + Referencia real del banco

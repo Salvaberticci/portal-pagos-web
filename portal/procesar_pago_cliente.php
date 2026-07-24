@@ -128,6 +128,7 @@ try {
     require_once __DIR__ . '/../vendor/autoload.php';
     require_once __DIR__ . '/../src/Services/WispHubClient.php';
     $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
+    error_log("[procesar_pago] wispConfig base_url=" . ($wispConfig['base_url'] ?? 'NONE') . " account_ref=" . ($wispConfig['account_ref'] ?? 'NONE'));
     if (DEV_MODE && $cedula === TEST_USER_CEDULA) {
         require_once __DIR__ . '/../src/Services/WispHubDevModeClient.php';
         $wispClient = new \Services\WispHubDevModeClient($wispConfig);

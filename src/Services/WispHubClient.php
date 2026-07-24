@@ -330,6 +330,9 @@ class WispHubClient
         string $cedula = '',
         array  $invoiceIds = []
     ): array {
+        $logTag = "[WispHubClient] registerPaymentAndActivate(baseUrl={$this->baseUrl}, serviceId={$serviceId}, amount={$amount}, ref={$reference}, invoiceIds=" . json_encode($invoiceIds) . ")";
+        error_log($logTag . " INICIO");
+
         // Si se pas├│ c├®dula, buscar service_id en WispHub en tiempo real
         if (!empty($cedula)) {
             $clientInfo = $this->getClientByDocument($cedula);
@@ -359,6 +362,7 @@ class WispHubClient
 
         // 1. Obtener facturas pendientes (ordenadas por vencimiento, m├ís antigua primero)
         $invoices = $this->getPendingInvoices($serviceId);
+        error_log($logTag . " getPendingInvoices count=" . count($invoices));
 
         // Filtrar solo las facturas seleccionadas si se especificaron IDs
         if (!empty($invoiceIds)) {
@@ -366,6 +370,7 @@ class WispHubClient
             $invoices = array_values(array_filter($invoices, function ($inv) use ($invoiceIds) {
                 return in_array(strval($inv['id'] ?? $inv['id_factura'] ?? ''), $invoiceIds, true);
             }));
+            error_log($logTag . " filtered to " . count($invoices) . " invoices by IDs");
         }
 
         $results['invoices_found'] = count($invoices);
@@ -385,6 +390,7 @@ class WispHubClient
                 'referencia'    => $reference,
                 'total_cobrado' => $toPay,
             ]);
+            error_log($logTag . " POST registrar-pago invoice={$invoice['id']} status={$payResult['status']} body=" . json_encode($payResult['data'] ?? $payResult['error'] ?? '?'));
 
             $results['payments_registered'][] = [
                 'invoice_id'      => $invoice['id'],
@@ -403,6 +409,7 @@ class WispHubClient
         $results['amount_total']  = $amount;
         $results['amount_applied'] = $amount - $remaining;
         $results['amount_unused']  = $remaining;
+        error_log($logTag . " amount_applied=" . ($amount - $remaining) . " amount_unused=" . $remaining);
 
         // 3. Activar servicio si es necesario
         if ($forceActivate) {
@@ -420,6 +427,7 @@ class WispHubClient
             }
         }
 
+        error_log($logTag . " FIN status=" . $results['status'] . " activation=" . json_encode($results['activation']));
         return $results;
     }
 
