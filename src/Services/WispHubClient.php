@@ -242,7 +242,7 @@ class WispHubClient
      */
     public function getInvoices(array $filters = []): array
     {
-        $result = $this->request('GET', 'facturas/', $filters, 3);
+        $result = $this->request('GET', 'facturas/', $filters);
         if ($result['status'] === 200 && !empty($result['data']['results'])) {
             return $result['data']['results'];
         }
