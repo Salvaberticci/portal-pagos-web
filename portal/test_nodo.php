@@ -248,7 +248,7 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $livePages = [
     'index.php?nodo=jalisco' => 'Login Jalisco — debe mostrar badge "Wiven - Nodo Jalisco" y ?nodo=jalisco en form action',
     'index.php?nodo=pampanito' => 'Login Pampanito — badge "Pampanito - Trujillo - Sta Ana" y ?nodo=pampanito en form action',
-    'index.php' => 'Login Sitelco (default) — badge "SITELCO / Galanet" sin ?nodo=',
+    'index.php' => 'Login Sitelco (default) — badge "Sitelco (Principal)" sin ?nodo=',
 ];
 
 foreach ($livePages as $url => $desc) {
@@ -276,7 +276,7 @@ foreach ($livePages as $url => $desc) {
             else nok("Form action NO contiene ?nodo=pampanito", $fullUrl);
         } else {
             // Sitio sin nodo
-            $hasSitelco = (strpos($html, 'SITELCO') !== false || strpos($html, 'Galanet') !== false);
+            $hasSitelco = (strpos($html, 'SITELCO') !== false || strpos($html, 'Sitelco') !== false);
             $noNodo = (strpos($html, '?nodo=') === false && strpos($html, '&nodo=') === false);
             if ($hasSitelco && $noNodo) ok("Sin ?nodo= en URL — badge muestra Sitelco", $fullUrl);
             else nok("Sin ?nodo= — verificar badge/links", $fullUrl);

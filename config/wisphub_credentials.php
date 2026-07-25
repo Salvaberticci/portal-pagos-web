@@ -15,7 +15,7 @@
 // ─── CUENTAS DE WISPHUB ──────────────────────────────────────────────────────
 $WISPHUB_ACCOUNTS = [
     'sitelco' => [
-        'label'      => 'SITELCO / Galanet (Principal)',
+        'label'      => 'Sitelco (Principal)',
         'api_key'    => 'ubxyK8jE.BoTLrjCN8zRDaaybVL6E3X270cojY15W',
         'api_secret' => '',
         'base_url'   => 'https://api.wisphub.net/api',
