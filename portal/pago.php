@@ -469,7 +469,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                             <i class="fas fa-check-circle me-2"></i> Confirmar y Pagar
                         </button>
                         <a href="dashboard.php<?php echo $pagoNodoRef !== 'sitelco' ? '?nodo=' . $pagoNodoRef : ''; ?>" class="btn btn-pagar d-none" id="btn_ir_dashboard">
-                            <i class="fas fa-arrow-left me-2"></i> Ir al Dashboard
+                            <i class="fas fa-arrow-left me-2"></i> Cerrar e ir al inicio
                         </a>
                     </div>
                 </div>
@@ -902,8 +902,8 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     var resFooter = document.querySelector('#modalResultado .modal-footer');
                     if (resFooter) resFooter.style.display = 'flex';
                     
-                    var secondsLeft = 12;
-                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Redirigiendo al dashboard en <span id="redirect_countdown">' + secondsLeft + '</span> segundos...</span>';
+                    var secondsLeft = 15;
+                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Esta ventana se cerrará en <span id="redirect_countdown">' + secondsLeft + '</span> segundos...</span>';
                     
                     var countdownInterval = setInterval(function() {
                         secondsLeft--;
