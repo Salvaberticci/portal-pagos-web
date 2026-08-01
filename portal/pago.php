@@ -422,8 +422,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                                 <div>
                                     <h6 class="fw-bold mb-0" style="color: var(--success);">Verificación Bancaria
                                         Exitosa</h6>
-                                    <small class="text-muted">Tu referencia fue verificada. Para terminar, pulsa
-                                        <strong>Confirmar y Pagar</strong>.</small>
+                                    <small class="text-muted">Tu referencia fue verificada. Procesando pago automáticamente en breve...</small>
                                 </div>
                             </div>
                             <div id="confirmacion_verificacion_detalles"></div>
@@ -820,6 +819,8 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                             if (mi) mi.hide();
                         };
                     }
+                    var modalFooter = document.querySelector('#modalConfirmacion .modal-footer');
+                    if (modalFooter) modalFooter.style.display = 'flex';
                     var modal = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
                     modal.show();
                 } else {
@@ -844,13 +845,17 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 panelVerif.classList.remove('d-none');
                 panelVerif.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-                var btnConfirm = document.getElementById('btn_confirmar_pago');
-                btnConfirm.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Pagar';
-                btnConfirm.onclick = function () {
-                    document.getElementById('loadingOverlay').style.display = 'flex';
-                    bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion')).hide();
-                    document.getElementById('paymentForm').submit();
-                };
+                var modalFooter = document.querySelector('#modalConfirmacion .modal-footer');
+                if (modalFooter) modalFooter.style.display = 'none';
+
+                setTimeout(function() {
+                    var loadingOverlay = document.getElementById('loadingOverlay');
+                    if (loadingOverlay) loadingOverlay.style.display = 'flex';
+                    var mi = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion'));
+                    if (mi) mi.hide();
+                    var form = document.getElementById('paymentForm');
+                    if (form) form.submit();
+                }, 3000);
             }
 
             function mostrarModalResultado(tipo, mensaje, data, onConfirm, titulo) {
@@ -893,6 +898,18 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     }
                     btnDash.classList.remove('d-none');
                     btnCerrar.classList.add('d-none');
+                    
+                    var resFooter = document.querySelector('#modalResultado .modal-footer');
+                    if (resFooter) resFooter.style.display = 'none';
+                    
+                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Redirigiendo al dashboard en breve...</span>';
+                    
+                    setTimeout(function() {
+                        var dashLink = document.getElementById('btn_ir_dashboard');
+                        if (dashLink && dashLink.href) {
+                            window.location.href = dashLink.href;
+                        }
+                    }, 3000);
                 } else if (tipo === 'verificacion') {
                     icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>';
                     title.textContent = 'Verificación Bancaria Exitosa';
@@ -911,6 +928,8 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                         dHtml += '</table></div>';
                         details.innerHTML = dHtml;
                     }
+                    var resFooter = document.querySelector('#modalResultado .modal-footer');
+                    if (resFooter) resFooter.style.display = 'flex';
                     btnCerrar.classList.add('d-none');
                     btnConfirm.classList.remove('d-none');
                     if (typeof onConfirm === 'function') {
@@ -956,12 +975,16 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     btnCerrar.classList.remove('btn-sm');
                     btnCerrar.style.fontSize = '1.1rem';
                     btnCerrar.style.padding = '0.75rem 1.5rem';
+                    var resFooter = document.querySelector('#modalResultado .modal-footer');
+                    if (resFooter) resFooter.style.display = 'flex';
                 } else {
                     icon.innerHTML = '<i class="fas fa-times-circle" style="color:var(--danger);"></i>';
                     title.textContent = titulo || 'Error';
                     title.className = 'fw-bold mb-2';
                     title.style.color = 'var(--danger)';
                     msg.textContent = mensaje;
+                    var resFooter = document.querySelector('#modalResultado .modal-footer');
+                    if (resFooter) resFooter.style.display = 'flex';
                 }
 
                 var mi = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalResultado'));
