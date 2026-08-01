@@ -858,7 +858,8 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
 
                 // Configurar el footer con el botón de ir al inicio
                 if (modalFooter) {
-                    modalFooter.innerHTML = '<a href="dashboard.php<?php echo $_nodoActivo !== \'sitelco\' ? \'?nodo=\' . $_nodoActivo : \'\'; ?>" class="btn btn-pagar w-100" id="btn_ir_dashboard_confirm"><i class="fas fa-arrow-left me-2"></i> Cerrar e ir al inicio</a>';
+                    var _dashUrl = 'dashboard.php<?php echo $pagoNodoRef !== "sitelco" ? "?nodo=" . $pagoNodoRef : ""; ?>';
+                    modalFooter.innerHTML = '<a href="' + _dashUrl + '" class="btn btn-pagar w-100" id="btn_ir_dashboard_confirm"><i class="fas fa-arrow-left me-2"></i> Cerrar e ir al inicio</a>';
                     modalFooter.style.display = 'flex';
                 }
 
