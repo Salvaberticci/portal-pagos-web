@@ -900,16 +900,25 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     btnCerrar.classList.add('d-none');
                     
                     var resFooter = document.querySelector('#modalResultado .modal-footer');
-                    if (resFooter) resFooter.style.display = 'none';
+                    if (resFooter) resFooter.style.display = 'flex';
                     
-                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Redirigiendo al dashboard en breve...</span>';
+                    var secondsLeft = 12;
+                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Redirigiendo al dashboard en <span id="redirect_countdown">' + secondsLeft + '</span> segundos...</span>';
                     
-                    setTimeout(function() {
-                        var dashLink = document.getElementById('btn_ir_dashboard');
-                        if (dashLink && dashLink.href) {
-                            window.location.href = dashLink.href;
+                    var countdownInterval = setInterval(function() {
+                        secondsLeft--;
+                        var countElement = document.getElementById('redirect_countdown');
+                        if (countElement) {
+                            countElement.textContent = secondsLeft;
                         }
-                    }, 3000);
+                        if (secondsLeft <= 0) {
+                            clearInterval(countdownInterval);
+                            var dashLink = document.getElementById('btn_ir_dashboard');
+                            if (dashLink && dashLink.href) {
+                                window.location.href = dashLink.href;
+                            }
+                        }
+                    }, 1000);
                 } else if (tipo === 'verificacion') {
                     icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>';
                     title.textContent = 'Verificación Bancaria Exitosa';
