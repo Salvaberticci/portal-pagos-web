@@ -31,7 +31,7 @@ $invoice_ids      = isset($_POST['invoice_ids']) ? $_POST['invoice_ids'] : [];
 $invoice_total    = isset($_POST['invoice_total']) ? floatval($_POST['invoice_total']) : 0;
 $invoice_fecha_emision = isset($_POST['invoice_fecha_emision']) ? trim($_POST['invoice_fecha_emision']) : '';
 
-$redirect_url = 'dashboard.php' . ($_nodoActivo !== 'sitelco' ? '?nodo=' . $_nodoActivo : '');
+$redirect_url = 'pago.php' . ($_nodoActivo !== 'sitelco' ? '?nodo=' . $_nodoActivo : '');
 
 // 1. Rate Limiting
 if (!check_rate_limit('payment_submit', 5, 600)) {
@@ -611,7 +611,7 @@ try {
 
         // Usar session flag en lugar de ?refreshed=1 en la URL para forzar refresh de caché
         $_SESSION['wisp_force_refresh'] = true;
-        $redirect_url = 'dashboard.php' . ($_nodoActivo !== 'sitelco' ? '?nodo=' . $_nodoActivo : '');
+        $redirect_url = 'pago.php' . ($_nodoActivo !== 'sitelco' ? '?nodo=' . $_nodoActivo : '');
 
 
         // Log
