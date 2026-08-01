@@ -373,7 +373,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
 
         <!-- Modal Confirmacion -->
         <div class="modal fade" id="modalConfirmacion" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" id="modalConfirmacionDialog">
                 <div class="modal-content glass-panel p-0">
                     <div class="modal-header border-0 px-3 pt-3 px-sm-4 pt-sm-4">
                         <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Confirmar Pago
@@ -382,7 +382,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     </div>
                     <div class="modal-body px-3 px-sm-4 py-2 py-sm-3">
                         <div id="confirmacion_recibos"></div>
-                        <div class="mt-3 pt-3 border-top border-white border-opacity-10">
+                        <div class="mt-2 pt-2 border-top border-white border-opacity-10" id="confirm_totales_section">
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted">Total Bs:</span>
                                 <span class="fw-bold" id="confirm_total_bs">Bs 0,00</span>
@@ -400,7 +400,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                                 <span class="fw-bold text-success" id="confirm_saldo">$0.00</span>
                             </div>
                         </div>
-                        <div class="mt-3 pt-3 border-top border-white border-opacity-10">
+                        <div class="mt-2 pt-2 border-top border-white border-opacity-10" id="confirm_metodo_section">
                             <div class="d-flex justify-content-between mb-1">
                                 <span class="text-muted">Método:</span>
                                 <span class="fw-bold" id="confirm_metodo">-</span>
@@ -415,14 +415,13 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                             </div>
                         </div>
                         <!-- Panel de Verificación Bancaria (se muestra al verificar la referencia) -->
-                        <div id="confirmacion_verificacion" class="d-none mt-3"
-                            style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 12px; padding: 14px;">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="fas fa-check-circle fa-2x me-2" style="color: var(--success);"></i>
+                        <div id="confirmacion_verificacion" class="d-none mt-2"
+                            style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 10px; padding: 10px;">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas fa-check-circle fa-lg me-2" style="color: var(--success);"></i>
                                 <div>
-                                    <h6 class="fw-bold mb-0" style="color: var(--success);">Verificación Bancaria
-                                        Exitosa</h6>
-                                    <small class="text-muted">Tu referencia fue verificada. Procesando pago automáticamente en breve...</small>
+                                    <h6 class="fw-bold mb-0" style="color: var(--success); font-size:0.9rem;">Verificación Exitosa ✅</h6>
+                                    <small class="text-muted" id="verif_countdown_text">Tu referencia fue verificada y registrada exitosamente.</small>
                                 </div>
                             </div>
                             <div id="confirmacion_verificacion_detalles"></div>
@@ -846,14 +845,24 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 panelVerif.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
                 var modalFooter = document.querySelector('#modalConfirmacion .modal-footer');
-                
-                // Modificar el panel de verificación para añadir el contador
-                var verifSmall = panelVerif.querySelector('small.text-muted');
-                if (verifSmall) {
-                    verifSmall.innerHTML = 'Tu referencia fue verificada y registrada exitosamente. <br><br>' + 
-                        '<span class="fw-bold" style="color:var(--primary);font-size:0.95rem;">' + 
-                        '<i class="fas fa-clock me-2"></i>' + 
-                        'Esta ventana se cerrará en <span id="confirm_secs_countdown">15</span> segundos...</span>';
+
+                // En pantallas pequeñas, ocultar secciones redundantes para ahorrar espacio
+                var totalesSection = document.getElementById('confirm_totales_section');
+                var metodoSection = document.getElementById('confirm_metodo_section');
+                var recibosSection = document.getElementById('confirmacion_recibos');
+                if (window.innerWidth <= 576) {
+                    if (totalesSection) totalesSection.style.display = 'none';
+                    if (metodoSection) metodoSection.style.display = 'none';
+                    if (recibosSection) recibosSection.style.display = 'none';
+                }
+
+                // Actualizar el texto del countdown en el panel de verificación
+                var verifCountdownEl = document.getElementById('verif_countdown_text');
+                if (verifCountdownEl) {
+                    verifCountdownEl.innerHTML = '✅ Verificado y registrado exitosamente.<br>' +
+                        '<span class="fw-bold" style="color:var(--primary);">' +
+                        '<i class="fas fa-clock me-1"></i>' +
+                        'Se cerrará en <span id="confirm_secs_countdown">15</span> seg...</span>';
                 }
 
                 // Configurar el footer con el botón de ir al inicio
@@ -1500,51 +1509,89 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
             }
 
             /* === RESPONSIVE: Modal en móvil === */
-            @media (max-width: 480px) {
+            @media (max-width: 576px) {
+                /* Dialog ocupa casi todo el alto disponible */
                 #modalConfirmacion .modal-dialog {
-                    margin: 0.5rem;
-                    max-height: 97vh;
+                    margin: 6px auto;
+                    max-height: calc(100dvh - 12px);
+                    max-width: calc(100vw - 12px);
                 }
                 #modalConfirmacion .modal-content {
                     border-radius: 12px;
-                }
-                #modalConfirmacion .modal-header {
-                    padding: 10px 12px;
-                }
-                #modalConfirmacion .modal-header h5 {
-                    font-size: 1rem;
+                    max-height: calc(100dvh - 12px);
+                    display: flex;
+                    flex-direction: column;
                 }
                 #modalConfirmacion .modal-body {
+                    overflow-y: auto;
+                    flex: 1 1 auto;
                     padding: 8px 10px;
-                    font-size: 0.85rem;
+                    font-size: 0.82rem;
+                }
+                #modalConfirmacion .modal-header {
+                    padding: 8px 12px;
+                    flex-shrink: 0;
+                }
+                #modalConfirmacion .modal-header h5 {
+                    font-size: 0.95rem;
                 }
                 #modalConfirmacion .modal-footer {
                     padding: 8px 10px;
-                    flex-wrap: wrap;
+                    flex-shrink: 0;
+                    flex-wrap: nowrap;
                     gap: 6px;
                 }
                 #modalConfirmacion .modal-footer .btn {
-                    flex: 1 1 45%;
-                    min-width: 120px;
-                    padding: 10px 8px;
-                    font-size: 0.9rem;
+                    padding: 9px 8px;
+                    font-size: 0.85rem;
                     border-radius: 10px;
                 }
-                #confirmacion_verificacion_detalles .table-premium td {
-                    font-size: 0.78rem;
-                    padding: 6px 4px;
-                    word-break: break-word;
+                /* Recibos más compactos */
+                #confirmacion_recibos {
+                    font-size: 0.8rem;
                 }
+                /* Secciones de totales y método más apretadas */
+                #confirm_totales_section,
+                #confirm_metodo_section {
+                    margin-top: 6px !important;
+                    padding-top: 6px !important;
+                }
+                #confirm_totales_section .d-flex,
+                #confirm_metodo_section .d-flex {
+                    margin-bottom: 2px !important;
+                }
+                /* Panel verificacion compacto */
                 #confirmacion_verificacion {
-                    padding: 10px;
+                    padding: 8px;
+                    margin-top: 6px !important;
+                    border-radius: 8px;
                 }
                 #confirmacion_verificacion h6 {
-                    font-size: 0.85rem;
+                    font-size: 0.82rem;
                 }
-                #confirmacion_verificacion small {
-                    font-size: 0.72rem;
+                #confirmacion_verificacion small,
+                #verif_countdown_text {
+                    font-size: 0.75rem;
+                    line-height: 1.35;
+                }
+                /* Tabla de detalles del banco */
+                #confirmacion_verificacion_detalles .table-premium td,
+                #confirmacion_verificacion_detalles .table-premium th {
+                    font-size: 0.75rem;
+                    padding: 4px 4px;
+                    word-break: break-word;
+                }
+                #confirmacion_verificacion_detalles .table-responsive {
+                    margin-top: 4px;
                 }
                 #confirmacion_error {
+                    padding: 8px;
+                    margin-top: 6px !important;
+                }
+                /* Boton ir al inicio - ancho completo en movil */
+                #btn_ir_dashboard_confirm {
+                    width: 100%;
+                    font-size: 0.88rem;
                     padding: 10px;
                 }
             }
