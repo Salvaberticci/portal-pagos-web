@@ -1035,15 +1035,86 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 var pagoExito = msgsDiv.getAttribute('data-exito');
                 var pagoErr = msgsDiv.getAttribute('data-error');
                 var pagoDetalles = msgsDiv.getAttribute('data-detalles');
-                var data = pagoDetalles ? JSON.parse(pagoDetalles) : null;
-                if (pagoExito) {
-                    mostrarModalResultado('success', pagoExito, data);
-                } else if (pagoErr) {
+                var pagoData = pagoDetalles ? JSON.parse(pagoDetalles) : null;
+
+                if (pagoExito && pagoExito.trim() !== '') {
+                    /* ---- Mostrar modal de PAGO EXITOSO con contador ---- */
+                    var icon   = document.getElementById('result_icon');
+                    var title  = document.getElementById('result_title');
+                    var msg    = document.getElementById('result_message');
+                    var details = document.getElementById('result_details');
+                    var footer = document.querySelector('#modalResultado .modal-footer');
+                    var btnCerrar = document.getElementById('btn_cerrar_resultado');
+                    var btnConfirmR = document.getElementById('btn_confirmar_pago_resultado');
+                    var btnDash = document.getElementById('btn_ir_dashboard');
+
+                    /* Configurar ícono y título */
+                    icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);font-size:3.5rem;"></i>';
+                    title.textContent = '¡Pago Exitoso!';
+                    title.style.color = 'var(--success)';
+
+                    /* Mensaje principal */
+                    if (pagoData && pagoData.accion === 'abono') {
+                        msg.innerHTML = 'Hiciste un <strong>abono</strong> de <strong>Bs ' + parseFloat(pagoData.monto_bs).toFixed(2).replace('.', ',') + '</strong> (equivalente a <strong>$' + parseFloat(pagoData.monto_usd).toFixed(2) + '</strong>).';
+                    } else if (pagoData && pagoData.accion === 'completo') {
+                        msg.innerHTML = 'Hiciste un <strong>pago completo</strong> de <strong>$' + parseFloat(pagoData.monto_usd).toFixed(2) + '</strong>. Tu servicio está al día. ✅';
+                    } else {
+                        msg.innerHTML = pagoExito;
+                    }
+
+                    /* Tabla de detalles */
+                    if (pagoData) {
+                        details.classList.remove('d-none');
+                        var dHtml = '<div class="table-responsive mt-2"><table class="table table-sm table-premium mb-0" style="font-size:0.85rem;">';
+                        if (pagoData.referencia) dHtml += '<tr><td style="font-weight:700;">Referencia</td><td>' + pagoData.referencia + '</td></tr>';
+                        if (pagoData.monto_usd)  dHtml += '<tr><td style="font-weight:700;">Monto USD</td><td>$' + parseFloat(pagoData.monto_usd).toFixed(2) + '</td></tr>';
+                        if (pagoData.monto_bs)   dHtml += '<tr><td style="font-weight:700;">Monto Bs</td><td>Bs ' + parseFloat(pagoData.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                        if (pagoData.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;">Servicio hasta</td><td>' + pagoData.cobertura_hasta + '</td></tr>';
+                        dHtml += '</table></div>';
+                        details.innerHTML = dHtml;
+                    }
+
+                    /* Contador regresivo */
+                    var segsRestantes = 15;
+                    var cuentaHtml = '<br><br><span class="fw-bold" style="color:var(--primary);font-size:0.92rem;">'
+                        + '<i class="fas fa-clock me-2"></i>'
+                        + 'Esta ventana se cerrará en <span id="secs_countdown">' + segsRestantes + '</span> segundos...</span>';
+                    msg.innerHTML += cuentaHtml;
+
+                    /* Botones: mostrar solo "Cerrar e ir al inicio" */
+                    if (btnCerrar)   btnCerrar.classList.add('d-none');
+                    if (btnConfirmR) btnConfirmR.classList.add('d-none');
+                    if (btnDash) {
+                        btnDash.classList.remove('d-none');
+                        btnDash.addEventListener('click', function() {
+                            if (_countdownInterval) { clearInterval(_countdownInterval); _countdownInterval = null; }
+                        }, { once: true });
+                    }
+                    if (footer) footer.style.display = 'flex';
+
+                    /* Arrancar el setInterval */
+                    if (_countdownInterval) clearInterval(_countdownInterval);
+                    _countdownInterval = setInterval(function() {
+                        segsRestantes--;
+                        var el = document.getElementById('secs_countdown');
+                        if (el) el.textContent = segsRestantes;
+                        if (segsRestantes <= 0) {
+                            clearInterval(_countdownInterval);
+                            _countdownInterval = null;
+                            if (btnDash && btnDash.href) window.location.href = btnDash.href;
+                        }
+                    }, 1000);
+
+                    /* Abrir el modal */
+                    var miRes = bootstrap.Modal.getOrCreateInstance(document.getElementById('modalResultado'));
+                    miRes.show();
+
+                } else if (pagoErr && pagoErr.trim() !== '') {
                     var esDuplicada = /ya fue utilizada|duplicad|referencia.*registrada/i.test(pagoErr);
                     if (esDuplicada) {
                         mostrarErrorEnModal(pagoErr, '!REFERENCIA DUPLICADA!', 'warning');
                     } else {
-                        mostrarModalResultado('error', pagoErr, data);
+                        mostrarModalResultado('error', pagoErr, pagoData);
                     }
                 }
             }
