@@ -858,6 +858,8 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 }, 3000);
             }
 
+            var _countdownInterval = null;
+
             function mostrarModalResultado(tipo, mensaje, data, onConfirm, titulo) {
                 var icon = document.getElementById('result_icon');
                 var title = document.getElementById('result_title');
@@ -890,35 +892,43 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                         var dHtml = '<div class="table-responsive mt-2"><table class="table table-sm table-premium mb-0" style="font-size:0.85rem;">';
                         if (data.referencia) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia</td><td style="font-weight:700;color:var(--text-main);">' + data.referencia + '</td></tr>';
                         if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto USD</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
-                        if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referncia </td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                        if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
                         if (data.accion === 'abono' && data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
                         if (data.service_id) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio</td><td style="font-weight:700;color:var(--text-main);">' + data.service_id + '</td></tr>';
                         dHtml += '</table></div>';
                         details.innerHTML = dHtml;
                     }
+
+                    /* --- Botones --- */
                     btnDash.classList.remove('d-none');
                     btnCerrar.classList.add('d-none');
-                    
+
+                    /* --- Footer visible --- */
                     var resFooter = document.querySelector('#modalResultado .modal-footer');
                     if (resFooter) resFooter.style.display = 'flex';
-                    
+
+                    /* --- Contador 15 segundos --- */
+                    if (_countdownInterval) clearInterval(_countdownInterval);
                     var secondsLeft = 15;
-                    msg.innerHTML += '<br><br><span class="text-primary fw-bold"><i class="fas fa-spinner fa-spin me-2"></i> Esta ventana se cerrará en <span id="redirect_countdown">' + secondsLeft + '</span> segundos...</span>';
-                    
-                    var countdownInterval = setInterval(function() {
+                    var countHtml = '<br><br><span class="text-primary fw-bold" id="countdown_wrapper"><i class="fas fa-clock me-2"></i> Esta ventana se cerrará en <span id="redirect_countdown">' + secondsLeft + '</span> segundos...</span>';
+                    msg.innerHTML += countHtml;
+
+                    _countdownInterval = setInterval(function() {
                         secondsLeft--;
-                        var countElement = document.getElementById('redirect_countdown');
-                        if (countElement) {
-                            countElement.textContent = secondsLeft;
-                        }
+                        var countEl = document.getElementById('redirect_countdown');
+                        if (countEl) countEl.textContent = secondsLeft;
                         if (secondsLeft <= 0) {
-                            clearInterval(countdownInterval);
+                            clearInterval(_countdownInterval);
+                            _countdownInterval = null;
                             var dashLink = document.getElementById('btn_ir_dashboard');
-                            if (dashLink && dashLink.href) {
-                                window.location.href = dashLink.href;
-                            }
+                            if (dashLink && dashLink.href) window.location.href = dashLink.href;
                         }
                     }, 1000);
+
+                    /* Cancelar cuenta regresiva si el usuario hace clic manual */
+                    btnDash.addEventListener('click', function() {
+                        if (_countdownInterval) { clearInterval(_countdownInterval); _countdownInterval = null; }
+                    }, { once: true });
                 } else if (tipo === 'verificacion') {
                     icon.innerHTML = '<i class="fas fa-check-circle" style="color:var(--success);"></i>';
                     title.textContent = 'Verificación Bancaria Exitosa';
