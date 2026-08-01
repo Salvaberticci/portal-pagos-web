@@ -373,14 +373,14 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
 
         <!-- Modal Confirmacion -->
         <div class="modal fade" id="modalConfirmacion" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content glass-panel p-0">
-                    <div class="modal-header border-0 px-4 pt-4">
+                    <div class="modal-header border-0 px-3 pt-3 px-sm-4 pt-sm-4">
                         <h5 class="fw-bold mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i> Confirmar Pago
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body px-4">
+                    <div class="modal-body px-3 px-sm-4 py-2 py-sm-3">
                         <div id="confirmacion_recibos"></div>
                         <div class="mt-3 pt-3 border-top border-white border-opacity-10">
                             <div class="d-flex justify-content-between mb-1">
@@ -414,12 +414,39 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                                 <span class="fw-bold" id="confirm_referencia">-</span>
                             </div>
                         </div>
+                        <!-- Panel de Verificación Bancaria (se muestra al verificar la referencia) -->
+                        <div id="confirmacion_verificacion" class="d-none mt-3"
+                            style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 12px; padding: 14px;">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-check-circle fa-2x me-2" style="color: var(--success);"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-0" style="color: var(--success);">Verificación Bancaria
+                                        Exitosa</h6>
+                                    <small class="text-muted">Tu referencia fue verificada. Para terminar, pulsa
+                                        <strong>Confirmar y Pagar</strong>.</small>
+                                </div>
+                            </div>
+                            <div id="confirmacion_verificacion_detalles"></div>
+                        </div>
+                        <!-- Panel de Error (se muestra si la verificación falla) -->
+                        <div id="confirmacion_error" class="d-none mt-3"
+                            style="background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.35); border-radius: 12px; padding: 14px;">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas fa-times-circle fa-2x me-2" id="confirmacion_error_icon"
+                                    style="color: var(--danger);"></i>
+                                <div>
+                                    <h6 class="fw-bold mb-0" id="confirmacion_error_titulo"
+                                        style="color: var(--danger);">Error</h6>
+                                </div>
+                            </div>
+                            <p class="text-muted mb-0" id="confirmacion_error_mensaje"
+                                style="font-size: 0.9rem;"></p>
+                        </div>
                     </div>
                     <div class="modal-footer border-0 px-4 pb-4">
                         <button type="button" class="btn btn-glass flex-fill" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-pagar flex-fill" id="btn_confirmar_pago"
-                            onclick="ejecutarPago()">
-                            <i class="fas fa-check-circle me-2"></i> Confirmar
+                        <button type="button" class="btn btn-pagar flex-fill" id="btn_confirmar_pago">
+                            <i class="fas fa-check-circle me-2"></i> Confirmar y Pagar
                         </button>
                     </div>
                 </div>
@@ -647,7 +674,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
 
             function mostrarModalConfirmacion() {
                 if (selectedIds.length === 0) {
-                    mostrarModalResultado('error', 'Selecciona al menos un recibo para pagar.');
+                    mostrarErrorEnModal('Selecciona al menos un recibo para pagar.');
                     return;
                 }
                 var ref = document.getElementById('input_referencia').value.trim();
@@ -655,14 +682,76 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 var refMaxLen = parseInt(document.getElementById('input_referencia').getAttribute('maxlength') || '15');
                 var refRegex = new RegExp('^\\d{' + refMinLen + ',' + refMaxLen + '}$');
                 if (!ref || !refRegex.test(ref)) {
-                    mostrarModalResultado('error', 'La referencia debe tener entre ' + refMinLen + ' y ' + refMaxLen + ' d\u00edgitos.');
+                    mostrarErrorEnModal('La referencia debe tener entre ' + refMinLen + ' y ' + refMaxLen + ' d\u00edgitos.');
                     return;
                 }
                 if (!selectedMetodo || !selectedBanco) {
-                    mostrarModalResultado('error', 'Selecciona un metodo de pago.');
+                    mostrarErrorEnModal('Selecciona un metodo de pago.');
                     return;
                 }
 
+                // ===== VERIFICACIÓN AUTOMÁTICA (antes de mostrar el modal) =====
+                document.getElementById('loadingOverlay').style.display = 'flex';
+
+                if (selectedMetodo === 'Zelle') {
+                    var montoZelle = document.getElementById('input_zelle_monto').value;
+                    if (!montoZelle || parseFloat(montoZelle) <= 0) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        mostrarErrorEnModal('Ingresa el monto en USD para Zelle.');
+                        return;
+                    }
+                    document.getElementById('input_monto_usd').value = parseFloat(montoZelle).toFixed(2);
+                    document.getElementById('input_monto_usd_real').value = parseFloat(montoZelle).toFixed(2);
+                    document.getElementById('paymentForm').submit();
+                    return;
+                }
+
+                // Todas las referencias de cualquier banco se comprueban con la misma API del Banco BDV
+                var params = new URLSearchParams();
+                params.append('csrf_token', csrfToken);
+                params.append('metodo_pago', selectedMetodo);
+                params.append('id_banco_destino', document.getElementById('input_banco').value);
+                params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
+                params.append('id_contrato', idContrato);
+                params.append('referencia', ref);
+                params.append('monto_usd', document.getElementById('input_monto_usd').value);
+                params.append('invoice_total', document.getElementById('input_invoice_total').value);
+
+                // Agregar facturas seleccionadas
+                var selectedInvoices = selectedIds;
+                if (selectedInvoices.length > 0) {
+                    params.append('invoice_ids', selectedInvoices.join(','));
+                }
+
+                fetch('api_verificar_pago.php', { method: 'POST', body: params })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        if (data.status === 'verified') {
+                            document.getElementById('input_verificacion_data').value = JSON.stringify(data);
+                            document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
+                            // Llenar el resumen del pago en el modal
+                            llenarResumenConfirmacion(ref);
+                            // Mostrar panel de verificación exitosa + botón "Confirmar y Pagar"
+                            mostrarVerificacionConfirmacion(data);
+                            var modal = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
+                            modal.show();
+                        } else if (data.status === 'manual') {
+                            llenarResumenConfirmacion(ref);
+                            mostrarErrorEnModal(data.message || 'Error al verificar el pago. El sistema de verificación automática no está configurado.');
+                        } else {
+                            llenarResumenConfirmacion(ref);
+                            mostrarErrorEnModal(data.message || 'Error al verificar el pago.', data.titulo, data.tipo);
+                        }
+                    })
+                    .catch(function () {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        llenarResumenConfirmacion(ref);
+                        mostrarErrorEnModal('Error de conexion. Intenta de nuevo.');
+                    });
+            }
+
+            function llenarResumenConfirmacion(ref) {
                 var totalUSD = 0;
                 var html = '';
                 for (var i = 0; i < recibos.length; i++) {
@@ -699,66 +788,69 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
 
                 document.getElementById('input_monto_usd').value = totalUSD.toFixed(2);
 
-                var modal = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
-                modal.show();
+                // Reset de paneles
+                var panelError = document.getElementById('confirmacion_error');
+                if (panelError) panelError.classList.add('d-none');
             }
 
-            function ejecutarPago() {
-                document.getElementById('loadingOverlay').style.display = 'flex';
-                bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion')).hide();
+            function mostrarErrorEnModal(mensaje, titulo, tipo) {
+                var panelError = document.getElementById('confirmacion_error');
+                var panelVerif = document.getElementById('confirmacion_verificacion');
+                if (panelVerif) panelVerif.classList.add('d-none');
+                if (panelError) {
+                    var esWarning = (tipo === 'warning');
+                    var color = esWarning ? '#f59e0b' : 'var(--danger)';
+                    var bgColor = esWarning ? 'rgba(245, 158, 11, 0.08)' : 'rgba(220, 38, 38, 0.08)';
+                    var borderColor = esWarning ? 'rgba(245, 158, 11, 0.35)' : 'rgba(220, 38, 38, 0.35)';
+                    var iconClass = esWarning ? 'fa-exclamation-triangle' : 'fa-times-circle';
 
-                var ref = document.getElementById('input_referencia').value.trim();
-
-                if (selectedMetodo === 'Zelle') {
-                    var montoZelle = document.getElementById('input_zelle_monto').value;
-                    if (!montoZelle || parseFloat(montoZelle) <= 0) {
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        mostrarModalResultado('error', 'Ingresa el monto en USD para Zelle.');
-                        return;
+                    panelError.style.background = bgColor;
+                    panelError.style.borderColor = borderColor;
+                    document.getElementById('confirmacion_error_icon').className = 'fas ' + iconClass + ' fa-2x me-2';
+                    document.getElementById('confirmacion_error_icon').style.color = color;
+                    document.getElementById('confirmacion_error_titulo').textContent = titulo || (esWarning ? 'Advertencia' : 'Error');
+                    document.getElementById('confirmacion_error_titulo').style.color = color;
+                    document.getElementById('confirmacion_error_mensaje').textContent = mensaje;
+                    panelError.classList.remove('d-none');
+                    var btnConfirm = document.getElementById('btn_confirmar_pago');
+                    if (btnConfirm) {
+                        btnConfirm.innerHTML = '<i class="fas fa-times-circle me-2"></i> Cerrar';
+                        btnConfirm.onclick = function () {
+                            var mi = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion'));
+                            if (mi) mi.hide();
+                        };
                     }
-                    document.getElementById('input_monto_usd').value = parseFloat(montoZelle).toFixed(2);
-                    document.getElementById('input_monto_usd_real').value = parseFloat(montoZelle).toFixed(2);
+                    var modal = new bootstrap.Modal(document.getElementById('modalConfirmacion'));
+                    modal.show();
+                } else {
+                    mostrarModalResultado('error', mensaje);
+                }
+            }
+
+            function mostrarVerificacionConfirmacion(data) {
+                var panelVerif = document.getElementById('confirmacion_verificacion');
+                var panelError = document.getElementById('confirmacion_error');
+                if (panelError) panelError.classList.add('d-none');
+                var details = document.getElementById('confirmacion_verificacion_detalles');
+                var dHtml = '<div class="table-responsive mt-1"><table class="table table-sm table-premium mb-0" style="font-size:0.85rem;">';
+                if (data.monto_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto Verificado</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.monto_usd).toFixed(2) + '</td></tr>';
+                if (data.movimiento && data.movimiento.referencia_banco) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Referencia Bancaria</td><td style="font-weight:700;color:var(--text-main);">' + data.movimiento.referencia_banco.slice(-8) + '</td></tr>';
+                if (data.monto_bs) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Monto en Bs</td><td style="font-weight:700;color:var(--text-main);">Bs ' + parseFloat(data.monto_bs).toFixed(2).replace('.', ',') + '</td></tr>';
+                if (data.deuda_seleccionada_usd) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Deuda Seleccionada</td><td style="font-weight:700;color:var(--text-main);">$' + parseFloat(data.deuda_seleccionada_usd).toFixed(2) + '</td></tr>';
+                if (data.cobertura_hasta) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Servicio hasta</td><td style="font-weight:700;color:var(--text-main);">' + data.cobertura_hasta + '</td></tr>';
+                if (data.fecha) dHtml += '<tr><td style="font-weight:700;color:var(--text-main);">Fecha de Pago</td><td style="font-weight:700;color:var(--text-main);">' + data.fecha + '</td></tr>';
+                dHtml += '</table></div>';
+                details.innerHTML = dHtml;
+                panelVerif.classList.remove('d-none');
+                panelVerif.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                var btnConfirm = document.getElementById('btn_confirmar_pago');
+                btnConfirm.innerHTML = '<i class="fas fa-check-circle me-2"></i> Confirmar y Pagar';
+                btnConfirm.onclick = function () {
+                    document.getElementById('loadingOverlay').style.display = 'flex';
+                    bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion')).hide();
                     document.getElementById('paymentForm').submit();
-                    return;
-                }
-
-                // Todas las referencias de cualquier banco se comprueban con la misma API del Banco BDV
-                var params = new URLSearchParams();
-                params.append('csrf_token', csrfToken);
-                params.append('metodo_pago', selectedMetodo);
-                params.append('id_banco_destino', document.getElementById('input_banco').value);
-                params.append('fecha_pago', '<?php echo date('Y-m-d'); ?>');
-                params.append('id_contrato', idContrato);
-                params.append('referencia', ref);
-                params.append('monto_usd', document.getElementById('input_monto_usd').value);
-                params.append('invoice_total', document.getElementById('input_invoice_total').value);
-
-                // Agregar facturas seleccionadas
-                var selectedInvoices = selectedIds;
-                if (selectedInvoices.length > 0) {
-                    params.append('invoice_ids', selectedInvoices.join(','));
-                }
-
-                fetch('api_verificar_pago.php', { method: 'POST', body: params })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        if (data.status === 'verified') {
-                            document.getElementById('input_verificacion_data').value = JSON.stringify(data);
-                            document.getElementById('input_monto_usd_real').value = data.monto_usd || 0;
-                            mostrarModalResultado('verificacion', data.descripcion || 'Referencia verificada correctamente.', data, function () {
-                                document.getElementById('paymentForm').submit();
-                            });
-                        } else if (data.status === 'manual') {
-                            mostrarModalResultado('error', data.message || 'Error al verificar el pago. El sistema de verificación automática no está configurado.');
-                        } else {
-                            mostrarModalResultado('error', data.message || 'Error al verificar el pago.', undefined, undefined, data.titulo);
-                        }
-                    })
-                    .catch(function () {
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        mostrarModalResultado('error', 'Error de conexion. Intenta de nuevo.');
-                    });
+                };
             }
 
             function mostrarModalResultado(tipo, mensaje, data, onConfirm, titulo) {
@@ -905,7 +997,12 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 if (pagoExito) {
                     mostrarModalResultado('success', pagoExito, data);
                 } else if (pagoErr) {
-                    mostrarModalResultado('error', pagoErr, data);
+                    var esDuplicada = /ya fue utilizada|duplicad|referencia.*registrada/i.test(pagoErr);
+                    if (esDuplicada) {
+                        mostrarErrorEnModal(pagoErr, '!REFERENCIA DUPLICADA!', 'warning');
+                    } else {
+                        mostrarModalResultado('error', pagoErr, data);
+                    }
                 }
             }
 
@@ -1175,6 +1272,18 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 opacity: 1;
             }
 
+            #confirmacion_verificacion_detalles .table-premium,
+            #confirmacion_verificacion .table-premium {
+                background: transparent !important;
+            }
+            #confirmacion_verificacion_detalles .table-premium td,
+            #confirmacion_verificacion .table-premium td {
+                color: var(--text-main) !important;
+                background: transparent !important;
+                border-bottom-color: var(--border-glass) !important;
+                opacity: 1;
+            }
+
             .modal-content.glass-panel {
                 background: var(--glass-bg) !important;
                 backdrop-filter: blur(16px) !important;
@@ -1230,6 +1339,56 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 background: rgba(59, 130, 246, 0.12);
                 border-color: var(--primary);
                 color: var(--primary);
+            }
+
+            /* === RESPONSIVE: Modal en móvil === */
+            @media (max-width: 480px) {
+                #modalConfirmacion .modal-dialog {
+                    margin: 0.5rem;
+                    max-height: 97vh;
+                }
+                #modalConfirmacion .modal-content {
+                    border-radius: 12px;
+                }
+                #modalConfirmacion .modal-header {
+                    padding: 10px 12px;
+                }
+                #modalConfirmacion .modal-header h5 {
+                    font-size: 1rem;
+                }
+                #modalConfirmacion .modal-body {
+                    padding: 8px 10px;
+                    font-size: 0.85rem;
+                }
+                #modalConfirmacion .modal-footer {
+                    padding: 8px 10px;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                }
+                #modalConfirmacion .modal-footer .btn {
+                    flex: 1 1 45%;
+                    min-width: 120px;
+                    padding: 10px 8px;
+                    font-size: 0.9rem;
+                    border-radius: 10px;
+                }
+                #confirmacion_verificacion_detalles .table-premium td {
+                    font-size: 0.78rem;
+                    padding: 6px 4px;
+                    word-break: break-word;
+                }
+                #confirmacion_verificacion {
+                    padding: 10px;
+                }
+                #confirmacion_verificacion h6 {
+                    font-size: 0.85rem;
+                }
+                #confirmacion_verificacion small {
+                    font-size: 0.72rem;
+                }
+                #confirmacion_error {
+                    padding: 10px;
+                }
             }
         </style>
     </div>

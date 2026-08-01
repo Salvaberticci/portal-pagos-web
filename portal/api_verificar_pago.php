@@ -69,7 +69,7 @@ require_once __DIR__ . '/referencia_helper.php';
 $refInfo = getReferenciaInfo($referencia);
 if ($refInfo) {
     $facturas = $refInfo['facturas'] ? ' #' . $refInfo['facturas'] : '';
-    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'message' => "La referencia {$referencia} ya fue utilizada en la Factura{$facturas} del día {$refInfo['fecha_pago']}, por el cliente {$refInfo['cliente']}."]);
+    echo json_encode(['status' => 'error', 'titulo' => '!REFERENCIA DUPLICADA!', 'tipo' => 'warning', 'message' => "La referencia {$referencia} ya fue utilizada en la Factura{$facturas} del día {$refInfo['fecha_pago']}, por el cliente {$refInfo['cliente']}."]);
     exit;
 }
 
