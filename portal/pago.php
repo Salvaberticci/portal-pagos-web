@@ -846,16 +846,60 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 panelVerif.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
                 var modalFooter = document.querySelector('#modalConfirmacion .modal-footer');
-                if (modalFooter) modalFooter.style.display = 'none';
+                
+                // Modificar el panel de verificación para añadir el contador
+                var verifSmall = panelVerif.querySelector('small.text-muted');
+                if (verifSmall) {
+                    verifSmall.innerHTML = 'Tu referencia fue verificada y registrada exitosamente. <br><br>' + 
+                        '<span class="fw-bold" style="color:var(--primary);font-size:0.95rem;">' + 
+                        '<i class="fas fa-clock me-2"></i>' + 
+                        'Esta ventana se cerrará en <span id="confirm_secs_countdown">15</span> segundos...</span>';
+                }
 
-                setTimeout(function() {
-                    var loadingOverlay = document.getElementById('loadingOverlay');
-                    if (loadingOverlay) loadingOverlay.style.display = 'flex';
-                    var mi = bootstrap.Modal.getInstance(document.getElementById('modalConfirmacion'));
-                    if (mi) mi.hide();
-                    var form = document.getElementById('paymentForm');
-                    if (form) form.submit();
-                }, 3000);
+                // Configurar el footer con el botón de ir al inicio
+                if (modalFooter) {
+                    modalFooter.innerHTML = '<a href="dashboard.php<?php echo $_nodoActivo !== \'sitelco\' ? \'?nodo=\' . $_nodoActivo : \'\'; ?>" class="btn btn-pagar w-100" id="btn_ir_dashboard_confirm"><i class="fas fa-arrow-left me-2"></i> Cerrar e ir al inicio</a>';
+                    modalFooter.style.display = 'flex';
+                }
+
+                // Enviar el formulario en background vía fetch
+                var form = document.getElementById('paymentForm');
+                if (form) {
+                    var formData = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        redirect: 'follow'
+                    }).catch(function(err) {
+                        console.error('Error enviando form:', err);
+                    });
+                }
+
+                // Iniciar el contador regresivo
+                var segsRestantes = 15;
+                if (window._countdownInterval) clearInterval(window._countdownInterval);
+                window._countdownInterval = setInterval(function() {
+                    segsRestantes--;
+                    var el = document.getElementById('confirm_secs_countdown');
+                    if (el) el.textContent = segsRestantes;
+                    if (segsRestantes <= 0) {
+                        clearInterval(window._countdownInterval);
+                        window._countdownInterval = null;
+                        var btnDashConfirm = document.getElementById('btn_ir_dashboard_confirm');
+                        if (btnDashConfirm && btnDashConfirm.href) {
+                            window.location.href = btnDashConfirm.href;
+                        } else {
+                            window.location.href = 'dashboard.php';
+                        }
+                    }
+                }, 1000);
+
+                var btnDashConfirm = document.getElementById('btn_ir_dashboard_confirm');
+                if (btnDashConfirm) {
+                    btnDashConfirm.addEventListener('click', function() {
+                        if (window._countdownInterval) { clearInterval(window._countdownInterval); window._countdownInterval = null; }
+                    });
+                }
             }
 
             var _countdownInterval = null;
