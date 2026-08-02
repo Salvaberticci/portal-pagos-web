@@ -862,7 +862,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     verifCountdownEl.innerHTML = '✅ Verificado y registrado exitosamente.<br>' +
                         '<span class="fw-bold" style="color:var(--primary);">' +
                         '<i class="fas fa-clock me-1"></i>' +
-                        'Se cerrará en <span id="confirm_secs_countdown">15</span> seg...</span>';
+                        'Se cerrará en <span id="confirm_secs_countdown">10</span> seg...</span>';
                 }
 
                 // Configurar el footer con el botón de ir al inicio
@@ -886,7 +886,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                 }
 
                 // Iniciar el contador regresivo
-                var segsRestantes = 15;
+                var segsRestantes = 10;
                 if (window._countdownInterval) clearInterval(window._countdownInterval);
                 window._countdownInterval = setInterval(function() {
                     segsRestantes--;
@@ -1129,7 +1129,7 @@ $pagoNodoRef = defined('WISP_HUB_ACTIVE_ACCOUNT') ? WISP_HUB_ACTIVE_ACCOUNT : ($
                     }
 
                     /* Contador regresivo */
-                    var segsRestantes = 15;
+                    var segsRestantes = 10;
                     var cuentaHtml = '<br><br><span class="fw-bold" style="color:var(--primary);font-size:0.92rem;">'
                         + '<i class="fas fa-clock me-2"></i>'
                         + 'Esta ventana se cerrará en <span id="secs_countdown">' + segsRestantes + '</span> segundos...</span>';
