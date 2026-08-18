@@ -8,6 +8,17 @@ require_once __DIR__ . '/../src/Services/WispHubClient.php';
 $wispConfig = include __DIR__ . '/../config/wisp_hub.php';
 $wispClient = new \Services\WispHubClient($wispConfig);
 
+// Convierte a string seguro valores que WispHub a veces devuelve como array/objeto
+function sim_safe_str($v, string $fallback = ''): string {
+    if (is_array($v)) {
+        foreach (['nombre', 'name', 'label', 'id'] as $k) {
+            if (isset($v[$k]) && (is_string($v[$k]) || is_numeric($v[$k]))) return (string)$v[$k];
+        }
+        return $fallback;
+    }
+    return $v === null ? $fallback : (string)$v;
+}
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $service_id = '902'; // Fijo para pruebas
 $cedula_test = 'V20788775';
@@ -292,6 +303,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['status' => 'error', 'message' => 'Error BD: ' . $e->getMessage()];
                 }
             }
+        } elseif ($action === 'search_payments_by_cedula') {
+            require_once __DIR__ . '/../config/wisphub_credentials.php';
+            require_once __DIR__ . '/referencia_helper.php';
+
+            $cedula = trim($_POST['cedula'] ?? '');
+            if ($cedula === '') {
+                $response = ['status' => 'error', 'message' => 'Ingresa una cédula para buscar.'];
+            } else {
+                $pdo = \getDb();
+                $html = '';
+                $total_pagos = 0;
+                $encontrado = false;
+
+                foreach ($WISPHUB_ACCOUNTS as $ref => $account) {
+                    $client = new \Services\WispHubClient([
+                        'base_url'   => $account['base_url'],
+                        'api_key'    => $account['api_key'],
+                        'verify_ssl' => $account['verify_ssl'] ?? false,
+                    ]);
+
+                    $services = $client->getServicesByCedula($cedula);
+                    if (empty($services)) continue;
+                    $encontrado = true;
+
+                    $html .= "<h6 class='text-warning border-bottom border-secondary pb-1 mt-3'>📡 Cuenta: {$account['label']}</h6>";
+                    foreach ($services as $s) {
+                        $svcId   = $s['id_servicio'] ?? $s['id'] ?? $s['service_id'] ?? 0;
+                        $nombre  = sim_safe_str($s['nombre'] ?? '');
+                        $ced     = sim_safe_str($s['cedula'] ?? '', $cedula);
+                        $usuario = sim_safe_str($s['usuario'] ?? '');
+                        $estado  = sim_safe_str($s['estado'] ?? '');
+
+                        $html .= "<div class='mt-3 p-2 rounded' style='background:rgba(255,255,255,0.05);'>";
+                        $html .= "<div class='small'><strong>" . htmlspecialchars($nombre) . "</strong> | Cédula: " . htmlspecialchars($ced) . " | Usuario: " . htmlspecialchars($usuario) . " | Estado: " . htmlspecialchars($estado) . " | Servicio: {$svcId}</div>";
+
+                        // Facturas pagadas en WispHub
+                        $paid = [];
+                        if (!empty($usuario)) {
+                            $paid = $client->getInvoices(['cliente' => $usuario, 'estado' => 2, 'limit' => 100]);
+                        }
+                        $html .= "<div class='small text-info mt-2'>WispHub — facturas pagadas: " . count($paid) . "</div>";
+                        if (!empty($paid)) {
+                            $html .= '<div style="max-height:300px;overflow-y:auto;">';
+                            $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.7rem;">';
+                            $html .= '<thead><tr><th>#Factura</th><th>Fecha pago</th><th>Total $</th><th>Referencia</th><th>Forma pago</th></tr></thead><tbody>';
+                            foreach ($paid as $p) {
+                                $pid  = $p['id_factura'] ?? $p['id'] ?? '?';
+                                $pfec = $p['fecha_pago'] ?? '';
+                                $ptot = $p['total_cobrado'] ?? $p['total'] ?? '?';
+                                $pref = htmlspecialchars(sim_safe_str($p['referencia'] ?? ''));
+                                $pmet = htmlspecialchars(sim_safe_str($p['forma_pago'] ?? ''));
+                                $html .= "<tr><td>{$pid}</td><td>{$pfec}</td><td class='text-success'>\${$ptot}</td><td style='font-family:monospace'>{$pref}</td><td>{$pmet}</td></tr>";
+                            }
+                            $html .= '</tbody></table></div>';
+                            $total_pagos += count($paid);
+                        } else {
+                            $html .= "<div class='small text-muted'>Sin facturas pagadas en WispHub.</div>";
+                        }
+
+                        // Pagos locales en DB (service_id + nombre para evitar colisión entre cuentas)
+                        $rows = [];
+                        if ($pdo) {
+                            try {
+                                $stmt = $pdo->prepare("SELECT * FROM pagos_registrados WHERE service_id = ? AND (cliente = ? OR cliente LIKE ?) ORDER BY created_at DESC LIMIT 100");
+                                $like = '%' . $nombre . '%';
+                                $stmt->execute([(string)$svcId, $nombre, $like]);
+                                $rows = $stmt->fetchAll();
+                            } catch (\PDOException $e) {
+                                error_log('[simulador] search_payments DB error: ' . $e->getMessage());
+                            }
+                        }
+                        $html .= "<div class='small text-info mt-2'>DB local — pagos registrados: " . count($rows) . "</div>";
+                        if (!empty($rows)) {
+                            $html .= '<div style="max-height:300px;overflow-y:auto;">';
+                            $html .= '<table class="table table-dark table-sm table-striped mb-0" style="font-size:0.7rem;">';
+                            $html .= '<thead><tr><th>Referencia</th><th>Fecha pago</th><th>Monto $</th><th>Bs</th><th>Método</th><th>Facturas</th><th>Zona</th><th>Registrado</th></tr></thead><tbody>';
+                            foreach ($rows as $r) {
+                                $html .= '<tr>';
+                                $html .= '<td style="font-family:monospace;font-weight:700;color:#facc15;">' . htmlspecialchars($r['referencia']) . '</td>';
+                                $html .= '<td>' . htmlspecialchars($r['fecha_pago']) . '</td>';
+                                $html .= '<td class="text-success">$' . number_format($r['total_cobrado'], 2) . '</td>';
+                                $html .= '<td>' . ($r['monto_banco_bs'] !== null ? 'Bs ' . number_format($r['monto_banco_bs'], 2) : '-') . '</td>';
+                                $html .= '<td>' . htmlspecialchars($r['forma_pago']) . '</td>';
+                                $html .= '<td>' . htmlspecialchars($r['facturas']) . '</td>';
+                                $html .= '<td>' . htmlspecialchars($r['zona']) . '</td>';
+                                $html .= '<td style="font-size:0.65rem;">' . htmlspecialchars($r['created_at']) . '</td>';
+                                $html .= '</tr>';
+                            }
+                            $html .= '</tbody></table></div>';
+                            $total_pagos += count($rows);
+                        } else {
+                            $html .= "<div class='small text-muted'>Sin pagos registrados en la DB local.</div>";
+                        }
+                        $html .= '</div>';
+                    }
+                }
+
+                if (!$encontrado) {
+                    $response = ['status' => 'error', 'message' => "Cliente con cédula '{$cedula}' no encontrado en ninguna cuenta."];
+                } else {
+                    $response = ['status' => 'ok', 'html' => $html, 'total' => $total_pagos];
+                }
+            }
         }
     } catch (\Exception $e) {
         $response = ['status' => 'error', 'message' => $e->getMessage()];
@@ -531,6 +645,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
                 <div id="local-ref-result-box" class="p-3 rounded" style="background:rgba(0,0,0,0.3);display:none;font-size:0.85rem;"></div>
             </div>
+
+            <!-- Pagos por Cédula -->
+            <div class="glass-panel">
+                <h5 class="mb-4"><i class="fas fa-search-dollar me-2 text-success"></i> Buscar Pagos por Cédula</h5>
+                <p class="small text-light mb-2">Busca pagos y referencias de un cliente en las 3 cuentas (sitelco, jalisco, pampanito), consultando WispHub y la DB local.</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-8">
+                        <input type="text" id="cedula_search" class="form-control bg-dark text-white border-secondary" placeholder="Cédula (Ej: V19794781)" onkeydown="if(event.key==='Enter')searchByCedula()">
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-success btn-custom w-100" onclick="searchByCedula()">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+                <div id="cedula-result-box" class="p-3 rounded" style="background:rgba(0,0,0,0.3);display:none;font-size:0.85rem;"></div>
+            </div>
         </div>
 
         <!-- Columna Derecha: Consola -->
@@ -635,6 +766,40 @@ function loadLocalRefs() {
         box.style.display = 'block';
         if (data.status === 'ok') {
             logMsg('EXITO: ' + data.total + ' referencia(s) encontrada(s)');
+            box.innerHTML = data.html;
+        } else {
+            logMsg('ERROR: ' + data.message, true);
+            box.innerHTML = '<div class="text-danger small">' + data.message + '</div>';
+        }
+    })
+    .catch(function(err) {
+        document.getElementById('page-loading').style.display = 'none';
+        logMsg('ERROR DE RED: ' + err, true);
+        box.innerHTML = '<div class="text-danger small">Error de red: ' + err + '</div>';
+    });
+}
+
+function searchByCedula() {
+    var cedula = document.getElementById('cedula_search').value.trim();
+    if (!cedula) {
+        logMsg('ERROR: Ingresa una cédula para buscar', true);
+        return;
+    }
+    logMsg('Buscando pagos y referencias de cédula ' + cedula + ' en las 3 cuentas...');
+    document.getElementById('page-loading').style.display = 'flex';
+    var box = document.getElementById('cedula-result-box');
+    box.style.display = 'none';
+    fetch('simulador.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'action=search_payments_by_cedula&cedula=' + encodeURIComponent(cedula)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('page-loading').style.display = 'none';
+        box.style.display = 'block';
+        if (data.status === 'ok') {
+            logMsg('EXITO: ' + data.total + ' pago(s)/factura(s) encontrado(s)');
             box.innerHTML = data.html;
         } else {
             logMsg('ERROR: ' + data.message, true);

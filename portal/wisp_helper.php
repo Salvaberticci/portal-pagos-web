@@ -55,6 +55,92 @@ function wisp_extract_desc($inv, $id) {
     return $desc;
 }
 
+/**
+ * Normaliza una factura de WispHub al formato que usa el dashboard.
+ * Devuelve null si la factura no tiene id (se omite del listado).
+ *
+ * monto_pendiente: la deuda real según WispHub.
+ * 1. Base: total - cobrado (abono parcial con cobrado < total).
+ * 2. saldo_nuevo solo si es MAYOR a la base y hay abono parcial real
+ *    (nunca reducir la deuda por debajo de total - cobrado).
+ * 3. Si la factura está pendiente pero cobrado >= total, WispHub deja
+ *    total_cobrado = total como residuo y los campos saldo/saldo_nuevo
+ *    NO son confiables (ej. #10873: total=30, cobrado=30, saldo=10):
+ *    la deuda real es el total de la factura.
+ */
+function wisp_normalize_invoice(array $inv): ?array
+{
+    $id = $inv['id_factura'] ?? $inv['id'] ?? 0;
+    if (!$id) return null;
+
+    $articulos = $inv['articulos'] ?? [];
+    if (empty($articulos)) {
+        $desc_fallback = '';
+        foreach (['descripcion', 'concepto', 'observacion'] as $k) {
+            if (!empty($inv[$k])) { $desc_fallback = trim($inv[$k]); break; }
+        }
+        if (empty($desc_fallback)) {
+            $desc_fallback = 'Recibo N° ' . $id;
+        }
+        $articulos = [['descripcion' => $desc_fallback]];
+    }
+
+    $invEstado = $inv['estado'] ?? 'Pendiente de Pago';
+    $invTotal = floatval($inv['total'] ?? $inv['sub_total'] ?? $inv['monto'] ?? 0);
+    $invSubTotal = floatval($inv['sub_total'] ?? $invTotal);
+    $invCobrado = floatval($inv['total_cobrado'] ?? 0);
+    $invSaldoNuevo = floatval($inv['saldo_nuevo'] ?? 0);
+    $invSaldo = floatval($inv['saldo'] ?? 0);
+    $invPendiente = (float)max(0, $invTotal - $invCobrado);
+    if ($invSaldoNuevo > $invPendiente && $invCobrado < $invTotal) {
+        $invPendiente = $invSaldoNuevo;
+    }
+    if ($invPendiente <= 0.005 && in_array($invEstado, ['Pendiente de Pago', 'Vencida', 'Pendiente', 'Vencido'])) {
+        $invPendiente = (float)max(0, $invTotal > 0 ? $invTotal : $invSubTotal);
+    }
+
+    return [
+        'id'                => $id,
+        'id_factura'        => $id,
+        'fecha_emision'     => $inv['fecha_emision'] ?? '',
+        'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
+        'total'             => $invTotal,
+        'sub_total'         => $invSubTotal,
+        'saldo_nuevo'       => $invSaldoNuevo,
+        'saldo'             => $invSaldo,
+        'total_cobrado'     => $invCobrado,
+        'estado'            => $invEstado,
+        'monto_pendiente'   => $invPendiente,
+        'articulos'         => $articulos
+    ];
+}
+
+/**
+ * Elimina de la lista las facturas padre que tienen una factura hija
+ * "Saldo pendiente tras abono - Factura #X" (abono parcial). Solo se
+ * muestra la factura hija con el saldo real pendiente.
+ */
+function wisp_filter_saldo_pendiente(array $invoices): array
+{
+    $idsConHijo = [];
+    foreach ($invoices as $inv) {
+        $artList = $inv['articulos'] ?? [];
+        foreach ($artList as $art) {
+            $d = $art['descripcion'] ?? '';
+            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $d, $m)) {
+                $idsConHijo[(int)$m[1]] = true;
+            }
+        }
+    }
+    $invoicesFiltradas = [];
+    foreach ($invoices as $inv) {
+        $idInv = $inv['id'] ?? $inv['id_factura'] ?? 0;
+        if (isset($idsConHijo[$idInv])) continue;
+        $invoicesFiltradas[] = $inv;
+    }
+    return $invoicesFiltradas;
+}
+
 function wisp_get_cached_data($wispClient, $serviceId) {
     if (session_status() !== PHP_SESSION_ACTIVE) {
         @session_start();
@@ -129,75 +215,14 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     // Normalizar y estructurar la respuesta para el dashboard
     $invoices = [];
     foreach ($invoicesPendingAPI as $inv) {
-        $id = $inv['id_factura'] ?? $inv['id'] ?? 0;
-        if (!$id) continue;
-        
-        $articulos = $inv['articulos'] ?? [];
-        if (empty($articulos)) {
-            $desc_fallback = '';
-            foreach (['descripcion', 'concepto', 'observacion'] as $k) {
-                if (!empty($inv[$k])) { $desc_fallback = trim($inv[$k]); break; }
-            }
-            if (empty($desc_fallback)) {
-                $desc_fallback = 'Recibo N° ' . $id;
-            }
-            $articulos = [['descripcion' => $desc_fallback]];
-        }
-
-        $invEstado = $inv['estado'] ?? 'Pendiente de Pago';
-        $invTotal = floatval($inv['total'] ?? $inv['sub_total'] ?? $inv['monto'] ?? 0);
-        $invSubTotal = floatval($inv['sub_total'] ?? $invTotal);
-        $invCobrado = floatval($inv['total_cobrado'] ?? 0);
-        $invSaldoNuevo = floatval($inv['saldo_nuevo'] ?? 0);
-        $invSaldo = floatval($inv['saldo'] ?? 0);
-        // monto_pendiente: usar saldo_nuevo si > 0,
-        // si no, saldo si > 0,
-        // si no, total - cobrado; si eso da 0 pero estado es pendiente, usar total o sub_total
-        $invPendiente = (float)max(0, $invTotal - $invCobrado);
-        if ($invSaldoNuevo > 0) {
-            $invPendiente = $invSaldoNuevo;
-        } elseif ($invSaldo > 0) {
-            $invPendiente = $invSaldo;
-        } elseif ($invPendiente == 0 && in_array($invEstado, ['Pendiente de Pago', 'Vencida', 'Pendiente', 'Vencido'])) {
-            $invPendiente = $invSubTotal > 0 ? $invSubTotal : $invTotal;
-        }
-
-        $invoices[] = [
-            'id'                => $id,
-            'id_factura'        => $id,
-            'fecha_emision'     => $inv['fecha_emision'] ?? '',
-            'fecha_vencimiento' => $inv['fecha_vencimiento'] ?? '',
-            'total'             => $invTotal,
-            'sub_total'         => $invSubTotal,
-            'saldo_nuevo'       => $invSaldoNuevo,
-            'saldo'             => $invSaldo,
-            'total_cobrado'     => $invCobrado,
-            'estado'            => $invEstado,
-            'monto_pendiente'   => $invPendiente,
-            'articulos'         => $articulos
-        ];
+        $norm = wisp_normalize_invoice($inv);
+        if ($norm !== null) $invoices[] = $norm;
     }
 
     // ── Filtrar facturas de saldo pendiente ──────────────────────────────
     // Cuando se hace un abono parcial, WispHub crea una factura "Saldo pendiente tras abono - Factura #X".
     // La factura padre #X NO debe mostrarse; solo la factura hija (saldo real pendiente).
-    $idsConHijo = [];
-    foreach ($invoices as $inv) {
-        $artList = $inv['articulos'] ?? [];
-        foreach ($artList as $art) {
-            $d = $art['descripcion'] ?? '';
-            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $d, $m)) {
-                $idsConHijo[(int)$m[1]] = true;
-            }
-        }
-    }
-    $invoicesFiltradas = [];
-    foreach ($invoices as $inv) {
-        $idInv = $inv['id'] ?? $inv['id_factura'] ?? 0;
-        if (isset($idsConHijo[$idInv])) continue;
-        $invoicesFiltradas[] = $inv;
-    }
-    $invoices = $invoicesFiltradas;
+    $invoices = wisp_filter_saldo_pendiente($invoices);
 
     // Último pago
     $ultimo_pago = null;

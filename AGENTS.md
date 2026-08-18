@@ -27,8 +27,9 @@ Respuesta: `{"count":N,"results":[{"id":18426,"nombre":"Operacion Bancaria"},...
 - Si `getServiceProfile()` falla (timeout), `wisp_helper.php` usa `findClientByDocument()` con la cédula de la sesión como fallback
 
 ## Monto pendiente y estado
-- WispHub puede tener facturas con `total_cobrado = total` pero estado "Pendiente de Pago"
-- `monto_pendiente` se calcula: `saldo_nuevo > 0 ? saldo_nuevo : (estado pendiente ? total : total - cobrado)`
+- WispHub puede tener facturas con `total_cobrado = total` pero estado "Pendiente de Pago" (residuo sin pago real, ej. referencia vacía)
+- `monto_pendiente` se calcula: base `total - cobrado`; `saldo_nuevo` solo si es MAYOR a la base y hay abono parcial real (`cobrado < total`); si la factura está pendiente y `cobrado >= total`, la deuda es el `total` (los campos `saldo`/`saldo_nuevo` son residuos no confiables)
+- Ej. real: factura #10873 de Jorcelis Linares (V19794781, service 795) tenía `total=30, total_cobrado=30, saldo=10` y el portal mostraba $10; con la regla nueva muestra $30 (lo que WispHub reporta)
 
 ## Flujo de abono parcial
 1. WispHub recibe pago < total de factura.
@@ -50,3 +51,9 @@ Respuesta: `{"count":N,"results":[{"id":18426,"nombre":"Operacion Bancaria"},...
 - Sitelco: V20788775 / service_id=902
 - Jalisco: 30236536 / service_id=794
 - Pampanito: 30236536 / service_id=908 (username: `usuario-prueba@gigatek-network`)
+
+## Tests y auditoría (local, `tests/`)
+- `tests/test_monto_pendiente.php` — valida `wisp_normalize_invoice()` / `wisp_filter_saldo_pendiente()` con 15 casos (11 sintéticos + filtro hija + 1 live read-only service 795). La regla de `monto_pendiente` vive en esas funciones (extraídas de `wisp_get_cached_data`).
+- `tests/audit_facturas_residuo.php` — auditoría read-only de las 3 cuentas: lista facturas pendientes con patrón residuo (`total_cobrado >= total` y `saldo > 0`). Solo GETs, no modifica nada.
+- Ejecutar: `php tests/test_monto_pendiente.php` y `php tests/audit_facturas_residuo.php`
+- Hallazgo 2026-08-14: 33 facturas con patrón residuo (sitelco 25, jalisco 8, pampanito 0). La mayoría importadas por el cajero "Wilmer Ramirez" (12-13 Ago) con `total = sub_total(20) + saldo(10) = 30` y cobro fantasma (`total_cobrado=30`, `referencia=""`). La API no expone edición de facturas → corrección manual en admin WispHub (total = sub_total, sin cobro fantasma).

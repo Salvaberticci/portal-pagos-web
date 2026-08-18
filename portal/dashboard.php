@@ -122,10 +122,12 @@ $cache_time = 3600;
             $notas_credito[] = $inv;
             continue;
         }
-        if ($total > 0 && $cobrado < $total) {
-            $saldo = floatval($inv['saldo_nuevo'] ?? $inv['saldo'] ?? ($total - $cobrado));
+        if ($total > 0) {
+            // Usar monto_pendiente ya normalizado por wisp_helper (nunca saldo/saldo_nuevo
+            // residuales de WispHub, que pueden mostrar un monto incorrecto)
+            $saldo = floatval($inv['monto_pendiente'] ?? ($total - $cobrado));
             if ($saldo < 0.005)
-                $saldo = $total - $cobrado;
+                $saldo = 0;
             $deuda_total += $saldo;
         }
     }
@@ -294,12 +296,11 @@ $cache_time = 3600;
                         $totalInvs = 0;
                         $unpaid = 0;
                         foreach ($invoices as $inv) {
-                            $t = floatval($inv['total'] ?? $inv['monto'] ?? 0);
-                            if ($t < 0) continue; // nota de crédito
-                            $c = floatval($inv['total_cobrado'] ?? 0);
-                            if ($c < $t) {
+                            $mp = floatval($inv['monto_pendiente'] ?? $inv['total'] ?? $inv['monto'] ?? 0);
+                            if ($mp < 0) continue; // nota de crédito
+                            if ($mp > 0.005) {
                                 $totalInvs++;
-                                if ($c <= 0)
+                                if (floatval($inv['total_cobrado'] ?? 0) <= 0)
                                     $unpaid++;
                             }
                         }
