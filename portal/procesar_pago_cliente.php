@@ -344,8 +344,14 @@ try {
             if (!isset($invDetail2) || empty($invDetail2)) {
                 $invDetail2 = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
             }
-            $fechaEmisionOriginal = !empty($invDetail2['fecha_emision']) ? $invDetail2['fecha_emision'] : date('Y-m-d');
-            $fechaPagoOriginal    = !empty($invDetail2['fecha_pago'])    ? $invDetail2['fecha_pago']    : date('Y-m-d');
+            // WispHub puede devolver las fechas como ISO 8601 ("2026-08-01T00:00:00-05:00");
+            // la API solo acepta "YYYY-MM-DD" al crear facturas, así que truncamos.
+            $fechaEmisionOriginal = !empty($invDetail2['fecha_emision'])
+                ? substr($invDetail2['fecha_emision'], 0, 10)
+                : date('Y-m-d');
+            $fechaPagoOriginal = !empty($invDetail2['fecha_pago'])
+                ? substr($invDetail2['fecha_pago'], 0, 10)
+                : date('Y-m-d');
             error_log("[procesar_pago] Heredando fechas factura #{$firstInvoiceId}: emision={$fechaEmisionOriginal}, pago={$fechaPagoOriginal}");
 
             $descNueva = 'Saldo pendiente tras abono - Factura #' . $firstInvoiceId;
