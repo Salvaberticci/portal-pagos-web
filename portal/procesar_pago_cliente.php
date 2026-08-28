@@ -324,6 +324,10 @@ try {
         // IMPORTANTE: se crea ANTES de registrar el pago para evitar que WispHub
         // duplique el monto. La factura de saldo es la que queda pendiente en el
         // dashboard y la que recibe la Promesa de Pago.
+        //
+        // Se usa tipo_factura=2 (Manual/Extra) y se heredan las fechas de la factura
+        // original para que WispHub NO confunda este saldo con una nueva mensualidad,
+        // evitando que se salte la generación de la factura del mes siguiente.
         if ($shouldCreatePromise && $saldoRestante > 0.01) {
             if (!isset($wispData)) {
                 require_once __DIR__ . '/wisp_helper.php';
@@ -335,21 +339,38 @@ try {
                 $username = is_array($invDetail2['cliente'] ?? null) ? ($invDetail2['cliente']['usuario'] ?? '') : ($invDetail2['cliente'] ?? $invDetail2['usuario'] ?? '');
             }
 
+            // Obtener fechas de la factura original para heredarlas en la factura de saldo.
+            // Si ya llamamos a getInvoiceDetail arriba, reutilizarlo; si no, buscarlo ahora.
+            if (!isset($invDetail2) || empty($invDetail2)) {
+                $invDetail2 = $wispClient->getInvoiceDetail((string)$firstInvoiceId);
+            }
+            $fechaEmisionOriginal = !empty($invDetail2['fecha_emision']) ? $invDetail2['fecha_emision'] : date('Y-m-d');
+            $fechaPagoOriginal    = !empty($invDetail2['fecha_pago'])    ? $invDetail2['fecha_pago']    : date('Y-m-d');
+            error_log("[procesar_pago] Heredando fechas factura #{$firstInvoiceId}: emision={$fechaEmisionOriginal}, pago={$fechaPagoOriginal}");
+
             $descNueva = 'Saldo pendiente tras abono - Factura #' . $firstInvoiceId;
             $createResult = $wispClient->createInvoice(
-                $username, $saldoRestante, $descNueva, $fechaLimitePromesa, $id_contrato_asociado
+                $username,
+                $saldoRestante,
+                $descNueva,
+                $fechaLimitePromesa,
+                $id_contrato_asociado,
+                2,                   // tipo_factura=2 (Manual/Extra) → no afecta ciclo recurrente
+                $fechaEmisionOriginal,
+                $fechaPagoOriginal
             );
             if (in_array($createResult['status'] ?? 0, [200, 201])) {
                 $msg = $createResult['data']['messages'] ?? $createResult['data']['message'] ?? '';
                 if (is_array($msg)) $msg = implode(' ', $msg);
                 preg_match('/factura\s*#?(\d+)/i', $msg, $m);
                 $nuevaFacturaId = isset($m[1]) ? (int)$m[1] : 0;
-                error_log("[procesar_pago] Factura saldo pendiente #{$nuevaFacturaId} creada en WispHub (\${$saldoRestante})");
+                error_log("[procesar_pago] Factura saldo pendiente #{$nuevaFacturaId} creada en WispHub (\${$saldoRestante}) tipo=2");
             } else {
                 error_log("[procesar_pago] Fallo crear factura saldo pendiente: " . json_encode($createResult));
                 $nuevaFacturaId = 0;
             }
         }
+
 
         // Artificio para enviar el monto en Bs a WispHub en la referencia (para no pagar extra ni hacer conciliaci�n compleja)
         // Regla: �ltimos 8 caracteres de referencia + guion + monto en Bs con coma decimal. Ej: 60741024-130,60

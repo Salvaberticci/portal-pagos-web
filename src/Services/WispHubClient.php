@@ -484,24 +484,47 @@ class WispHubClient
         ]);
     }
 
-    public function createInvoice(string $username, float $amount, string $description, string $dueDate, string $serviceId): array
-    {
+    /**
+     * Crea una factura en WispHub.
+     *
+     * @param string $username    Usuario del cliente en WispHub
+     * @param float  $amount      Monto en USD
+     * @param string $description Descripción del artículo
+     * @param string $dueDate     Fecha de vencimiento (Y-m-d)
+     * @param string $serviceId   ID del servicio/contrato
+     * @param int    $tipoFactura 1 = Recurrente/Internet (default), 2 = Manual/Extra.
+     *                            Usar tipo 2 para facturas de saldo parcial para no
+     *                            interferir con el ciclo de facturación mensual de WispHub.
+     * @param string|null $fechaEmision Fecha de emisión (Y-m-d). Por defecto: hoy.
+     * @param string|null $fechaPago    Fecha de pago (Y-m-d). Por defecto: hoy.
+     */
+    public function createInvoice(
+        string $username,
+        float $amount,
+        string $description,
+        string $dueDate,
+        string $serviceId,
+        int $tipoFactura = 1,
+        ?string $fechaEmision = null,
+        ?string $fechaPago = null
+    ): array {
         $total = round($amount, 2);
         return $this->request('POST', 'facturas/', [
-            'tipo_factura'     => 1,
-            'cliente'          => $username,
-            'fecha_emision'    => date('Y-m-d'),
-            'fecha_pago'       => date('Y-m-d'),
-            'fecha_vencimiento'=> $dueDate,
-            'impuesto'         => 0,
-            'descuento'        => 0,
-            'articulos'        => [[
+            'tipo_factura'      => $tipoFactura,
+            'cliente'           => $username,
+            'fecha_emision'     => $fechaEmision ?? date('Y-m-d'),
+            'fecha_pago'        => $fechaPago    ?? date('Y-m-d'),
+            'fecha_vencimiento' => $dueDate,
+            'impuesto'          => 0,
+            'descuento'         => 0,
+            'articulos'         => [[
                 'cantidad'    => 1,
                 'descripcion' => mb_substr($description, 0, 255),
                 'precio'      => $total,
             ]],
         ]);
     }
+
 
     /**
      * Obtiene el perfil completo de un cliente/servicio de WispHub.
