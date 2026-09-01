@@ -375,6 +375,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         <!-- Resumen masivo -->
         <div id="resumenMasivo" class="alert mb-3" role="alert"></div>
 
+        <!-- Buscador -->
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-search"></i></span>
+                <input type="text" id="buscador-tabla" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por cliente, cédula, servicio, plan o IP...">
+            </div>
+        </div>
+
         <?php if (count($resultados) > 0): ?>
         <div class="table-responsive">
             <table class="table table-dark table-hover mb-0">
@@ -502,7 +510,10 @@ const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
 // IDs de todos los servicios de la tabla (solo los que NO tienen factura)
 const todosLosSvcIds = Array.from(document.querySelectorAll('tr.fila-cliente[data-estado="sin_factura"]')).map(tr => tr.id.replace('fila-', ''));
 
+let estadoActivo = 'sin_factura';
+
 function filtrarTabla(estado, btn) {
+    estadoActivo = estado;
     // 1. Quitar la clase active de todos los botones
     document.querySelectorAll('.tab-btn').forEach(b => {
         b.classList.remove('active-sin', 'active-pag', 'active-pen');
@@ -514,12 +525,18 @@ function filtrarTabla(estado, btn) {
     if (estado === 'pendiente') activeClass = 'active-pen';
     btn.classList.add(activeClass);
 
-    // 3. Mostrar/ocultar filas
+    // 3. Mostrar/ocultar filas (aplicando también el buscador si hay texto)
     let count = 0;
+    const term = document.getElementById('buscador-tabla')?.value.toLowerCase() || '';
+    
     document.querySelectorAll('tr.fila-cliente').forEach(tr => {
         if (tr.dataset.estado === estado) {
-            tr.style.display = '';
-            count++;
+            if (term && !tr.textContent.toLowerCase().includes(term)) {
+                tr.style.display = 'none';
+            } else {
+                tr.style.display = '';
+                count++;
+            }
         } else {
             tr.style.display = 'none';
         }
@@ -563,6 +580,22 @@ document.addEventListener('DOMContentLoaded', function() {
             _pendingBtn   = null;
         }
     });
+
+    const buscador = document.getElementById('buscador-tabla');
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('tr.fila-cliente').forEach(row => {
+                if (row.dataset.estado === estadoActivo) {
+                    if (term && !row.textContent.toLowerCase().includes(term)) {
+                        row.style.display = 'none';
+                    } else {
+                        row.style.display = '';
+                    }
+                }
+            });
+        });
+    }
 });
 
 // ── Generar una sola factura ──────────────────────────────────────────────────
