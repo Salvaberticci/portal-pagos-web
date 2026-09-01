@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                                     <td class="text-white"><?php echo htmlspecialchars($nombre); ?></td>
                                     <td><?php echo htmlspecialchars($ident); ?></td>
                                     <td><small><?php echo htmlspecialchars($plan); ?></small></td>
-                                    <td><small><?php echo htmlspecialchars($ip); ?> <br> <span class="text-muted"><?php echo htmlspecialchars($router); ?></span></small></td>
+                                    <td style="color:#e2e8f0;"><small style="color:#e2e8f0;"><?php echo htmlspecialchars($ip); ?> <br> <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small></td>
                                     <td><span class="badge bg-success">Activo</span></td>
                                 </tr>
                                 <?php endforeach; ?>
