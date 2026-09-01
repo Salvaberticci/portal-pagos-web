@@ -2,13 +2,183 @@
 session_start();
 header('Content-Type: text/html; charset=utf-8');
 
-// Opcional: Proteger con contraseña simple si se desea, por ahora abierto o misma pass que test_nodo.
-// Para test_nodo.php, no había pass en la copia visible, o quizás sí. Lo dejaremos libre por ser admin tool,
-// o podríamos pedir un token. Para simplificar, lo dejaremos accesible.
-
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../src/Services/WispHubClient.php';
 @include_once __DIR__ . '/../config/wisphub_credentials.php';
+
+// ─── Manejo de acciones AJAX ──────────────────────────────────────────────────
+$accion = $_POST['accion'] ?? '';
+if ($accion === 'generar_factura' || $accion === 'generar_masiva') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $nodo_ajax = $_POST['nodo'] ?? '';
+    $accountMap = ['jalisco' => 'jalisco', 'sitelco' => 'sitelco', 'pampanito' => 'pampanito'];
+    $ref = $accountMap[$nodo_ajax] ?? '';
+
+    if (!$ref || !isset($WISPHUB_ACCOUNTS[$ref])) {
+        echo json_encode(['ok' => false, 'error' => 'Nodo inválido']);
+        exit;
+    }
+
+    $creds  = $WISPHUB_ACCOUNTS[$ref];
+    $client = new \Services\WispHubClient([
+        'base_url'   => $creds['base_url'],
+        'api_key'    => $creds['api_key'],
+        'verify_ssl' => $creds['verify_ssl'] ?? false,
+    ]);
+
+    // Fecha vencimiento: último día del mes actual
+    $ultimo_dia = date('Y-m-t');
+    $mes_label  = date('F Y');
+
+    /**
+     * Genera una factura para un cliente dado sus datos de la API de WispHub.
+     *
+     * La API de WispHub (listClients) devuelve:
+     *   - 'usuario'     → username para crear factura (ej. "user@empresa")
+     *   - 'precio_plan' → precio del plan como string (ej. "20.00")
+     *   - 'nombre'      → nombre visible del cliente
+     *
+     * Si esos campos no vienen en $c (ej. al llamar desde generar_factura con solo el svc_id),
+     * se obtienen usando getServiceProfile (que sí tiene 'usuario') y getServiceDetail.
+     */
+    function generarFacturaCliente(\Services\WispHubClient $client, array $c, string $ultimo_dia, string $mes_label): array {
+        $svc_id   = (string)($c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '');
+        $username = $c['usuario'] ?? $c['username'] ?? '';
+        $nombre   = $c['nombre'] ?? 'Sin nombre';
+
+        // 1. Precio del plan: listClients lo expone como 'precio_plan' (string)
+        $precio = floatval($c['precio_plan'] ?? 0);
+
+        // 2. Fallback: plan_internet array con precio/costo (algunos endpoints)
+        if ($precio <= 0 && !empty($c['plan_internet']) && is_array($c['plan_internet'])) {
+            $precio = floatval($c['plan_internet']['precio'] ?? $c['plan_internet']['costo'] ?? 0);
+        }
+
+        // 3. Si aún no tenemos precio, consultar perfil del servicio
+        if ($precio <= 0 && $svc_id) {
+            $perfil = $client->getServiceProfile($svc_id);
+            // getServiceProfile devuelve los datos directamente en ['data']
+            // (no en ['data']['data'])
+            if ($perfil['status'] === 200 && !empty($perfil['data'])) {
+                // El perfil no tiene precio_plan directamente; buscamos en detail
+                $det = $client->getServiceDetail($svc_id);
+                if ($det['status'] === 200) {
+                    // getServiceDetail para jalisco no expone precio; intentamos listClients filtrado
+                    $r = $client->listClients(['id_servicio' => $svc_id, 'limit' => 1]);
+                    if ($r['status'] === 200 && !empty($r['data']['results'][0])) {
+                        $precio = floatval($r['data']['results'][0]['precio_plan'] ?? 0);
+                        if (empty($username)) {
+                            $username = $r['data']['results'][0]['usuario'] ?? '';
+                        }
+                        if ($nombre === 'Sin nombre') {
+                            $nombre = $r['data']['results'][0]['nombre'] ?? $nombre;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Si el usuario no vino en $c, obtenerlo del perfil
+        if (empty($username) && $svc_id) {
+            $perfil = $client->getServiceProfile($svc_id);
+            if ($perfil['status'] === 200) {
+                $username = $perfil['data']['usuario'] ?? '';
+            }
+        }
+
+        if ($precio <= 0) {
+            return ['ok' => false, 'svc_id' => $svc_id, 'nombre' => $nombre, 'error' => 'No se pudo obtener el precio del plan'];
+        }
+        if (empty($username)) {
+            return ['ok' => false, 'svc_id' => $svc_id, 'nombre' => $nombre, 'error' => 'Usuario de WispHub no encontrado'];
+        }
+
+        $descripcion = "Servicio de Internet - $mes_label";
+        $result = $client->createInvoice(
+            $username,
+            $precio,
+            $descripcion,
+            $ultimo_dia,  // fecha_vencimiento
+            $svc_id,
+            1             // tipo_factura = 1 (Recurrente/Internet)
+        );
+
+        if (in_array($result['status'], [200, 201], true)) {
+            // WispHub devuelve: {"messages": "Se genero correctamente el id 12345"}
+            $msg = $result['data']['messages'] ?? $result['data']['id'] ?? '';
+            $factura_id = null;
+            if (is_string($msg) && preg_match('/\b(\d+)\b/', $msg, $m)) {
+                $factura_id = (int)$m[1];
+            } elseif (is_int($msg) || is_numeric($msg)) {
+                $factura_id = (int)$msg;
+            }
+            return ['ok' => true, 'svc_id' => $svc_id, 'nombre' => $nombre, 'monto' => $precio, 'factura_id' => $factura_id];
+        }
+
+        $err_msg = $result['data']['message'] ?? $result['data']['detail'] ?? ($result['error'] ?? 'Error desconocido');
+        if (is_array($err_msg)) $err_msg = json_encode($err_msg);
+        return ['ok' => false, 'svc_id' => $svc_id, 'nombre' => $nombre, 'error' => $err_msg];
+    }
+
+    // ── Generar una sola factura ─────────────────────────────
+    if ($accion === 'generar_factura') {
+        $svc_id_target = (string)($_POST['svc_id'] ?? '');
+        if (!$svc_id_target) {
+            echo json_encode(['ok' => false, 'error' => 'svc_id requerido']);
+            exit;
+        }
+        // Obtener datos del cliente usando listClients (contiene precio_plan y usuario)
+        $r = $client->listClients(['id_servicio' => $svc_id_target, 'limit' => 1]);
+        if ($r['status'] !== 200 || empty($r['data']['results'][0])) {
+            echo json_encode(['ok' => false, 'error' => 'No se pudo obtener datos del servicio ' . $svc_id_target]);
+            exit;
+        }
+        $res = generarFacturaCliente($client, $r['data']['results'][0], $ultimo_dia, $mes_label);
+        echo json_encode($res);
+        exit;
+    }
+
+    // ── Generar facturas masivamente ─────────────────────────
+    if ($accion === 'generar_masiva') {
+        $svc_ids_raw = $_POST['svc_ids'] ?? '';
+        $svc_ids = json_decode($svc_ids_raw, true);
+        if (empty($svc_ids) || !is_array($svc_ids)) {
+            echo json_encode(['ok' => false, 'error' => 'Lista de svc_ids vacía o inválida']);
+            exit;
+        }
+
+        $resultados_masivo = [];
+        foreach ($svc_ids as $svc_id) {
+            $r = $client->listClients(['id_servicio' => (string)$svc_id, 'limit' => 1]);
+            if ($r['status'] !== 200 || empty($r['data']['results'][0])) {
+                $resultados_masivo[] = ['ok' => false, 'svc_id' => $svc_id, 'nombre' => '?', 'error' => 'No se pudo obtener datos del servicio'];
+                continue;
+            }
+            $resultados_masivo[] = generarFacturaCliente($client, $r['data']['results'][0], $ultimo_dia, $mes_label);
+            usleep(200000); // 200ms entre requests para no saturar la API
+        }
+
+        $ok_count  = count(array_filter($resultados_masivo, fn($r) => $r['ok']));
+        $err_count = count($resultados_masivo) - $ok_count;
+        echo json_encode([
+            'ok'        => $err_count === 0,
+            'total'     => count($resultados_masivo),
+            'ok_count'  => $ok_count,
+            'err_count' => $err_count,
+            'detalles'  => $resultados_masivo,
+        ]);
+        exit;
+    }
+}
+
+// ─── Lógica de conciliación (GET / POST normal) ───────────────────────────────
+$nodo     = $_POST['nodo'] ?? '';
+$resultados = null;
+$error      = '';
+$mes_actual = date('Y-m');
+$primer_dia = $mes_actual . '-01';
+$ultimo_dia = date('Y-m-t', strtotime($primer_dia));
 
 function extraer_servicio_id(array $inv): string {
     $svc = $inv['id_servicio'] ?? '';
@@ -21,20 +191,12 @@ function extraer_servicio_id(array $inv): string {
     return (string)$svc;
 }
 
-$nodo = $_POST['nodo'] ?? '';
-$resultados = null;
-$error = '';
-$mes_actual = date('Y-m'); // ej. 2026-09
-$primer_dia = $mes_actual . '-01';
-$ultimo_dia = date('Y-m-t', strtotime($primer_dia));
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     $accountMap = ['jalisco' => 'jalisco', 'sitelco' => 'sitelco', 'pampanito' => 'pampanito'];
     $ref = $accountMap[$nodo] ?? '';
-    
+
     if ($ref && isset($WISPHUB_ACCOUNTS[$ref])) {
-        $creds = $WISPHUB_ACCOUNTS[$ref];
-        // Instanciar cliente
+        $creds  = $WISPHUB_ACCOUNTS[$ref];
         $client = new \Services\WispHubClient([
             'base_url'   => $creds['base_url'],
             'api_key'    => $creds['api_key'],
@@ -42,77 +204,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         ]);
 
         try {
-            // 1. Obtener todos los servicios que tienen factura emitida este mes
-            $facturados_este_mes = [];
-            $offset = 0;
-            $limit = 500;
-            
+            // 1. Servicios que YA tienen factura este mes
+            $facturados = [];
+            $offset = 0; $limit = 500;
             while (true) {
-                $facturas = $client->getInvoices([
+                $page_inv = $client->getInvoices([
                     'fecha_emision__range_0' => $primer_dia,
                     'fecha_emision__range_1' => $ultimo_dia,
-                    'limit' => $limit,
-                    'offset' => $offset
+                    'limit' => $limit, 'offset' => $offset,
                 ]);
-                
-                $pageCount = count($facturas);
-                foreach ($facturas as $inv) {
-                    $svc = extraer_servicio_id($inv);
-                    if ($svc) {
-                        $facturados_este_mes[$svc] = true;
-                    }
+                foreach ($page_inv as $inv) {
+                    $s = extraer_servicio_id($inv);
+                    if ($s) $facturados[$s] = true;
                 }
-                
-                if ($pageCount < $limit) {
-                    break;
-                }
+                if (count($page_inv) < $limit) break;
                 $offset += $limit;
             }
 
-            // 2. Obtener todos los clientes activos
-            $clientes_activos = [];
+            // 2. Clientes activos sin factura
+            $sin_factura = [];
             $page = 1;
-            
             while (true) {
-                $res = $client->listClients([
-                    'estado' => 1, // 1 = Activo
-                    'limit' => 100,
-                    'page' => $page
-                ]);
-                
+                $res = $client->listClients(['estado' => 1, 'limit' => 100, 'page' => $page]);
                 if ($res['status'] !== 200) {
-                    $error = "Error al obtener clientes activos: " . ($res['error'] ?? 'Desconocido');
+                    $error = "Error al obtener clientes: " . ($res['error'] ?? 'Desconocido');
                     break;
                 }
-                
                 $clients = $res['data']['results'] ?? [];
-                if (empty($clients)) {
-                    break;
-                }
-                
+                if (empty($clients)) break;
                 foreach ($clients as $c) {
                     $svc = (string)($c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '');
-                    if ($svc) {
-                        // Si está activo pero NO tiene factura este mes, lo guardamos
-                        if (!isset($facturados_este_mes[$svc])) {
-                            $clientes_activos[] = $c;
-                        }
+                    if ($svc && !isset($facturados[$svc])) {
+                        $sin_factura[] = $c;
                     }
                 }
-                
-                $current_page = $res['data']['current_page'] ?? 1;
-                $last_page = $res['data']['last_page'] ?? 1;
-                
-                if ($current_page >= $last_page) {
-                    break;
-                }
+                $cp = $res['data']['current_page'] ?? 1;
+                $lp = $res['data']['last_page']    ?? 1;
+                if ($cp >= $lp) break;
                 $page++;
             }
-            
-            if (!$error) {
-                $resultados = $clientes_activos;
-            }
-            
+
+            if (!$error) $resultados = $sin_factura;
+
         } catch (\Exception $e) {
             $error = "Excepción: " . $e->getMessage();
         }
@@ -130,104 +263,267 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; }
-        .table-premium { color: #e2e8f0; }
-        .table-premium th { background: rgba(30, 41, 59, 0.9); color: #94a3b8; border-bottom: 2px solid #334155; }
-        .table-premium td { background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid #334155; vertical-align: middle; color: #e2e8f0; }
-        .btn-premium { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; border: none; }
-        .btn-premium:hover { background: linear-gradient(135deg, #2563eb, #4f46e5); color: #fff; }
-        select.form-select { background: #1e293b; color: #fff; border: 1px solid #334155; }
+        .glass-panel { background: rgba(30,41,59,0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; }
+        .table-dark { --bs-table-bg: rgba(15,23,42,0.6); --bs-table-border-color: #334155; color: #e2e8f0; }
+        .table-dark th { background: rgba(30,41,59,0.9); color: #94a3b8; }
+        .table-dark td { vertical-align: middle; }
+        .table-dark tr:hover td { background: rgba(59,130,246,0.07); }
+        .btn-premium { background: linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; border:none; }
+        .btn-premium:hover { background: linear-gradient(135deg,#2563eb,#4f46e5); color:#fff; }
+        .btn-generar { background: linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; font-size:.78rem; padding:4px 12px; border-radius:8px; }
+        .btn-generar:hover { background: linear-gradient(135deg,#059669,#047857); color:#fff; }
+        .btn-masiva  { background: linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; }
+        .btn-masiva:hover  { background: linear-gradient(135deg,#d97706,#b45309); color:#fff; }
+        select.form-select { background:#1e293b; color:#fff; border:1px solid #334155; }
+        .estado-cel { min-width: 130px; }
+        .badge-ok   { background: rgba(16,185,129,.15); color:#10b981; border:1px solid rgba(16,185,129,.3); }
+        .badge-err  { background: rgba(239,68,68,.15);  color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+        #resumenMasivo { display:none; }
     </style>
 </head>
 <body>
-    <div class="container my-4">
-        <h2 class="fw-bold mb-4 text-center text-primary"><i class="fas fa-search-dollar me-2"></i> Conciliación de Facturación</h2>
-        
-        <div class="glass-panel mb-4 mx-auto" style="max-width: 600px;">
-            <p class="text-muted small text-center mb-4">Esta herramienta busca clientes en estado <strong>Activo</strong> que no tienen una factura generada en el mes en curso (<strong><?php echo date('F Y'); ?></strong>).</p>
-            
-            <form method="POST" action="" id="depuracionForm">
-                <div class="mb-3">
-                    <label class="form-label text-light fw-bold">Seleccionar Nodo</label>
-                    <select name="nodo" class="form-select" required>
-                        <option value="">-- Elija un nodo --</option>
-                        <option value="sitelco" <?php echo $nodo === 'sitelco' ? 'selected' : ''; ?>>Sitelco</option>
-                        <option value="jalisco" <?php echo $nodo === 'jalisco' ? 'selected' : ''; ?>>Jalisco</option>
-                        <option value="pampanito" <?php echo $nodo === 'pampanito' ? 'selected' : ''; ?>>Pampanito</option>
-                    </select>
-                </div>
-                <div class="d-grid mt-4">
-                    <button type="submit" class="btn btn-premium py-2 fw-bold" id="btnBuscar">
-                        <i class="fas fa-search me-2"></i> Conciliar Activos sin Factura
-                    </button>
-                </div>
-            </form>
+<div class="container my-4">
+    <h2 class="fw-bold mb-4 text-center text-primary"><i class="fas fa-search-dollar me-2"></i> Conciliación de Facturación</h2>
+
+    <!-- Formulario de búsqueda -->
+    <div class="glass-panel mb-4 mx-auto" style="max-width:600px;">
+        <p class="text-muted small text-center mb-4">
+            Detecta clientes <strong>Activos</strong> sin factura en el mes en curso (<strong><?php echo date('F Y'); ?></strong>)
+            y genera las facturas faltantes desde aquí.
+        </p>
+        <form method="POST" id="depuracionForm">
+            <div class="mb-3">
+                <label class="form-label text-light fw-bold">Seleccionar Nodo</label>
+                <select name="nodo" id="selectNodo" class="form-select" required>
+                    <option value="">-- Elija un nodo --</option>
+                    <option value="sitelco"   <?php echo $nodo==='sitelco'   ? 'selected':''; ?>>Sitelco</option>
+                    <option value="jalisco"   <?php echo $nodo==='jalisco'   ? 'selected':''; ?>>Jalisco</option>
+                    <option value="pampanito" <?php echo $nodo==='pampanito' ? 'selected':''; ?>>Pampanito</option>
+                </select>
+            </div>
+            <div class="d-grid mt-4">
+                <button type="submit" class="btn btn-premium py-2 fw-bold" id="btnBuscar">
+                    <i class="fas fa-search me-2"></i> Conciliar Activos sin Factura
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <?php if ($error): ?>
+        <div class="alert alert-danger mx-auto" style="max-width:600px;">
+            <i class="fas fa-exclamation-triangle me-2"></i> <?php echo htmlspecialchars($error); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($resultados !== null): ?>
+    <div class="glass-panel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h5 class="fw-bold mb-0 text-white">Nodo: <?php echo ucfirst($nodo); ?></h5>
+                <small class="text-muted"><?php echo date('F Y'); ?> — <?php echo count($resultados); ?> cliente(s) sin factura</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+                <?php if (count($resultados) > 0): ?>
+                <button id="btnGenerarTodas" class="btn btn-masiva fw-bold px-4"
+                        onclick="generarMasiva()">
+                    <i class="fas fa-bolt me-2"></i> Generar Todas las Facturas
+                </button>
+                <?php endif; ?>
+                <span class="badge bg-danger fs-6"><?php echo count($resultados); ?></span>
+            </div>
         </div>
 
-        <?php if ($error): ?>
-            <div class="alert alert-danger mx-auto" style="max-width: 600px;"><i class="fas fa-exclamation-triangle me-2"></i> <?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
+        <!-- Resumen masivo -->
+        <div id="resumenMasivo" class="alert mb-3" role="alert"></div>
 
-        <?php if ($resultados !== null): ?>
-            <div class="glass-panel">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold mb-0 text-white">Resultados para Nodo <?php echo ucfirst($nodo); ?></h5>
-                    <span class="badge bg-danger fs-6"><?php echo count($resultados); ?> clientes afectados</span>
-                </div>
-                
-                <?php if (count($resultados) > 0): ?>
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover mb-0" style="background: transparent;">
-                            <thead>
-                                <tr>
-                                    <th># Servicio</th>
-                                    <th>Cliente</th>
-                                    <th>Cédula / Usuario</th>
-                                    <th>Plan</th>
-                                    <th>IP / Router</th>
-                                    <th>Estado</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($resultados as $c): 
-                                    $svc = $c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '-';
-                                    $nombre = $c['nombre'] ?? '-';
-                                    $ident = $c['cedula'] ?? $c['usuario'] ?? '-';
-                                    $plan = $c['plan_internet']['nombre'] ?? $c['plan_internet'] ?? '-';
-                                    if (is_array($plan)) $plan = $plan['nombre'] ?? '-';
-                                    $ip = $c['ip'] ?? '-';
-                                    $router = $c['router']['nombre'] ?? $c['router'] ?? '-';
-                                    if (is_array($router)) $router = $router['nombre'] ?? '-';
-                                ?>
-                                <tr>
-                                    <td class="fw-bold text-primary"><?php echo htmlspecialchars($svc); ?></td>
-                                    <td class="text-white"><?php echo htmlspecialchars($nombre); ?></td>
-                                    <td><?php echo htmlspecialchars($ident); ?></td>
-                                    <td><small><?php echo htmlspecialchars($plan); ?></small></td>
-                                    <td style="color:#e2e8f0;"><small style="color:#e2e8f0;"><?php echo htmlspecialchars($ip); ?> <br> <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small></td>
-                                    <td><span class="badge bg-success">Activo</span></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php else: ?>
-                    <div class="text-center py-5">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                        <h4 class="text-white">¡Todo perfecto!</h4>
-                        <p class="text-muted">Todos los clientes activos en este nodo tienen su factura de <?php echo date('F Y'); ?> generada.</p>
-                    </div>
-                <?php endif; ?>
-            </div>
+        <?php if (count($resultados) > 0): ?>
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th># Servicio</th>
+                        <th>Cliente</th>
+                        <th>Cédula / Usuario</th>
+                        <th>Plan / Precio</th>
+                        <th>IP / Router</th>
+                        <th class="text-center">Acción</th>
+                        <th class="text-center estado-cel">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaResultados">
+                    <?php foreach ($resultados as $c):
+                        $svc    = $c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '-';
+                        $nombre = $c['nombre'] ?? '-';
+                        $ident  = $c['cedula'] ?? $c['usuario'] ?? '-';
+                        $plan   = $c['plan_internet'] ?? '-';
+                        if (is_array($plan)) {
+                            $precio_plan = floatval($plan['precio'] ?? $plan['costo'] ?? 0);
+                            $nombre_plan = $plan['nombre'] ?? '-';
+                            $plan_str    = $nombre_plan . ($precio_plan > 0 ? " ($" . number_format($precio_plan,2) . ")" : '');
+                        } else {
+                            $plan_str = is_string($plan) ? $plan : '-';
+                        }
+                        $ip     = $c['ip'] ?? '-';
+                        $router = $c['router'] ?? '-';
+                        if (is_array($router)) $router = $router['nombre'] ?? '-';
+                    ?>
+                    <tr id="fila-<?php echo htmlspecialchars($svc); ?>">
+                        <td class="fw-bold text-primary"><?php echo htmlspecialchars($svc); ?></td>
+                        <td style="color:#e2e8f0;"><?php echo htmlspecialchars($nombre); ?></td>
+                        <td style="color:#e2e8f0;"><?php echo htmlspecialchars($ident); ?></td>
+                        <td style="color:#e2e8f0;"><small><?php echo htmlspecialchars($plan_str); ?></small></td>
+                        <td style="color:#e2e8f0;">
+                            <small><?php echo htmlspecialchars($ip); ?><br>
+                            <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-generar"
+                                    onclick="generarUna('<?php echo htmlspecialchars($svc); ?>', this)">
+                                <i class="fas fa-file-invoice me-1"></i> Generar
+                            </button>
+                        </td>
+                        <td class="text-center estado-cel" id="estado-<?php echo htmlspecialchars($svc); ?>">
+                            <span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Pendiente</span>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php else: ?>
+        <div class="text-center py-5">
+            <div style="font-size:3rem;">🎉</div>
+            <h4 class="text-white mt-2">¡Todo en orden!</h4>
+            <p class="text-muted">Todos los clientes activos tienen su factura de <?php echo date('F Y'); ?> generada.</p>
+        </div>
         <?php endif; ?>
     </div>
-    
-    <script>
-        document.getElementById('depuracionForm').addEventListener('submit', function() {
-            const btn = document.getElementById('btnBuscar');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Procesando (puede tomar unos segundos)...';
-            btn.disabled = true;
+    <?php endif; ?>
+</div>
+
+<script>
+const NODO   = <?php echo json_encode($nodo); ?>;
+const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
+
+// IDs de todos los servicios de la tabla
+const todosLosSvcIds = <?php echo json_encode(array_values(array_map(
+    fn($c) => (string)($c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? ''),
+    $resultados ?? []
+))); ?>;
+
+function setEstado(svcId, html) {
+    const el = document.getElementById('estado-' + svcId);
+    if (el) el.innerHTML = html;
+}
+
+// ── Generar una sola factura ──────────────────────────────────────────────────
+async function generarUna(svcId, btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>';
+    setEstado(svcId, '<span class="badge bg-secondary">Generando...</span>');
+
+    try {
+        const fd = new FormData();
+        fd.append('accion',  'generar_factura');
+        fd.append('nodo',    NODO);
+        fd.append('svc_id',  svcId);
+
+        const r   = await fetch('', { method: 'POST', body: fd });
+        const res = await r.json();
+
+        if (res.ok) {
+            btn.closest('tr').style.opacity = '0.5';
+            btn.innerHTML = '<i class="fas fa-check me-1"></i>Generada';
+            btn.style.background = 'rgba(16,185,129,.2)';
+            btn.style.color      = '#10b981';
+            setEstado(svcId,
+                `<span class="badge badge-ok"><i class="fas fa-check-circle me-1"></i>OK $${parseFloat(res.monto||0).toFixed(2)}</span>`);
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-invoice me-1"></i> Generar';
+            setEstado(svcId,
+                `<span class="badge badge-err" title="${esc(res.error)}"><i class="fas fa-times-circle me-1"></i>Error</span>`);
+        }
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-invoice me-1"></i> Generar';
+        setEstado(svcId, '<span class="badge badge-err">Red error</span>');
+    }
+}
+
+// ── Generar todas masivamente ─────────────────────────────────────────────────
+async function generarMasiva() {
+    const btn = document.getElementById('btnGenerarTodas');
+    if (!confirm(`¿Generar facturas para los ${todosLosSvcIds.length} clientes listados?`)) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Generando...';
+
+    const resumenEl = document.getElementById('resumenMasivo');
+    resumenEl.style.display = 'block';
+    resumenEl.className     = 'alert alert-secondary mb-3';
+    resumenEl.textContent   = 'Enviando solicitudes a WispHub, espere...';
+
+    // Marcar todo como "generando"
+    todosLosSvcIds.forEach(id => {
+        setEstado(id, '<span class="badge bg-secondary">Generando...</span>');
+        const filaBtn = document.querySelector(`#fila-${id} .btn-generar`);
+        if (filaBtn) { filaBtn.disabled = true; filaBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+    });
+
+    try {
+        const fd = new FormData();
+        fd.append('accion',   'generar_masiva');
+        fd.append('nodo',     NODO);
+        fd.append('svc_ids',  JSON.stringify(todosLosSvcIds));
+
+        const r   = await fetch('', { method: 'POST', body: fd });
+        const res = await r.json();
+
+        // Actualizar estado por fila
+        (res.detalles || []).forEach(d => {
+            const id = String(d.svc_id);
+            const filaBtn = document.querySelector(`#fila-${id} .btn-generar`);
+            if (d.ok) {
+                if (filaBtn) {
+                    filaBtn.innerHTML = '<i class="fas fa-check me-1"></i>Generada';
+                    filaBtn.style.background = 'rgba(16,185,129,.2)';
+                    filaBtn.style.color      = '#10b981';
+                }
+                const fila = document.getElementById('fila-' + id);
+                if (fila) fila.style.opacity = '0.5';
+                setEstado(id, `<span class="badge badge-ok"><i class="fas fa-check-circle me-1"></i>OK $${parseFloat(d.monto||0).toFixed(2)}</span>`);
+            } else {
+                if (filaBtn) { filaBtn.disabled = false; filaBtn.innerHTML = '<i class="fas fa-file-invoice me-1"></i> Reintentar'; }
+                setEstado(id, `<span class="badge badge-err" title="${esc(d.error)}"><i class="fas fa-times-circle me-1"></i>Error</span>`);
+            }
         });
-    </script>
+
+        const ok  = res.ok_count  || 0;
+        const err = res.err_count || 0;
+        resumenEl.className = err === 0 ? 'alert alert-success mb-3' : 'alert alert-warning mb-3';
+        resumenEl.innerHTML = `<strong>${ok} facturas generadas correctamente.</strong>` +
+            (err > 0 ? ` <span class="text-danger">${err} con error (revisa la columna Estado).</span>` : '');
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bolt me-2"></i> Generar Todas las Facturas';
+
+    } catch(e) {
+        resumenEl.className   = 'alert alert-danger mb-3';
+        resumenEl.textContent = 'Error de red: ' + e.message;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bolt me-2"></i> Generar Todas las Facturas';
+    }
+}
+
+function esc(s) { return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// Spinner al buscar
+document.getElementById('depuracionForm').addEventListener('submit', function() {
+    const btn = document.getElementById('btnBuscar');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
+    btn.disabled  = true;
+});
+</script>
 </body>
 </html>
