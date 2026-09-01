@@ -142,8 +142,8 @@ check("usuario vacío retorna ok=false", $r4['ok'] === false, "error=" . ($r4['e
 // ─── TEST 5: getInvoices con rango del mes ────────────────────────────────────
 echo "\n[5] getInvoices con rango del mes actual ... ";
 $inv_mes = $client->getInvoices([
-    'fecha_emision__range_0' => date('Y-m-01'),
-    'fecha_emision__range_1' => date('Y-m-t'),
+    'fecha_vencimiento__range_0' => date('Y-m-01'),
+    'fecha_vencimiento__range_1' => date('Y-m-t'),
     'limit' => 10, 'offset' => 0,
 ]);
 check("getInvoices con filtro de fecha retorna array", is_array($inv_mes), "count=" . count($inv_mes));

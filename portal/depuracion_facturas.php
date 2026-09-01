@@ -204,25 +204,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         ]);
 
         try {
-            // 1. Servicios que YA tienen factura este mes
+            // 1. Servicios que YA tienen factura con vencimiento este mes
             $facturados = [];
             $offset = 0; $limit = 500;
             while (true) {
                 $page_inv = $client->getInvoices([
-                    'fecha_emision__range_0' => $primer_dia,
-                    'fecha_emision__range_1' => $ultimo_dia,
+                    'fecha_vencimiento__range_0' => $primer_dia,
+                    'fecha_vencimiento__range_1' => $ultimo_dia,
                     'limit' => $limit, 'offset' => $offset,
                 ]);
                 foreach ($page_inv as $inv) {
                     $s = extraer_servicio_id($inv);
-                    if ($s) $facturados[$s] = true;
+                    if ($s) {
+                        // Guardamos el estado de la factura (ej: "Pagada", "Pendiente de Pago")
+                        $estado = $inv['estado'] ?? 'Desconocido';
+                        // Normalizar estado
+                        if (strtolower($estado) === 'pagada' || strtolower($estado) === 'pagado') {
+                            $facturados[$s] = 'pagado';
+                        } else {
+                            $facturados[$s] = 'pendiente';
+                        }
+                    }
                 }
                 if (count($page_inv) < $limit) break;
                 $offset += $limit;
             }
 
-            // 2. Clientes activos sin factura
-            $sin_factura = [];
+            // 2. Todos los clientes activos y su clasificación
+            $todos_activos = [];
             $page = 1;
             while (true) {
                 $res = $client->listClients(['estado' => 1, 'limit' => 100, 'page' => $page]);
@@ -234,8 +243,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 if (empty($clients)) break;
                 foreach ($clients as $c) {
                     $svc = (string)($c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '');
-                    if ($svc && !isset($facturados[$svc])) {
-                        $sin_factura[] = $c;
+                    if ($svc) {
+                        if (isset($facturados[$svc])) {
+                            $c['_estado_local'] = $facturados[$svc]; // 'pagado' o 'pendiente'
+                        } else {
+                            $c['_estado_local'] = 'sin_factura';
+                        }
+                        $todos_activos[] = $c;
                     }
                 }
                 $cp = $res['data']['current_page'] ?? 1;
@@ -244,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 $page++;
             }
 
-            if (!$error) $resultados = $sin_factura;
+            if (!$error) $resultados = $todos_activos;
 
         } catch (\Exception $e) {
             $error = "Excepción: " . $e->getMessage();
@@ -279,6 +293,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         .badge-ok   { background: rgba(16,185,129,.15); color:#10b981; border:1px solid rgba(16,185,129,.3); }
         .badge-err  { background: rgba(239,68,68,.15);  color:#ef4444; border:1px solid rgba(239,68,68,.3); }
         #resumenMasivo { display:none; }
+        
+        /* Estilos para los tabs/filtros */
+        .tab-btn { background: rgba(30,41,59,0.8); border: 1px solid rgba(255,255,255,0.05); color: #94a3b8; transition: all 0.2s; border-radius: 8px; font-weight: 500; }
+        .tab-btn:hover { background: rgba(51,65,85,0.8); color: #fff; }
+        .tab-btn.active-sin { background: rgba(239,68,68,0.2); color: #ef4444; border-color: rgba(239,68,68,0.4); }
+        .tab-btn.active-pag { background: rgba(16,185,129,0.2); color: #10b981; border-color: rgba(16,185,129,0.4); }
+        .tab-btn.active-pen { background: rgba(245,158,11,0.2); color: #f59e0b; border-color: rgba(245,158,11,0.4); }
     </style>
 </head>
 <body>
@@ -316,20 +337,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     <?php endif; ?>
 
     <?php if ($resultados !== null): ?>
+    <?php
+        $count_sin = 0; $count_pag = 0; $count_pen = 0;
+        foreach($resultados as $c) {
+            $e = $c['_estado_local'];
+            if ($e === 'sin_factura') $count_sin++;
+            elseif ($e === 'pagado') $count_pag++;
+            elseif ($e === 'pendiente') $count_pen++;
+        }
+    ?>
     <div class="glass-panel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
             <div>
                 <h5 class="fw-bold mb-0 text-white">Nodo: <?php echo ucfirst($nodo); ?></h5>
-                <small class="text-muted"><?php echo date('F Y'); ?> — <?php echo count($resultados); ?> cliente(s) sin factura</small>
+                <small class="text-muted">Estado de facturación (<?php echo date('F Y'); ?>)</small>
             </div>
-            <div class="d-flex gap-2 align-items-center">
-                <?php if (count($resultados) > 0): ?>
-                <button id="btnGenerarTodas" class="btn btn-masiva fw-bold px-4"
-                        onclick="generarMasiva()">
-                    <i class="fas fa-bolt me-2"></i> Generar Todas las Facturas
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button class="btn tab-btn active-sin px-3" onclick="filtrarTabla('sin_factura', this)">
+                    <i class="fas fa-exclamation-circle me-1"></i> Sin Factura <span class="badge bg-danger ms-1"><?php echo $count_sin; ?></span>
                 </button>
-                <?php endif; ?>
-                <span class="badge bg-danger fs-6"><?php echo count($resultados); ?></span>
+                <button class="btn tab-btn px-3" onclick="filtrarTabla('pendiente', this)">
+                    <i class="fas fa-clock me-1"></i> Pendientes <span class="badge bg-warning text-dark ms-1"><?php echo $count_pen; ?></span>
+                </button>
+                <button class="btn tab-btn px-3" onclick="filtrarTabla('pagado', this)">
+                    <i class="fas fa-check-circle me-1"></i> Pagados <span class="badge bg-success ms-1"><?php echo $count_pag; ?></span>
+                </button>
+                
+                <div class="ms-3" id="generarMasivaContainer" style="display: <?php echo $count_sin > 0 ? 'block' : 'none'; ?>;">
+                    <button id="btnGenerarTodas" class="btn btn-masiva fw-bold px-4"
+                            onclick="generarMasiva()">
+                        <i class="fas fa-bolt me-2"></i> Generar Faltantes
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -366,8 +405,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                         $ip     = $c['ip'] ?? '-';
                         $router = $c['router'] ?? '-';
                         if (is_array($router)) $router = $router['nombre'] ?? '-';
+                        $estado_local = $c['_estado_local']; // 'sin_factura', 'pagado', 'pendiente'
                     ?>
-                    <tr id="fila-<?php echo htmlspecialchars($svc); ?>">
+                    <tr id="fila-<?php echo htmlspecialchars($svc); ?>" class="fila-cliente" data-estado="<?php echo $estado_local; ?>" style="<?php echo $estado_local !== 'sin_factura' ? 'display:none;' : ''; ?>">
                         <td class="fw-bold text-primary"><?php echo htmlspecialchars($svc); ?></td>
                         <td style="color:#e2e8f0;"><?php echo htmlspecialchars($nombre); ?></td>
                         <td style="color:#e2e8f0;"><?php echo htmlspecialchars($ident); ?></td>
@@ -377,6 +417,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                             <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small>
                         </td>
                         <td class="text-center">
+                            <?php if ($estado_local === 'sin_factura'): ?>
                             <button class="btn btn-generar"
                                     onclick="abrirModalConfirm(
                                         '<?php echo htmlspecialchars($svc); ?>',
@@ -386,9 +427,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                                     )">
                                 <i class="fas fa-file-invoice me-1"></i> Generar
                             </button>
+                            <?php else: ?>
+                                <span class="text-muted"><i class="fas fa-ban"></i></span>
+                            <?php endif; ?>
                         </td>
                         <td class="text-center estado-cel" id="estado-<?php echo htmlspecialchars($svc); ?>">
-                            <span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Pendiente</span>
+                            <?php if ($estado_local === 'pagado'): ?>
+                                <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981;"><i class="fas fa-check-circle me-1"></i>Pagada</span>
+                            <?php elseif ($estado_local === 'pendiente'): ?>
+                                <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;"><i class="fas fa-clock me-1"></i>Pendiente</span>
+                            <?php else: ?>
+                                <span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Sin Factura</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -449,11 +499,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
 const NODO   = <?php echo json_encode($nodo); ?>;
 const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
 
-// IDs de todos los servicios de la tabla
-const todosLosSvcIds = <?php echo json_encode(array_values(array_map(
-    fn($c) => (string)($c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? ''),
-    $resultados ?? []
-))); ?>;
+// IDs de todos los servicios de la tabla (solo los que NO tienen factura)
+const todosLosSvcIds = Array.from(document.querySelectorAll('tr.fila-cliente[data-estado="sin_factura"]')).map(tr => tr.id.replace('fila-', ''));
+
+function filtrarTabla(estado, btn) {
+    // 1. Quitar la clase active de todos los botones
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active-sin', 'active-pag', 'active-pen');
+    });
+    
+    // 2. Agregar la clase active al botón clickeado
+    let activeClass = 'active-sin';
+    if (estado === 'pagado') activeClass = 'active-pag';
+    if (estado === 'pendiente') activeClass = 'active-pen';
+    btn.classList.add(activeClass);
+
+    // 3. Mostrar/ocultar filas
+    let count = 0;
+    document.querySelectorAll('tr.fila-cliente').forEach(tr => {
+        if (tr.dataset.estado === estado) {
+            tr.style.display = '';
+            count++;
+        } else {
+            tr.style.display = 'none';
+        }
+    });
+    
+    // 4. Mostrar/ocultar el botón masivo y mensajes de vacío
+    const contenedorMasiva = document.getElementById('generarMasivaContainer');
+    if (estado === 'sin_factura' && count > 0) {
+        contenedorMasiva.style.display = 'block';
+    } else {
+        contenedorMasiva.style.display = 'none';
+    }
+}
 
 function setEstado(svcId, html) {
     const el = document.getElementById('estado-' + svcId);
