@@ -206,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         try {
             // 1. Servicios que YA tienen factura con vencimiento este mes
             $facturados = [];
-            $offset = 0; $limit = 500;
+            $offset = 0; $limit = 100;
             while (true) {
                 $page_inv = $client->getInvoices([
                     'fecha_vencimiento__range_0' => $primer_dia,
