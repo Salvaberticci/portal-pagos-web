@@ -132,8 +132,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
         .glass-panel { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; }
         .table-premium { color: #e2e8f0; }
-        .table-premium th { background: #1e293b; color: #94a3b8; border-bottom: 2px solid #334155; }
-        .table-premium td { border-bottom: 1px solid #334155; vertical-align: middle; }
+        .table-premium th { background: rgba(30, 41, 59, 0.9); color: #94a3b8; border-bottom: 2px solid #334155; }
+        .table-premium td { background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid #334155; vertical-align: middle; color: #e2e8f0; }
         .btn-premium { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; border: none; }
         .btn-premium:hover { background: linear-gradient(135deg, #2563eb, #4f46e5); color: #fff; }
         select.form-select { background: #1e293b; color: #fff; border: 1px solid #334155; }
@@ -177,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 
                 <?php if (count($resultados) > 0): ?>
                     <div class="table-responsive">
-                        <table class="table table-premium table-hover mb-0">
+                        <table class="table table-dark table-hover mb-0" style="background: transparent;">
                             <thead>
                                 <tr>
                                     <th># Servicio</th>
