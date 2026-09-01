@@ -444,6 +444,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     </div>
 </div>
 
+<script src="../js/bootstrap.bundle.min.js"></script>
 <script>
 const NODO   = <?php echo json_encode($nodo); ?>;
 const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
