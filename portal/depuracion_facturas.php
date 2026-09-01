@@ -378,7 +378,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                         </td>
                         <td class="text-center">
                             <button class="btn btn-generar"
-                                    onclick="generarUna('<?php echo htmlspecialchars($svc); ?>', this)">
+                                    onclick="abrirModalConfirm(
+                                        '<?php echo htmlspecialchars($svc); ?>',
+                                        '<?php echo htmlspecialchars(addslashes($nombre)); ?>',
+                                        '<?php echo htmlspecialchars(addslashes($plan_str)); ?>',
+                                        this
+                                    )">
                                 <i class="fas fa-file-invoice me-1"></i> Generar
                             </button>
                         </td>
@@ -401,6 +406,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     <?php endif; ?>
 </div>
 
+<!-- Modal de confirmación individual -->
+<div class="modal fade" id="modalConfirm" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background:rgba(15,23,42,0.97);border:1.5px solid rgba(59,130,246,0.35);border-radius:16px;color:#e2e8f0;">
+            <div class="modal-header" style="border-bottom:1px solid #334155;">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:42px;height:42px;border-radius:12px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#3b82f6;">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0">Confirmar Generación</h5>
+                        <small style="color:#94a3b8;">Esta acción creará la factura en WispHub</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-1" style="color:#94a3b8;font-size:.85rem;">CLIENTE</p>
+                <p class="fw-bold fs-6 mb-3" id="modalNombre" style="color:#e2e8f0;">—</p>
+                <p class="mb-1" style="color:#94a3b8;font-size:.85rem;">PLAN / PRECIO</p>
+                <p class="fw-bold mb-3" id="modalPlan" style="color:#3b82f6;">—</p>
+                <p class="mb-1" style="color:#94a3b8;font-size:.85rem;"># SERVICIO</p>
+                <p class="fw-bold mb-0" id="modalSvc" style="color:#e2e8f0;">—</p>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #334155;gap:10px;">
+                <button type="button" class="btn px-4" data-bs-dismiss="modal"
+                        style="background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid #334155;border-radius:10px;">
+                    <i class="fas fa-times me-1"></i> Cancelar
+                </button>
+                <button type="button" id="btnConfirmarGenerar" class="btn fw-bold px-4"
+                        style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;">
+                    <i class="fas fa-file-invoice me-2"></i> Confirmar y Generar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const NODO   = <?php echo json_encode($nodo); ?>;
 const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
@@ -415,6 +458,32 @@ function setEstado(svcId, html) {
     const el = document.getElementById('estado-' + svcId);
     if (el) el.innerHTML = html;
 }
+
+// ── Estado pendiente del modal ────────────────────────────────────────────────
+let _pendingSvcId  = null;
+let _pendingBtn    = null;
+
+function abrirModalConfirm(svcId, nombre, plan, btn) {
+    _pendingSvcId = svcId;
+    _pendingBtn   = btn;
+    document.getElementById('modalNombre').textContent = nombre;
+    document.getElementById('modalPlan').textContent   = plan || '—';
+    document.getElementById('modalSvc').textContent    = '# ' + svcId;
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirm'));
+    modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('btnConfirmarGenerar').addEventListener('click', function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalConfirm'));
+        if (modal) modal.hide();
+        if (_pendingSvcId && _pendingBtn) {
+            generarUna(_pendingSvcId, _pendingBtn);
+            _pendingSvcId = null;
+            _pendingBtn   = null;
+        }
+    });
+});
 
 // ── Generar una sola factura ──────────────────────────────────────────────────
 async function generarUna(svcId, btn) {
