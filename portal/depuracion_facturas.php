@@ -598,209 +598,210 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     <!-- Menú de Pestañas Principales -->
     <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold px-4" id="tab-conciliacion-btn" data-bs-toggle="pill" data-bs-target="#tab-conciliacion" type="button" role="tab" style="border-radius: 10px;">
-                <i class="fas fa-search-dollar me-2"></i> Conciliación de Facturas
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold px-4" id="tab-errores-btn" data-bs-toggle="pill" data-bs-target="#tab-errores" type="button" role="tab" style="border-radius: 10px;">
-                <i class="fas fa-heartbeat me-2"></i> Errores de Abono
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="mainTabsContent">
+            <button class="nav-link active fw-bold px-4" id="tab-conciliacion-btn" data-bs-toggle="pill" data-bs-tar    <div class="tab-content" id="mainTabsContent">
         
         <!-- ================= TAB 1: CONCILIACIÓN ================= -->
         <div class="tab-pane fade show active" id="tab-conciliacion" role="tabpanel">
-    <!-- Formulario de búsqueda -->
-    <div class="glass-panel mb-4 mx-auto" style="max-width:600px;">
-        <p class="text-muted small text-center mb-4">
-            Detecta clientes <strong>Activos</strong> sin factura en el mes en curso (<strong><?php echo date('F Y'); ?></strong>)
-            y genera las facturas faltantes desde aquí.
-        </p>
-        <form method="POST" id="depuracionForm">
-            <div class="mb-3">
-                <label class="form-label text-light fw-bold">Seleccionar Nodo</label>
-                <select name="nodo" id="selectNodo" class="form-select" required>
-                    <option value="">-- Elija un nodo --</option>
-                    <option value="sitelco"   <?php echo $nodo==='sitelco'   ? 'selected':''; ?>>Sitelco</option>
-                    <option value="jalisco"   <?php echo $nodo==='jalisco'   ? 'selected':''; ?>>Jalisco</option>
-                    <option value="pampanito" <?php echo $nodo==='pampanito' ? 'selected':''; ?>>Pampanito</option>
-                </select>
+            <!-- Formulario de búsqueda -->
+            <div class="glass-panel mb-4 mx-auto" style="max-width:600px;">
+                <p class="text-muted small text-center mb-4">
+                    Detecta clientes <strong>Activos</strong> sin factura en el mes en curso (<strong><?php echo date('F Y'); ?></strong>)
+                    y genera las facturas faltantes desde aquí.
+                </p>
+                <form method="POST" id="depuracionForm">
+                    <div class="mb-3">
+                        <label class="form-label text-light fw-bold">Seleccionar Nodo</label>
+                        <select name="nodo" id="selectNodo" class="form-select" required>
+                            <option value="">-- Elija un nodo --</option>
+                            <option value="sitelco"   <?php echo $nodo==='sitelco'   ? 'selected':''; ?>>Sitelco</option>
+                            <option value="jalisco"   <?php echo $nodo==='jalisco'   ? 'selected':''; ?>>Jalisco</option>
+                            <option value="pampanito" <?php echo $nodo==='pampanito' ? 'selected':''; ?>>Pampanito</option>
+                        </select>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-premium py-2 fw-bold" id="btnBuscar">
+                            <i class="fas fa-search me-2"></i> Conciliar Activos sin Factura
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="d-grid mt-4">
-                <button type="submit" class="btn btn-premium py-2 fw-bold" id="btnBuscar">
-                    <i class="fas fa-search me-2"></i> Conciliar Activos sin Factura
-                </button>
-            </div>
-        </form>
-    </div>
 
+            <?php if ($error): ?>
+                <div class="alert alert-danger mx-auto" style="max-width:600px;">
+                    <i class="fas fa-exclamation-triangle me-2"></i> <?php echo htmlspecialchars($error); ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($resultados !== null): ?>
+            <?php
+                $count_sin = 0; $count_pag = 0; $count_pen = 0;
+                foreach($resultados as $c) {
+                    $e = $c['_estado_local'];
+                    if ($e === 'sin_factura') $count_sin++;
+                    elseif ($e === 'pagado') $count_pag++;
+                    elseif ($e === 'pendiente') $count_pen++;
+                }
+            ?>
+            <div class="glass-panel">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <div>
+                        <h5 class="fw-bold mb-0 text-white">Nodo: <?php echo ucfirst($nodo); ?></h5>
+                        <small class="text-muted">Estado de facturación (<?php echo date('F Y'); ?>)</small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <button class="btn tab-btn active-sin px-3" onclick="filtrarTabla('sin_factura', this)">
+                            <i class="fas fa-exclamation-circle me-1"></i> Sin Factura <span class="badge bg-danger ms-1"><?php echo $count_sin; ?></span>
+                        </button>
+                        <button class="btn tab-btn px-3" onclick="filtrarTabla('pendiente', this)">
+                            <i class="fas fa-clock me-1"></i> Pendientes <span class="badge bg-warning text-dark ms-1"><?php echo $count_pen; ?></span>
+                        </button>
+                        <button class="btn tab-btn px-3" onclick="filtrarTabla('pagado', this)">
+                            <i class="fas fa-check-circle me-1"></i> Pagados <span class="badge bg-success ms-1"><?php echo $count_pag; ?></span>
+                        </button>
+                        
+                        <div class="ms-3" id="generarMasivaContainer" style="display: <?php echo $count_sin > 0 ? 'block' : 'none'; ?>;">
+                            <button id="btnGenerarTodas" class="btn btn-masiva fw-bold px-4"
+                                    onclick="generarMasiva()">
+                                <i class="fas fa-bolt me-2"></i> Generar Faltantes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen masivo -->
+                <div id="resumenMasivo" class="alert mb-3" role="alert"></div>
+
+                <!-- Buscador -->
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-search"></i></span>
+                        <input type="text" id="buscador-tabla" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por cliente, cédula, servicio, plan o IP...">
+                    </div>
+                </div>
+
+                <?php if (count($resultados) > 0): ?>
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th># Servicio</th>
+                                <th>Cliente</th>
+                                <th>Cédula / Usuario</th>
+                                <th>Plan / Precio</th>
+                                <th>IP / Router</th>
+                                <th class="text-center">Acción</th>
+                                <th class="text-center estado-cel">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaResultados">
+                            <?php foreach ($resultados as $c):
+                                $svc    = $c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '-';
+                                $nombre = $c['nombre'] ?? '-';
+                                $ident  = $c['cedula'] ?? $c['usuario'] ?? '-';
+                                $plan   = $c['plan_internet'] ?? '-';
+                                if (is_array($plan)) {
+                                    $precio_plan = floatval($plan['precio'] ?? $plan['costo'] ?? 0);
+                                    $nombre_plan = $plan['nombre'] ?? '-';
+                                    $plan_str    = $nombre_plan . ($precio_plan > 0 ? " ($" . number_format($precio_plan,2) . ")" : '');
+                                } else {
+                                    $plan_str = is_string($plan) ? $plan : '-';
+                                }
+                                $ip     = $c['ip'] ?? '-';
+                                $router = $c['router'] ?? '-';
+                                if (is_array($router)) $router = $router['nombre'] ?? '-';
+                                $estado_local = $c['_estado_local']; // 'sin_factura', 'pagado', 'pendiente'
+                            ?>
+                            <tr id="fila-<?php echo htmlspecialchars($svc); ?>" class="fila-cliente" data-estado="<?php echo $estado_local; ?>" style="<?php echo $estado_local !== 'sin_factura' ? 'display:none;' : ''; ?>">
+                                <td class="fw-bold text-primary"><?php echo htmlspecialchars($svc); ?></td>
+                                <td style="color:#e2e8f0;"><?php echo htmlspecialchars($nombre); ?></td>
+                                <td style="color:#e2e8f0;"><?php echo htmlspecialchars($ident); ?></td>
+                                <td style="color:#e2e8f0;"><small><?php echo htmlspecialchars($plan_str); ?></small></td>
+                                <td style="color:#e2e8f0;">
+                                    <small><?php echo htmlspecialchars($ip); ?><br>
+                                    <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small>
+                                </td>
+                                <td class="text-center">
+                                    <?php if ($estado_local === 'sin_factura'): ?>
+                                    <button class="btn btn-generar"
+                                            onclick="abrirModalConfirm(
+                                                '<?php echo htmlspecialchars($svc); ?>',
+                                                '<?php echo htmlspecialchars(addslashes($nombre)); ?>',
+                                                '<?php echo htmlspecialchars(addslashes($plan_str)); ?>',
+                                                this
+                                            )">
+                                        <i class="fas fa-file-invoice me-1"></i> Generar
+                                    </button>
+                                    <?php else: ?>
+                                        <span class="text-muted"><i class="fas fa-ban"></i></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center estado-cel" id="estado-<?php echo htmlspecialchars($svc); ?>">
+                                    <?php if ($estado_local === 'pagado'): ?>
+                                        <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981;"><i class="fas fa-check-circle me-1"></i>Pagada</span>
+                                    <?php elseif ($estado_local === 'pendiente'): ?>
+                                        <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;"><i class="fas fa-clock me-1"></i>Pendiente</span>
+                                    <?php else: ?>
+                                        <span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Sin Factura</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="text-center py-5">
+                    <div style="font-size:3rem;">🎉</div>
+                    <h4 class="text-white mt-2">¡Todo en orden!</h4>
+                    <p class="text-muted">Todos los clientes activos tienen su factura de <?php echo date('F Y'); ?> generada.</p>
+                </div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
         </div> <!-- Fin TAB 1 -->
 
         <!-- ================= TAB 2: ERRORES DE ABONO ================= -->
         <div class="tab-pane fade" id="tab-errores" role="tabpanel">
             <div class="scanner-section mx-auto" style="max-width:900px;" id="scannerSection">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div>
-                <h5 class="fw-bold mb-0"><i class="fas fa-heartbeat me-2"></i> Errores de Abono</h5>
-                <small style="color:#cbd5e1;">Detecta y repara desincronizaciones por pagos parciales</small>
-            </div>
-            <div class="d-flex align-items-center gap-2">
-                <select id="scannerNodo" class="form-select form-select-sm" style="width:auto;background:#1e293b;color:#fff;border:1px solid #334155;">
-                    <option value="">-- Nodo --</option>
-                    <option value="sitelco">Sitelco</option>
-                    <option value="jalisco">Jalisco</option>
-                    <option value="pampanito">Pampanito</option>
-                </select>
-                <button class="btn btn-scan" id="btnScanear" onclick="escanearErrores()">
-                    <i class="fas fa-radar me-2"></i> Escanear
-                </button>
-            </div>
-        </div>
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fas fa-heartbeat me-2"></i> Errores de Abono</h5>
+                        <small style="color:#cbd5e1;">Detecta y repara desincronizaciones por pagos parciales</small>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <select id="scannerNodo" class="form-select form-select-sm" style="width:auto;background:#1e293b;color:#fff;border:1px solid #334155;">
+                            <option value="">-- Nodo --</option>
+                            <option value="sitelco">Sitelco</option>
+                            <option value="jalisco">Jalisco</option>
+                            <option value="pampanito">Pampanito</option>
+                        </select>
+                        <button class="btn btn-scan" id="btnScanear" onclick="escanearErrores()">
+                            <i class="fas fa-radar me-2"></i> Escanear
+                        </button>
+                    </div>
+                </div>
 
-        <div id="scannerStatus" class="small mb-2" style="display:none;color:#cbd5e1;"></div>
+                <div id="scannerStatus" class="small mb-2" style="display:none;color:#cbd5e1;"></div>
 
-        <!-- Sub-tabs de error -->
-        <div class="error-tabs d-flex gap-2 mb-3" id="errorTabs" style="display:none !important;">
-            <button class="etab active-dup" onclick="mostrarErrorTab('duplicados', this)" id="tabDup">
-                <i class="fas fa-copy me-1"></i> Deuda Duplicada <span class="badge bg-danger ms-1" id="cntDup">0</span>
-            </button>
-            <button class="etab active-fan" onclick="mostrarErrorTab('fantasmas', this)" id="tabFan">
-    <?php if ($error): ?>
-        <div class="alert alert-danger mx-auto" style="max-width:600px;">
-            <i class="fas fa-exclamation-triangle me-2"></i> <?php echo htmlspecialchars($error); ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if ($resultados !== null): ?>
-    <?php
-        $count_sin = 0; $count_pag = 0; $count_pen = 0;
-        foreach($resultados as $c) {
-            $e = $c['_estado_local'];
-            if ($e === 'sin_factura') $count_sin++;
-            elseif ($e === 'pagado') $count_pag++;
-            elseif ($e === 'pendiente') $count_pen++;
-        }
-    ?>
-    <div class="glass-panel">
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-            <div>
-                <h5 class="fw-bold mb-0 text-white">Nodo: <?php echo ucfirst($nodo); ?></h5>
-                <small class="text-muted">Estado de facturación (<?php echo date('F Y'); ?>)</small>
-            </div>
-            <div class="d-flex gap-2 align-items-center flex-wrap">
-                <button class="btn tab-btn active-sin px-3" onclick="filtrarTabla('sin_factura', this)">
-                    <i class="fas fa-exclamation-circle me-1"></i> Sin Factura <span class="badge bg-danger ms-1"><?php echo $count_sin; ?></span>
-                </button>
-                <button class="btn tab-btn px-3" onclick="filtrarTabla('pendiente', this)">
-                    <i class="fas fa-clock me-1"></i> Pendientes <span class="badge bg-warning text-dark ms-1"><?php echo $count_pen; ?></span>
-                </button>
-                <button class="btn tab-btn px-3" onclick="filtrarTabla('pagado', this)">
-                    <i class="fas fa-check-circle me-1"></i> Pagados <span class="badge bg-success ms-1"><?php echo $count_pag; ?></span>
-                </button>
-                
-                <div class="ms-3" id="generarMasivaContainer" style="display: <?php echo $count_sin > 0 ? 'block' : 'none'; ?>;">
-                    <button id="btnGenerarTodas" class="btn btn-masiva fw-bold px-4"
-                            onclick="generarMasiva()">
-                        <i class="fas fa-bolt me-2"></i> Generar Faltantes
+                <!-- Sub-tabs de error -->
+                <div class="error-tabs d-flex gap-2 mb-3" id="errorTabs" style="display:none !important;">
+                    <button class="etab active-dup" onclick="mostrarErrorTab('duplicados', this)" id="tabDup">
+                        <i class="fas fa-copy me-1"></i> Deuda Duplicada <span class="badge bg-danger ms-1" id="cntDup">0</span>
+                    </button>
+                    <button class="etab active-fan" onclick="mostrarErrorTab('fantasmas', this)" id="tabFan">
+                        <i class="fas fa-ghost me-1"></i> Cobro Fantasma <span class="badge bg-warning ms-1" id="cntFan">0</span>
+                    </button>
+                    <button class="etab active-pro" onclick="mostrarErrorTab('sin_promesa', this)" id="tabPro">
+                        <i class="fas fa-calendar-times me-1"></i> Sin Promesa <span class="badge" style="background:#6366f1;color:#fff;" id="cntPro">0</span>
                     </button>
                 </div>
+                
+                <div id="scannerResultados"></div>
             </div>
-        </div>
+        </div> <!-- Fin TAB 2 -->
 
-        <!-- Resumen masivo -->
-        <div id="resumenMasivo" class="alert mb-3" role="alert"></div>
-
-        <!-- Buscador -->
-        <div class="mb-3">
-            <div class="input-group">
-                <span class="input-group-text bg-dark border-secondary text-secondary"><i class="fas fa-search"></i></span>
-                <input type="text" id="buscador-tabla" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por cliente, cédula, servicio, plan o IP...">
-            </div>
-        </div>
-
-        <?php if (count($resultados) > 0): ?>
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th># Servicio</th>
-                        <th>Cliente</th>
-                        <th>Cédula / Usuario</th>
-                        <th>Plan / Precio</th>
-                        <th>IP / Router</th>
-                        <th class="text-center">Acción</th>
-                        <th class="text-center estado-cel">Estado</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaResultados">
-                    <?php foreach ($resultados as $c):
-                        $svc    = $c['id_servicio'] ?? $c['id'] ?? $c['service_id'] ?? '-';
-                        $nombre = $c['nombre'] ?? '-';
-                        $ident  = $c['cedula'] ?? $c['usuario'] ?? '-';
-                        $plan   = $c['plan_internet'] ?? '-';
-                        if (is_array($plan)) {
-                            $precio_plan = floatval($plan['precio'] ?? $plan['costo'] ?? 0);
-                            $nombre_plan = $plan['nombre'] ?? '-';
-                            $plan_str    = $nombre_plan . ($precio_plan > 0 ? " ($" . number_format($precio_plan,2) . ")" : '');
-                        } else {
-                            $plan_str = is_string($plan) ? $plan : '-';
-                        }
-                        $ip     = $c['ip'] ?? '-';
-                        $router = $c['router'] ?? '-';
-                        if (is_array($router)) $router = $router['nombre'] ?? '-';
-                        $estado_local = $c['_estado_local']; // 'sin_factura', 'pagado', 'pendiente'
-                    ?>
-                    <tr id="fila-<?php echo htmlspecialchars($svc); ?>" class="fila-cliente" data-estado="<?php echo $estado_local; ?>" style="<?php echo $estado_local !== 'sin_factura' ? 'display:none;' : ''; ?>">
-                        <td class="fw-bold text-primary"><?php echo htmlspecialchars($svc); ?></td>
-                        <td style="color:#e2e8f0;"><?php echo htmlspecialchars($nombre); ?></td>
-                        <td style="color:#e2e8f0;"><?php echo htmlspecialchars($ident); ?></td>
-                        <td style="color:#e2e8f0;"><small><?php echo htmlspecialchars($plan_str); ?></small></td>
-                        <td style="color:#e2e8f0;">
-                            <small><?php echo htmlspecialchars($ip); ?><br>
-                            <span style="color:#94a3b8;"><?php echo htmlspecialchars($router); ?></span></small>
-                        </td>
-                        <td class="text-center">
-                            <?php if ($estado_local === 'sin_factura'): ?>
-                            <button class="btn btn-generar"
-                                    onclick="abrirModalConfirm(
-                                        '<?php echo htmlspecialchars($svc); ?>',
-                                        '<?php echo htmlspecialchars(addslashes($nombre)); ?>',
-                                        '<?php echo htmlspecialchars(addslashes($plan_str)); ?>',
-                                        this
-                                    )">
-                                <i class="fas fa-file-invoice me-1"></i> Generar
-                            </button>
-                            <?php else: ?>
-                                <span class="text-muted"><i class="fas fa-ban"></i></span>
-                            <?php endif; ?>
-                        </td>
-                        <td class="text-center estado-cel" id="estado-<?php echo htmlspecialchars($svc); ?>">
-                            <?php if ($estado_local === 'pagado'): ?>
-                                <span class="badge" style="background:rgba(16,185,129,.15);color:#10b981;"><i class="fas fa-check-circle me-1"></i>Pagada</span>
-                            <?php elseif ($estado_local === 'pendiente'): ?>
-                                <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b;"><i class="fas fa-clock me-1"></i>Pendiente</span>
-                            <?php else: ?>
-                                <span class="badge" style="background:rgba(100,116,139,.2);color:#94a3b8;">Sin Factura</span>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-        <?php else: ?>
-        <div class="text-center py-5">
-            <div style="font-size:3rem;">🎉</div>
-            <h4 class="text-white mt-2">¡Todo en orden!</h4>
-            <p class="text-muted">Todos los clientes activos tienen su factura de <?php echo date('F Y'); ?> generada.</p>
-        </div>
-        <?php endif; ?>
-    </div>
-    <?php endif; ?>
-</div>
+    </div> <!-- Fin tab-content -->
+</div> <!-- Fin container principal -->
 
 <!-- Modal de confirmación individual -->
 <div class="modal fade" id="modalConfirm" tabindex="-1" aria-hidden="true">
