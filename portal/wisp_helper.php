@@ -236,26 +236,33 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     if ($clientId && !empty($c_perfil)) {
         try {
             $estado_cliente = strtolower($c_perfil['estado'] ?? '');
+            $precio_plan    = floatval($c_perfil['precio_plan'] ?? 0);
+
+            // Si falta el estado o el precio del plan (común en la API de Jalisco/.io para getServiceProfile),
+            // hacemos un fallback a listClients que sí devuelve estos datos de forma confiable.
+            if (empty($estado_cliente) || $precio_plan <= 0) {
+                try {
+                    $cliRes = $wispClient->listClients(['id_servicio' => $serviceId, 'limit' => 1]);
+                    if ($cliRes['status'] === 200 && !empty($cliRes['data']['results'][0])) {
+                        if (empty($estado_cliente)) {
+                            $estado_cliente = strtolower($cliRes['data']['results'][0]['estado'] ?? '');
+                        }
+                        if ($precio_plan <= 0) {
+                            $precio_plan = floatval($cliRes['data']['results'][0]['precio_plan'] ?? 0);
+                        }
+                    }
+                } catch (\Throwable $e2) {
+                    error_log('[wisp_helper] listClients fallback falló: ' . $e2->getMessage());
+                }
+            }
+
+            // También intentar desde el plan asignado como último recurso
+            if ($precio_plan <= 0 && !empty($c_perfil['plan_internet'])) {
+                $precio_plan = floatval($c_perfil['plan_internet']['precio'] ?? $c_perfil['plan_internet']['costo'] ?? 0);
+            }
 
             // Solo generar si el cliente está Activo
             if (in_array($estado_cliente, ['activo', 'active'])) {
-
-                // Precio del plan: primero intentar en el perfil, luego via listClients
-                $precio_plan = floatval($c_perfil['precio_plan'] ?? 0);
-                if ($precio_plan <= 0 && !empty($c_perfil['plan_internet'])) {
-                    $precio_plan = floatval($c_perfil['plan_internet']['precio'] ?? $c_perfil['plan_internet']['costo'] ?? 0);
-                }
-                if ($precio_plan <= 0) {
-                    // Fallback: listClients (el más confiable para Jalisco/.io)
-                    try {
-                        $cliRes = $wispClient->listClients(['id_servicio' => $serviceId, 'limit' => 1]);
-                        if ($cliRes['status'] === 200 && !empty($cliRes['data']['results'][0])) {
-                            $precio_plan = floatval($cliRes['data']['results'][0]['precio_plan'] ?? 0);
-                        }
-                    } catch (\Throwable $e2) {
-                        error_log('[wisp_helper] listClients para precio falló: ' . $e2->getMessage());
-                    }
-                }
 
                 if ($precio_plan > 0) {
                     // Rango del mes ACTUAL (no últimos 35 días)
