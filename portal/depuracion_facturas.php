@@ -467,7 +467,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         ]);
 
         try {
-            // 1. Servicios que YA tienen factura emitida en los últimos 35 días
+            // 1. Servicios que YA tienen factura MENSUAL (tipo=1) emitida en los últimos 35 días.
+            //    IMPORTANTE: Excluimos tipo_factura=2 (facturas hija de saldo parcial) porque
+            //    esas NO representan la mensualidad del mes nuevo — son el saldo pendiente de un
+            //    abono parcial anterior. Sin esta exclusión, clientes que pagaron parcialmente
+            //    (ej. Dalimar, Oriana) aparecen como "ya facturados" cuando en realidad
+            //    no tienen la mensualidad de este mes generada.
             $facturados = [];
             $offset = 0; $limit = 100;
             $mes_pasado = date('Y-m-d', strtotime('-35 days'));
@@ -479,11 +484,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                     'limit' => $limit, 'offset' => $offset,
                 ]);
                 foreach ($page_inv as $inv) {
+                    // Omitir facturas hija de abono parcial (tipo=2 = Manual/Extra)
+                    $tipo_fac = intval($inv['tipo_factura'] ?? 1);
+                    if ($tipo_fac === 2) continue;
+
                     $s = extraer_servicio_id($inv);
                     if ($s) {
-                        // Guardamos el estado de la factura (ej: "Pagada", "Pendiente de Pago")
                         $estado = $inv['estado'] ?? 'Desconocido';
-                        // Normalizar estado
                         if (strtolower($estado) === 'pagada' || strtolower($estado) === 'pagado') {
                             $facturados[$s] = 'pagado';
                         } else {
@@ -494,6 +501,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 if (count($page_inv) < $limit) break;
                 $offset += $limit;
             }
+
 
             // 2. Todos los clientes activos y su clasificación
             $todos_activos = [];
