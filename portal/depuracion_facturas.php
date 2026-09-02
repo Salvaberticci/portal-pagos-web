@@ -180,18 +180,30 @@ if ($accion === 'reparar_error') {
         'verify_ssl' => $creds['verify_ssl'] ?? false,
     ]);
 
+    $forma_pago_id = intval($creds['forma_pago_operacion_bancaria'] ?? 45181);
+
     if ($tipo === 'duplicado') {
-        // Anular la factura hija registrando un cobro igual a su total (la "cierra" como pagada en WispHub)
+        // Anular la factura hija usando el total enviado directamente desde el JS
         $id_hija = (int)($_POST['id_hija'] ?? 0);
+        $monto   = floatval($_POST['total'] ?? 0);
         if (!$id_hija) { echo json_encode(['ok' => false, 'error' => 'id_hija requerido']); exit; }
-        $detalle = $client->getInvoiceDetail((string)$id_hija);
-        $monto   = floatval($detalle['total'] ?? 0);
+        // Fallback: si no viene total, lo buscamos vía lista (no endpoint individual)
+        if ($monto <= 0) {
+            $todas = $client->getInvoices(['estado' => 1, 'limit' => 300]);
+            foreach ($todas as $inv) {
+                if (($inv['id_factura'] ?? $inv['id'] ?? 0) == $id_hija) {
+                    $monto = floatval($inv['total'] ?? 0);
+                    break;
+                }
+            }
+        }
         if ($monto <= 0) { echo json_encode(['ok' => false, 'error' => 'No se pudo obtener el monto de la factura hija']); exit; }
         $result = $client->notifyPayment([
             'invoice_id'    => $id_hija,
             'total_cobrado' => $monto,
             'referencia'    => 'ANULACION-DUP-' . $id_hija,
             'fecha_pago'    => date('Y-m-d H:i'),
+            'forma_pago'    => $forma_pago_id,
         ]);
         $ok = in_array($result['status'] ?? 0, [200, 201]);
         echo json_encode(['ok' => $ok, 'detalle' => $result['data'] ?? $result['error'] ?? '']);
@@ -199,17 +211,27 @@ if ($accion === 'reparar_error') {
     }
 
     if ($tipo === 'fantasma') {
-        // Registrar el pago fantasma en WispHub para cerrar la factura
+        // El total viene del JS directamente (no llamamos getInvoiceDetail que falla en wisphub.app)
         $id_factura = (int)($_POST['id_factura'] ?? 0);
+        $monto      = floatval($_POST['total'] ?? 0);
         if (!$id_factura) { echo json_encode(['ok' => false, 'error' => 'id_factura requerido']); exit; }
-        $detalle = $client->getInvoiceDetail((string)$id_factura);
-        $monto   = floatval($detalle['total'] ?? 0);
+        // Fallback: buscarlo vía lista si no viene el total
+        if ($monto <= 0) {
+            $todas = $client->getInvoices(['estado' => 1, 'limit' => 300]);
+            foreach ($todas as $inv) {
+                if (($inv['id_factura'] ?? $inv['id'] ?? 0) == $id_factura) {
+                    $monto = floatval($inv['total'] ?? 0);
+                    break;
+                }
+            }
+        }
         if ($monto <= 0) { echo json_encode(['ok' => false, 'error' => 'No se pudo obtener el monto']); exit; }
         $result = $client->notifyPayment([
             'invoice_id'    => $id_factura,
             'total_cobrado' => $monto,
             'referencia'    => 'CORREC-FANTASMA-' . $id_factura,
             'fecha_pago'    => date('Y-m-d H:i'),
+            'forma_pago'    => $forma_pago_id,
         ]);
         $ok = in_array($result['status'] ?? 0, [200, 201]);
         echo json_encode(['ok' => $ok, 'detalle' => $result['data'] ?? $result['error'] ?? '']);
@@ -217,16 +239,26 @@ if ($accion === 'reparar_error') {
     }
 
     if ($tipo === 'promesa') {
-        // Agregar promesa de pago a la factura hija
+        // monto viene del JS directamente
         $id_factura  = (int)($_POST['id_factura'] ?? 0);
         $fecha_limite = trim($_POST['fecha_limite'] ?? '');
+        $monto        = floatval($_POST['monto'] ?? 0);
         if (!$id_factura || !$fecha_limite) {
             echo json_encode(['ok' => false, 'error' => 'id_factura y fecha_limite son requeridos']);
             exit;
         }
-        $detalle = $client->getInvoiceDetail((string)$id_factura);
-        $monto   = round(floatval($detalle['total'] ?? 0) - floatval($detalle['total_cobrado'] ?? 0), 2);
-        if ($monto <= 0) $monto = floatval($detalle['total'] ?? 1);
+        // Fallback: si no viene monto lo buscamos
+        if ($monto <= 0) {
+            $todas = $client->getInvoices(['estado' => 1, 'limit' => 300]);
+            foreach ($todas as $inv) {
+                if (($inv['id_factura'] ?? $inv['id'] ?? 0) == $id_factura) {
+                    $monto = round(floatval($inv['total'] ?? 0) - floatval($inv['total_cobrado'] ?? 0), 2);
+                    if ($monto <= 0) $monto = floatval($inv['total'] ?? 1);
+                    break;
+                }
+            }
+        }
+        if ($monto <= 0) $monto = 1;
         // WispHub acepta fecha en formato YYYY/MM/DD
         $fecha_wisp = str_replace('-', '/', $fecha_limite);
         $result = $client->addPaymentPromise($id_factura, $fecha_wisp, $monto, 1);
@@ -1105,7 +1137,7 @@ function mostrarErrorTab(tipo, btn) {
                 <td class="text-white fw-bold">$${parseFloat(d.total||0).toFixed(2)}</td>
                 <td class="text-success">$${parseFloat(d.cobrado||0).toFixed(2)}</td>
                 <td class="text-center">
-                    <button class="btn-fix btn-fix-fan" id="btnfix-fan-${i}" onclick="repararError('fantasma',{id_factura:${d.id}},this)">
+                    <button class="btn-fix btn-fix-fan" id="btnfix-fan-${i}" onclick="repararError('fantasma',{id_factura:${d.id},total:${d.total||0}},this)">
                         <i class="fas fa-check me-1"></i> Marcar Pagada
                     </button>
                 </td>
@@ -1125,7 +1157,7 @@ function mostrarErrorTab(tipo, btn) {
                 <td class="text-center">
                     <div class="d-flex gap-1 align-items-center justify-content-center">
                         <input type="date" id="fecha-pro-${i}" class="form-control form-control-sm bg-dark text-white border-secondary" style="width:140px;" value="${defFecha}">
-                        <button class="btn-fix btn-fix-pro" id="btnfix-pro-${i}" onclick="repararError('promesa',{id_factura:${d.id},fecha_el:'fecha-pro-${i}'},this)">
+                        <button class="btn-fix btn-fix-pro" id="btnfix-pro-${i}" onclick="repararError('promesa',{id_factura:${d.id},monto:${d.saldo||d.total||0},fecha_el:'fecha-pro-${i}'},this)">
                             <i class="fas fa-calendar-check me-1"></i> Aplicar Promesa
                         </button>
                     </div>
@@ -1147,10 +1179,11 @@ async function repararError(tipo, data, btn) {
     fd.append('nodo', _scanNodo);
     fd.append('tipo', tipo);
 
-    if (tipo === 'duplicado') fd.append('id_hija', data.id_hija);
-    if (tipo === 'fantasma')  fd.append('id_factura', data.id_factura);
+    if (tipo === 'duplicado') { fd.append('id_hija', data.id_hija); fd.append('total', data.total || 0); }
+    if (tipo === 'fantasma')  { fd.append('id_factura', data.id_factura); fd.append('total', data.total || 0); }
     if (tipo === 'promesa') {
         fd.append('id_factura', data.id_factura);
+        fd.append('monto', data.monto || 0);
         fd.append('fecha_limite', document.getElementById(data.fecha_el).value);
     }
 
