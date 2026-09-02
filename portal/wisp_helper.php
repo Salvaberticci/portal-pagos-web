@@ -225,82 +225,119 @@ function wisp_get_cached_data($wispClient, $serviceId) {
     $invoices = wisp_filter_saldo_pendiente($invoices);
 
     // ── Auto-generación de mensualidad faltante ───────────────────────────
-    // Si el cliente NO tiene ninguna factura mensual (tipo=1) en los últimos 35 días,
-    // significa que WispHub no le generó la del mes nuevo (ocurre cuando el cliente
-    // hizo un abono parcial el mes anterior — la factura padre quedó "Pagada" y el
-    // ciclo recurrente de WispHub se desincronizó).
-    // Solución: generamos la factura silenciosamente en el momento en que el cliente
-    // entra al dashboard, para que aparezca inmediatamente lista para pagar.
+    // Si el cliente NO tiene ninguna factura mensual en el mes ACTUAL (no en los últimos 35 días,
+    // porque eso puede incluir facturas de agosto), generamos la nueva mensualidad silenciosamente.
+    //
+    // Problemas que corrige esta versión:
+    //  1. precio_plan no viene de getServiceProfile en Jalisco → lo buscamos vía listClients
+    //  2. tipo_factura no existe en la API de Jalisco → no usamos ese filtro
+    //  3. La detección se basa en el MES ACTUAL, no en ventana de 35 días
     $factura_mensual_generada = false;
     if ($clientId && !empty($c_perfil)) {
         try {
             $estado_cliente = strtolower($c_perfil['estado'] ?? '');
-            $precio_plan    = floatval($c_perfil['precio_plan'] ?? 0);
 
-            // Solo generar si el cliente está Activo y tiene un precio de plan
-            if (in_array($estado_cliente, ['activo', 'active']) && $precio_plan > 0) {
-                $mes_pasado_35 = date('Y-m-d', strtotime('-35 days'));
-                $hoy_str       = date('Y-m-d');
+            // Solo generar si el cliente está Activo
+            if (in_array($estado_cliente, ['activo', 'active'])) {
 
-                // Buscar si ya tiene una factura mensual (tipo=1) reciente
-                $tiene_mensualidad = false;
-
-                // 1. Revisar primero en las pendientes ya cargadas
-                foreach ($invoicesPendingAPI as $inv) {
-                    if (intval($inv['tipo_factura'] ?? 1) === 1) {
-                        $femi = substr($inv['fecha_emision'] ?? '', 0, 10);
-                        if ($femi >= $mes_pasado_35) {
-                            $tiene_mensualidad = true;
-                            break;
+                // Precio del plan: primero intentar en el perfil, luego via listClients
+                $precio_plan = floatval($c_perfil['precio_plan'] ?? 0);
+                if ($precio_plan <= 0 && !empty($c_perfil['plan_internet'])) {
+                    $precio_plan = floatval($c_perfil['plan_internet']['precio'] ?? $c_perfil['plan_internet']['costo'] ?? 0);
+                }
+                if ($precio_plan <= 0) {
+                    // Fallback: listClients (el más confiable para Jalisco/.io)
+                    try {
+                        $cliRes = $wispClient->listClients(['id_servicio' => $serviceId, 'limit' => 1]);
+                        if ($cliRes['status'] === 200 && !empty($cliRes['data']['results'][0])) {
+                            $precio_plan = floatval($cliRes['data']['results'][0]['precio_plan'] ?? 0);
                         }
+                    } catch (\Throwable $e2) {
+                        error_log('[wisp_helper] listClients para precio falló: ' . $e2->getMessage());
                     }
                 }
 
-                // 2. Si no encontró en pendientes, buscar también en pagadas recientes
-                if (!$tiene_mensualidad) {
-                    $recientes_tipo1 = $wispClient->getInvoices([
-                        'cliente'               => $clientId,
-                        'tipo_factura'          => 1,
-                        'fecha_emision__range_0' => $mes_pasado_35,
-                        'fecha_emision__range_1' => $hoy_str,
-                        'limit'                 => 5,
-                    ]);
-                    $tiene_mensualidad = !empty($recientes_tipo1);
-                }
+                if ($precio_plan > 0) {
+                    // Rango del mes ACTUAL (no últimos 35 días)
+                    $primer_dia_mes = date('Y-m-01');
+                    $ultimo_dia_mes = date('Y-m-t');
+                    $hoy_str        = date('Y-m-d');
 
-                // 3. Generar la mensualidad si no existe
-                if (!$tiene_mensualidad) {
-                    $ultimo_dia_mes  = date('Y-m-t');
-                    $mes_label       = date('F Y');
-                    $desc_factura    = "Servicio de Internet - $mes_label";
+                    // Detectar si ya tiene una factura emitida ESTE mes (cualquier tipo)
+                    // Usamos la descripción para distinguir la mensualidad de una factura hija de saldo:
+                    // - Mensualidad real: "Servicio de Internet" en la descripción
+                    // - Factura hija: "Saldo pendiente tras abono"
+                    $tiene_mensualidad = false;
 
-                    $createResult = $wispClient->createInvoice(
-                        $clientId,
-                        $precio_plan,
-                        $desc_factura,
-                        $ultimo_dia_mes,    // fecha_vencimiento: último día del mes
-                        $serviceId,
-                        1                   // tipo_factura=1 (Recurrente/Mensual)
-                    );
-
-                    if (in_array($createResult['status'] ?? 0, [200, 201])) {
-                        $factura_mensual_generada = true;
-                        error_log("[wisp_helper] Mensualidad auto-generada para svc={$serviceId} usuario={$clientId} precio={$precio_plan}");
-
-                        // Recargar facturas pendientes para incluir la nueva
-                        $invoicesPendingAPI = $wispClient->getInvoices([
-                            'cliente' => $clientId,
-                            'estado'  => 1,
-                            'limit'   => 50,
-                        ]);
-                        $invoices = [];
-                        foreach ($invoicesPendingAPI as $inv) {
-                            $norm = wisp_normalize_invoice($inv);
-                            if ($norm !== null) $invoices[] = $norm;
+                    // 1. Revisar pendientes ya cargadas: ¿alguna emitida este mes?
+                    foreach ($invoicesPendingAPI as $inv) {
+                        $femi = substr($inv['fecha_emision'] ?? '', 0, 10);
+                        if ($femi >= $primer_dia_mes && $femi <= $hoy_str) {
+                            // Verificar que NO es una factura hija de saldo
+                            $desc_check = '';
+                            foreach ($inv['articulos'] ?? [] as $art) {
+                                $desc_check .= ($art['descripcion'] ?? '');
+                            }
+                            if (stripos($desc_check, 'Saldo pendiente') === false) {
+                                $tiene_mensualidad = true;
+                                break;
+                            }
                         }
-                        $invoices = wisp_filter_saldo_pendiente($invoices);
-                    } else {
-                        error_log("[wisp_helper] Fallo auto-generación mensualidad svc={$serviceId}: " . json_encode($createResult));
+                    }
+
+                    // 2. Si no encontró en pendientes, buscar en TODAS (incluyendo pagadas) este mes
+                    if (!$tiene_mensualidad) {
+                        $todas_mes = $wispClient->getInvoices([
+                            'cliente'                => $clientId,
+                            'fecha_emision__range_0' => $primer_dia_mes,
+                            'fecha_emision__range_1' => $hoy_str,
+                            'limit'                  => 20,
+                        ]);
+                        foreach ($todas_mes as $inv) {
+                            $desc_check = '';
+                            foreach ($inv['articulos'] ?? [] as $art) {
+                                $desc_check .= ($art['descripcion'] ?? '');
+                            }
+                            if (stripos($desc_check, 'Saldo pendiente') === false) {
+                                $tiene_mensualidad = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 3. Generar la mensualidad si no existe este mes
+                    if (!$tiene_mensualidad) {
+                        $mes_label    = date('F Y');
+                        $desc_factura = "Servicio de Internet - $mes_label";
+
+                        $createResult = $wispClient->createInvoice(
+                            $clientId,
+                            $precio_plan,
+                            $desc_factura,
+                            $ultimo_dia_mes,  // vence el último día del mes
+                            $serviceId,
+                            1                 // tipo_factura=1 (Recurrente/Mensual)
+                        );
+
+                        if (in_array($createResult['status'] ?? 0, [200, 201])) {
+                            $factura_mensual_generada = true;
+                            error_log("[wisp_helper] Mensualidad auto-generada para svc={$serviceId} usuario={$clientId} precio={$precio_plan}");
+
+                            // Recargar facturas pendientes para que aparezca la nueva factura
+                            $invoicesPendingAPI = $wispClient->getInvoices([
+                                'cliente' => $clientId,
+                                'estado'  => 1,
+                                'limit'   => 50,
+                            ]);
+                            $invoices = [];
+                            foreach ($invoicesPendingAPI as $inv) {
+                                $norm = wisp_normalize_invoice($inv);
+                                if ($norm !== null) $invoices[] = $norm;
+                            }
+                            $invoices = wisp_filter_saldo_pendiente($invoices);
+                        } else {
+                            error_log("[wisp_helper] Fallo auto-generación mensualidad svc={$serviceId}: " . json_encode($createResult));
+                        }
                     }
                 }
             }
