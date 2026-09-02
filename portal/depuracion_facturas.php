@@ -585,8 +585,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
 </head>
 <body>
 <div class="container my-4">
-    <h2 class="fw-bold mb-4 text-center text-primary"><i class="fas fa-search-dollar me-2"></i> Conciliación de Facturación</h2>
+    <h2 class="fw-bold mb-4 text-center text-primary"><i class="fas fa-tools me-2"></i> Herramientas de Depuración</h2>
 
+    <!-- Menú de Pestañas Principales -->
+    <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold px-4" id="tab-conciliacion-btn" data-bs-toggle="pill" data-bs-target="#tab-conciliacion" type="button" role="tab" style="border-radius: 10px;">
+                <i class="fas fa-search-dollar me-2"></i> Conciliación de Facturas
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold px-4" id="tab-errores-btn" data-bs-toggle="pill" data-bs-target="#tab-errores" type="button" role="tab" style="border-radius: 10px;">
+                <i class="fas fa-heartbeat me-2"></i> Errores de Abono
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="mainTabsContent">
+        
+        <!-- ================= TAB 1: CONCILIACIÓN ================= -->
+        <div class="tab-pane fade show active" id="tab-conciliacion" role="tabpanel">
     <!-- Formulario de búsqueda -->
     <div class="glass-panel mb-4 mx-auto" style="max-width:600px;">
         <p class="text-muted small text-center mb-4">
@@ -611,8 +629,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         </form>
     </div>
 
-    <!-- ═══ ESCÁNER DE ERRORES DE ABONO ═══ -->
-    <div class="scanner-section mx-auto" style="max-width:900px;" id="scannerSection">
+        </div> <!-- Fin TAB 1 -->
+
+        <!-- ================= TAB 2: ERRORES DE ABONO ================= -->
+        <div class="tab-pane fade" id="tab-errores" role="tabpanel">
+            <div class="scanner-section mx-auto" style="max-width:900px;" id="scannerSection">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
                 <h5 class="fw-bold mb-0"><i class="fas fa-heartbeat me-2"></i> Errores de Abono</h5>
@@ -639,17 +660,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 <i class="fas fa-copy me-1"></i> Deuda Duplicada <span class="badge bg-danger ms-1" id="cntDup">0</span>
             </button>
             <button class="etab active-fan" onclick="mostrarErrorTab('fantasmas', this)" id="tabFan">
-                <i class="fas fa-ghost me-1"></i> Cobro Fantasma <span class="badge bg-warning text-dark ms-1" id="cntFan">0</span>
-            </button>
-            <button class="etab active-pro" onclick="mostrarErrorTab('sin_promesa', this)" id="tabPro">
-                <i class="fas fa-clock me-1"></i> Sin Promesa <span class="badge ms-1" style="background:#6366f1;" id="cntPro">0</span>
-            </button>
-        </div>
-
-        <!-- Panel de resultados de errores -->
-        <div id="scannerResultados"></div>
-    </div>
-
     <?php if ($error): ?>
         <div class="alert alert-danger mx-auto" style="max-width:600px;">
             <i class="fas fa-exclamation-triangle me-2"></i> <?php echo htmlspecialchars($error); ?>
@@ -820,10 +830,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
             </div>
         </div>
     </div>
-</div>
+</div> <!-- Este div cierra el modalConfirm -->
+
+        </div> <!-- Fin TAB 2 -->
+    </div> <!-- Fin tab-content -->
+</div> <!-- Fin container principal -->
 
 <script src="../js/bootstrap.bundle.min.js"></script>
 <script>
+// --- Persistencia de la pestaña principal activa ---
+document.addEventListener('DOMContentLoaded', function() {
+    const activeTab = localStorage.getItem('depuracionActiveTab');
+    if (activeTab) {
+        const triggerEl = document.querySelector(`button[data-bs-target="${activeTab}"]`);
+        if (triggerEl) {
+            new bootstrap.Tab(triggerEl).show();
+        }
+    }
+    
+    document.querySelectorAll('#mainTabs button[data-bs-toggle="pill"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            localStorage.setItem('depuracionActiveTab', e.target.getAttribute('data-bs-target'));
+        });
+    });
+});
+
 const NODO   = <?php echo json_encode($nodo); ?>;
 const ULTIMO = <?php echo json_encode($ultimo_dia ?? date('Y-m-t')); ?>;
 
