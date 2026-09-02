@@ -99,18 +99,33 @@ if ($accion === 'escanear_errores') {
             ];
         }
 
-        // Patron 2: Cobro Fantasma — cobrado >= total, estado Pendiente, referencia vacía
-        if ($cobrado >= $total && $total > 0 && empty($ref_inv)
+        // Patron 2: Cobro Fantasma (residuo real) — cobrado >= total, sin referencia,
+        // Y sub_total significativamente menor al total (WispHub inflò el total con saldo acumulado).
+        // Se excluyen facturas normales donde total = sub_total (mínima diferencia de centavos OK).
+        //
+        // El patrón real del cajero: total = sub_total(ej:20) + saldo_previo(ej:10) = 30,
+        // cobrado = 30, referencia = "". No es igual a las facturas nuevas de septiembre
+        // donde cobrado = total = 20 = sub_total (comportamiento normal de WispHub).
+        //
+        // Umbral: saldo > $1 significa que hay un residuo significativo, no un redondeo de centavos.
+        $saldo_inv = floatval($inv['saldo'] ?? 0);
+        $sub_total_inv = floatval($inv['sub_total'] ?? $total);
+        $es_residuo_real = ($saldo_inv > 1.0) && ($sub_total_inv < ($total - 0.5)) && ($cobrado >= $total) && empty($ref_inv);
+
+        if ($es_residuo_real
             && in_array($estado, ['pendiente de pago', 'pendiente', 'vencida', 'vencido'])) {
             $fantasmas[] = [
-                'id'       => $id,
-                'cliente'  => $cliente,
-                'nombre'   => $nombre_cliente,
-                'total'    => $total,
-                'cobrado'  => $cobrado,
-                'desc'     => $desc_art ?: ("Factura #$id"),
+                'id'        => $id,
+                'cliente'   => $cliente,
+                'nombre'    => $nombre_cliente,
+                'total'     => $total,
+                'sub_total' => $sub_total_inv,
+                'saldo'     => $saldo_inv,
+                'cobrado'   => $cobrado,
+                'desc'      => $desc_art ?: ("Factura #$id"),
             ];
         }
+
 
         // Patron 3: Abono sin promesa — factura hija sin fecha de promesa
         if ($es_hija) {
