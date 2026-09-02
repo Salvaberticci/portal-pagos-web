@@ -569,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
                 <h5 class="fw-bold mb-0"><i class="fas fa-heartbeat me-2"></i> Errores de Abono</h5>
-                <small class="text-muted">Detecta y repara desincronizaciones por pagos parciales</small>
+                <small style="color:#cbd5e1;">Detecta y repara desincronizaciones por pagos parciales</small>
             </div>
             <div class="d-flex align-items-center gap-2">
                 <select id="scannerNodo" class="form-select form-select-sm" style="width:auto;background:#1e293b;color:#fff;border:1px solid #334155;">
@@ -584,7 +584,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
             </div>
         </div>
 
-        <div id="scannerStatus" class="text-muted small mb-2" style="display:none;"></div>
+        <div id="scannerStatus" class="small mb-2" style="display:none;color:#cbd5e1;"></div>
 
         <!-- Sub-tabs de error -->
         <div class="error-tabs d-flex gap-2 mb-3" id="errorTabs" style="display:none !important;">
@@ -1069,7 +1069,7 @@ function mostrarErrorTab(tipo, btn) {
         html += '</tr></thead><tbody>';
         items.forEach((d, i) => {
             html += `<tr>
-                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small style="color:#e2e8f0;">${esc(d.cliente)}</small></td>
                 <td><span class="badge bg-secondary">#${d.id_padre}</span><br><small>${esc(d.desc_padre)}</small></td>
                 <td><span class="badge bg-danger">#${d.id_hija}</span><br><small>${esc(d.desc_hija)}</small></td>
                 <td class="text-warning fw-bold">$${parseFloat(d.total_hija||0).toFixed(2)}</td>
@@ -1085,7 +1085,7 @@ function mostrarErrorTab(tipo, btn) {
         html += '</tr></thead><tbody>';
         items.forEach((d, i) => {
             html += `<tr>
-                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small style="color:#e2e8f0;">${esc(d.cliente)}</small></td>
                 <td><span class="badge bg-secondary">#${d.id}</span><br><small>${esc(d.desc)}</small></td>
                 <td class="text-white fw-bold">$${parseFloat(d.total||0).toFixed(2)}</td>
                 <td class="text-success">$${parseFloat(d.cobrado||0).toFixed(2)}</td>
@@ -1103,7 +1103,7 @@ function mostrarErrorTab(tipo, btn) {
             const hoy = new Date(); hoy.setDate(hoy.getDate() + 7);
             const defFecha = hoy.toISOString().slice(0,10);
             html += `<tr>
-                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small style="color:#e2e8f0;">${esc(d.cliente)}</small></td>
                 <td><span class="badge" style="background:#6366f1;">#${d.id}</span><br><small>${esc(d.desc)}</small></td>
                 <td class="text-warning fw-bold">$${parseFloat(d.saldo||d.total||0).toFixed(2)}</td>
                 <td><small>${esc(d.fecha_venc||'—')}</small></td>
