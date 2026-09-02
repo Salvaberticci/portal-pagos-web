@@ -8,6 +8,222 @@ require_once __DIR__ . '/../src/Services/WispHubClient.php';
 
 // ─── Manejo de acciones AJAX ──────────────────────────────────────────────────
 $accion = $_POST['accion'] ?? '';
+
+// ── Escanear errores de abono ──────────────────────────────────────────────────
+if ($accion === 'escanear_errores') {
+    header('Content-Type: application/json; charset=utf-8');
+    $nodo_ajax = $_POST['nodo'] ?? '';
+    $accountMap = ['jalisco' => 'jalisco', 'sitelco' => 'sitelco', 'pampanito' => 'pampanito'];
+    $ref = $accountMap[$nodo_ajax] ?? '';
+    if (!$ref || !isset($WISPHUB_ACCOUNTS[$ref])) {
+        echo json_encode(['ok' => false, 'error' => 'Nodo inválido']);
+        exit;
+    }
+    $creds = $WISPHUB_ACCOUNTS[$ref];
+    $client = new \Services\WispHubClient([
+        'base_url'   => $creds['base_url'],
+        'api_key'    => $creds['api_key'],
+        'verify_ssl' => $creds['verify_ssl'] ?? false,
+    ]);
+
+    $duplicados = []; // Patron 1: padre + hija ambas pendientes
+    $fantasmas   = []; // Patron 2: cobrado >= total pero estado Pendiente
+    $sin_promesa = []; // Patron 3: factura hija sin promesa de pago
+
+    // Obtener TODAS las facturas pendientes del mes actual paginando
+    $todas_pendientes = [];
+    $offset = 0; $limit = 100;
+    while (true) {
+        $page = $client->getInvoices(['estado' => 1, 'limit' => $limit, 'offset' => $offset]);
+        foreach ($page as $inv) { $todas_pendientes[] = $inv; }
+        if (count($page) < $limit) break;
+        $offset += $limit;
+    }
+
+    // Indexar por id y construir mapa de "padre con hija"
+    $por_id = [];
+    $ids_con_hija = []; // id_padre => id_hija
+    foreach ($todas_pendientes as $inv) {
+        $id = $inv['id_factura'] ?? $inv['id'] ?? 0;
+        if ($id) $por_id[$id] = $inv;
+    }
+    foreach ($todas_pendientes as $inv) {
+        $id_hija = $inv['id_factura'] ?? $inv['id'] ?? 0;
+        $arts = $inv['articulos'] ?? [];
+        foreach ($arts as $art) {
+            $desc = $art['descripcion'] ?? '';
+            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $desc, $m)) {
+                $id_padre = (int)$m[1];
+                $ids_con_hija[$id_padre] = $id_hija;
+            }
+        }
+    }
+
+    foreach ($todas_pendientes as $inv) {
+        $id      = $inv['id_factura'] ?? $inv['id'] ?? 0;
+        $total   = floatval($inv['total'] ?? 0);
+        $cobrado = floatval($inv['total_cobrado'] ?? 0);
+        $estado  = strtolower($inv['estado'] ?? '');
+        $ref_inv = trim($inv['referencia'] ?? '');
+        $cliente = $inv['cliente'] ?? '';
+        if (is_array($cliente)) $cliente = $cliente['usuario'] ?? $cliente['nombre'] ?? '';
+        $nombre_cliente = $inv['nombre'] ?? $inv['cliente']['nombre'] ?? '';
+        $arts    = $inv['articulos'] ?? [];
+        $es_hija = false;
+        $padre_id = 0;
+        $desc_art = '';
+        foreach ($arts as $art) {
+            $d = $art['descripcion'] ?? '';
+            if (preg_match('/Saldo pendiente tras abono - Factura #(\d+)/i', $d, $m2)) {
+                $es_hija  = true;
+                $padre_id = (int)$m2[1];
+                $desc_art = $d;
+                break;
+            }
+            if (!empty($d)) $desc_art = $d;
+        }
+
+        // Patron 1: Deuda Duplicada — padre e hija ambas pendientes
+        if (!$es_hija && isset($ids_con_hija[$id]) && isset($por_id[$ids_con_hija[$id]])) {
+            $id_hija_dup = $ids_con_hija[$id];
+            $inv_hija = $por_id[$id_hija_dup];
+            $duplicados[] = [
+                'id_padre'  => $id,
+                'id_hija'   => $id_hija_dup,
+                'cliente'   => $cliente,
+                'nombre'    => $nombre_cliente ?: ($inv_hija['nombre'] ?? ''),
+                'total_padre' => $total,
+                'total_hija'  => floatval($inv_hija['total'] ?? 0),
+                'desc_padre'  => $desc_art ?: ("Factura #$id"),
+                'desc_hija'   => implode('; ', array_column($inv_hija['articulos'] ?? [], 'descripcion')),
+            ];
+        }
+
+        // Patron 2: Cobro Fantasma — cobrado >= total, estado Pendiente, referencia vacía
+        if ($cobrado >= $total && $total > 0 && empty($ref_inv)
+            && in_array($estado, ['pendiente de pago', 'pendiente', 'vencida', 'vencido'])) {
+            $fantasmas[] = [
+                'id'       => $id,
+                'cliente'  => $cliente,
+                'nombre'   => $nombre_cliente,
+                'total'    => $total,
+                'cobrado'  => $cobrado,
+                'desc'     => $desc_art ?: ("Factura #$id"),
+            ];
+        }
+
+        // Patron 3: Abono sin promesa — factura hija sin fecha de promesa
+        if ($es_hija) {
+            $tiene_promesa = !empty($inv['fecha_promesa']) || !empty($inv['promesa_pago']);
+            // Si WispHub no expone el campo, consultamos detalle
+            if (!$tiene_promesa) {
+                $detalle = $client->getInvoiceDetail((string)$id);
+                $tiene_promesa = !empty($detalle['fecha_promesa']) || !empty($detalle['promesa_pago'])
+                    || !empty($detalle['promesas_pago']);
+            }
+            if (!$tiene_promesa) {
+                $sin_promesa[] = [
+                    'id'         => $id,
+                    'id_padre'   => $padre_id,
+                    'cliente'    => $cliente,
+                    'nombre'     => $nombre_cliente,
+                    'total'      => $total,
+                    'cobrado'    => $cobrado,
+                    'saldo'      => round($total - $cobrado, 2),
+                    'desc'       => $desc_art,
+                    'fecha_venc' => $inv['fecha_vencimiento'] ?? '',
+                ];
+            }
+        }
+    }
+
+    echo json_encode([
+        'ok'          => true,
+        'duplicados'  => $duplicados,
+        'fantasmas'   => $fantasmas,
+        'sin_promesa' => $sin_promesa,
+        'total_escaneadas' => count($todas_pendientes),
+    ]);
+    exit;
+}
+
+// ── Reparar error de abono ────────────────────────────────────────────────────
+if ($accion === 'reparar_error') {
+    header('Content-Type: application/json; charset=utf-8');
+    $nodo_ajax = $_POST['nodo'] ?? '';
+    $tipo      = $_POST['tipo'] ?? '';  // 'duplicado' | 'fantasma' | 'promesa'
+    $accountMap = ['jalisco' => 'jalisco', 'sitelco' => 'sitelco', 'pampanito' => 'pampanito'];
+    $ref = $accountMap[$nodo_ajax] ?? '';
+    if (!$ref || !isset($WISPHUB_ACCOUNTS[$ref])) {
+        echo json_encode(['ok' => false, 'error' => 'Nodo inválido']);
+        exit;
+    }
+    $creds = $WISPHUB_ACCOUNTS[$ref];
+    $client = new \Services\WispHubClient([
+        'base_url'   => $creds['base_url'],
+        'api_key'    => $creds['api_key'],
+        'verify_ssl' => $creds['verify_ssl'] ?? false,
+    ]);
+
+    if ($tipo === 'duplicado') {
+        // Anular la factura hija registrando un cobro igual a su total (la "cierra" como pagada en WispHub)
+        $id_hija = (int)($_POST['id_hija'] ?? 0);
+        if (!$id_hija) { echo json_encode(['ok' => false, 'error' => 'id_hija requerido']); exit; }
+        $detalle = $client->getInvoiceDetail((string)$id_hija);
+        $monto   = floatval($detalle['total'] ?? 0);
+        if ($monto <= 0) { echo json_encode(['ok' => false, 'error' => 'No se pudo obtener el monto de la factura hija']); exit; }
+        $result = $client->notifyPayment([
+            'invoice_id'    => $id_hija,
+            'total_cobrado' => $monto,
+            'referencia'    => 'ANULACION-DUP-' . $id_hija,
+            'fecha_pago'    => date('Y-m-d H:i'),
+        ]);
+        $ok = in_array($result['status'] ?? 0, [200, 201]);
+        echo json_encode(['ok' => $ok, 'detalle' => $result['data'] ?? $result['error'] ?? '']);
+        exit;
+    }
+
+    if ($tipo === 'fantasma') {
+        // Registrar el pago fantasma en WispHub para cerrar la factura
+        $id_factura = (int)($_POST['id_factura'] ?? 0);
+        if (!$id_factura) { echo json_encode(['ok' => false, 'error' => 'id_factura requerido']); exit; }
+        $detalle = $client->getInvoiceDetail((string)$id_factura);
+        $monto   = floatval($detalle['total'] ?? 0);
+        if ($monto <= 0) { echo json_encode(['ok' => false, 'error' => 'No se pudo obtener el monto']); exit; }
+        $result = $client->notifyPayment([
+            'invoice_id'    => $id_factura,
+            'total_cobrado' => $monto,
+            'referencia'    => 'CORREC-FANTASMA-' . $id_factura,
+            'fecha_pago'    => date('Y-m-d H:i'),
+        ]);
+        $ok = in_array($result['status'] ?? 0, [200, 201]);
+        echo json_encode(['ok' => $ok, 'detalle' => $result['data'] ?? $result['error'] ?? '']);
+        exit;
+    }
+
+    if ($tipo === 'promesa') {
+        // Agregar promesa de pago a la factura hija
+        $id_factura  = (int)($_POST['id_factura'] ?? 0);
+        $fecha_limite = trim($_POST['fecha_limite'] ?? '');
+        if (!$id_factura || !$fecha_limite) {
+            echo json_encode(['ok' => false, 'error' => 'id_factura y fecha_limite son requeridos']);
+            exit;
+        }
+        $detalle = $client->getInvoiceDetail((string)$id_factura);
+        $monto   = round(floatval($detalle['total'] ?? 0) - floatval($detalle['total_cobrado'] ?? 0), 2);
+        if ($monto <= 0) $monto = floatval($detalle['total'] ?? 1);
+        // WispHub acepta fecha en formato YYYY/MM/DD
+        $fecha_wisp = str_replace('-', '/', $fecha_limite);
+        $result = $client->addPaymentPromise($id_factura, $fecha_wisp, $monto, 1);
+        $ok = in_array($result['status'] ?? 0, [200, 201]);
+        echo json_encode(['ok' => $ok, 'detalle' => $result['data'] ?? $result['error'] ?? '']);
+        exit;
+    }
+
+    echo json_encode(['ok' => false, 'error' => 'Tipo de reparación desconocido']);
+    exit;
+}
+
 if ($accion === 'generar_factura' || $accion === 'generar_masiva') {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -300,6 +516,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         .tab-btn.active-sin { background: rgba(239,68,68,0.2); color: #ef4444; border-color: rgba(239,68,68,0.4); }
         .tab-btn.active-pag { background: rgba(16,185,129,0.2); color: #10b981; border-color: rgba(16,185,129,0.4); }
         .tab-btn.active-pen { background: rgba(245,158,11,0.2); color: #f59e0b; border-color: rgba(245,158,11,0.4); }
+        /* Escáner de errores de abono */
+        .scanner-section { border: 1px solid rgba(245,158,11,0.25); border-radius: 14px; background: rgba(20,30,50,0.7); margin-bottom: 2rem; padding: 24px; }
+        .scanner-section h5 { color: #f59e0b; }
+        .btn-scan { background: linear-gradient(135deg,#f59e0b,#d97706); color:#fff; border:none; border-radius:10px; font-weight:600; padding:10px 28px; }
+        .btn-scan:hover { background: linear-gradient(135deg,#d97706,#b45309); color:#fff; }
+        .error-tabs .etab { background: rgba(30,41,59,0.9); border: 1px solid rgba(255,255,255,0.06); color: #94a3b8; border-radius: 8px; padding: 6px 16px; cursor:pointer; transition: all .2s; font-size:.9rem; }
+        .error-tabs .etab:hover { background: rgba(51,65,85,0.9); color:#fff; }
+        .error-tabs .etab.active-dup { background: rgba(239,68,68,0.18); color:#ef4444; border-color:rgba(239,68,68,0.35); }
+        .error-tabs .etab.active-fan { background: rgba(245,158,11,0.18); color:#f59e0b; border-color:rgba(245,158,11,0.35); }
+        .error-tabs .etab.active-pro { background: rgba(99,102,241,0.18); color:#a5b4fc; border-color:rgba(99,102,241,0.35); }
+        .btn-fix { font-size:.78rem; border:none; border-radius:7px; padding:4px 12px; font-weight:600; cursor:pointer; transition:all .2s; }
+        .btn-fix-dup { background:rgba(239,68,68,.15); color:#ef4444; border:1px solid rgba(239,68,68,.3); }
+        .btn-fix-dup:hover { background:rgba(239,68,68,.3); color:#fff; }
+        .btn-fix-fan { background:rgba(245,158,11,.15); color:#f59e0b; border:1px solid rgba(245,158,11,.3); }
+        .btn-fix-fan:hover { background:rgba(245,158,11,.3); color:#fff; }
+        .btn-fix-pro { background:rgba(99,102,241,.15); color:#a5b4fc; border:1px solid rgba(99,102,241,.3); }
+        .btn-fix-pro:hover { background:rgba(99,102,241,.3); color:#fff; }
+        .scanner-empty { text-align:center; padding: 2rem; color: #10b981; font-size:1.05rem; }
     </style>
 </head>
 <body>
@@ -328,6 +562,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                 </button>
             </div>
         </form>
+    </div>
+
+    <!-- ═══ ESCÁNER DE ERRORES DE ABONO ═══ -->
+    <div class="scanner-section mx-auto" style="max-width:900px;" id="scannerSection">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h5 class="fw-bold mb-0"><i class="fas fa-heartbeat me-2"></i> Errores de Abono</h5>
+                <small class="text-muted">Detecta y repara desincronizaciones por pagos parciales</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <select id="scannerNodo" class="form-select form-select-sm" style="width:auto;background:#1e293b;color:#fff;border:1px solid #334155;">
+                    <option value="">-- Nodo --</option>
+                    <option value="sitelco">Sitelco</option>
+                    <option value="jalisco">Jalisco</option>
+                    <option value="pampanito">Pampanito</option>
+                </select>
+                <button class="btn btn-scan" id="btnScanear" onclick="escanearErrores()">
+                    <i class="fas fa-radar me-2"></i> Escanear
+                </button>
+            </div>
+        </div>
+
+        <div id="scannerStatus" class="text-muted small mb-2" style="display:none;"></div>
+
+        <!-- Sub-tabs de error -->
+        <div class="error-tabs d-flex gap-2 mb-3" id="errorTabs" style="display:none !important;">
+            <button class="etab active-dup" onclick="mostrarErrorTab('duplicados', this)" id="tabDup">
+                <i class="fas fa-copy me-1"></i> Deuda Duplicada <span class="badge bg-danger ms-1" id="cntDup">0</span>
+            </button>
+            <button class="etab active-fan" onclick="mostrarErrorTab('fantasmas', this)" id="tabFan">
+                <i class="fas fa-ghost me-1"></i> Cobro Fantasma <span class="badge bg-warning text-dark ms-1" id="cntFan">0</span>
+            </button>
+            <button class="etab active-pro" onclick="mostrarErrorTab('sin_promesa', this)" id="tabPro">
+                <i class="fas fa-clock me-1"></i> Sin Promesa <span class="badge ms-1" style="background:#6366f1;" id="cntPro">0</span>
+            </button>
+        </div>
+
+        <!-- Panel de resultados de errores -->
+        <div id="scannerResultados"></div>
     </div>
 
     <?php if ($error): ?>
@@ -706,6 +979,184 @@ document.getElementById('depuracionForm').addEventListener('submit', function() 
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Procesando...';
     btn.disabled  = true;
 });
+
+// ── Escáner de Errores de Abono ───────────────────────────────────────────────
+let _scanData = null;
+let _scanNodo = '';
+let _tabActiva = 'duplicados';
+
+async function escanearErrores() {
+    const nodo = document.getElementById('scannerNodo').value;
+    if (!nodo) { alert('Selecciona un nodo primero.'); return; }
+    _scanNodo = nodo;
+
+    const btn = document.getElementById('btnScanear');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Escaneando...';
+
+    const status = document.getElementById('scannerStatus');
+    status.style.display = 'block';
+    status.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Consultando facturas pendientes en WispHub...';
+
+    document.getElementById('scannerResultados').innerHTML = '';
+    document.getElementById('errorTabs').style.setProperty('display', 'none', 'important');
+
+    try {
+        const fd = new FormData();
+        fd.append('accion', 'escanear_errores');
+        fd.append('nodo', nodo);
+        const r = await fetch('', { method: 'POST', body: fd });
+        const res = await r.json();
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-radar me-2"></i> Escanear';
+
+        if (!res.ok) {
+            status.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>${esc(res.error)}</span>`;
+            return;
+        }
+
+        _scanData = res;
+        const total = (res.duplicados||[]).length + (res.fantasmas||[]).length + (res.sin_promesa||[]).length;
+        status.innerHTML = `<i class="fas fa-check-circle me-1 text-success"></i> Escaneadas <strong>${res.total_escaneadas}</strong> facturas pendientes. <strong>${total}</strong> error(es) detectado(s).`;
+
+        // Actualizar contadores tabs
+        document.getElementById('cntDup').textContent = (res.duplicados||[]).length;
+        document.getElementById('cntFan').textContent = (res.fantasmas||[]).length;
+        document.getElementById('cntPro').textContent = (res.sin_promesa||[]).length;
+
+        if (total === 0) {
+            document.getElementById('scannerResultados').innerHTML =
+                '<div class="scanner-empty"><i class="fas fa-check-circle fa-2x mb-2 d-block"></i>¡Sin errores detectados! Todo en orden.</div>';
+            return;
+        }
+
+        document.getElementById('errorTabs').style.removeProperty('display');
+
+        // Mostrar primera tab con errores
+        if ((res.duplicados||[]).length > 0) mostrarErrorTab('duplicados', document.getElementById('tabDup'));
+        else if ((res.fantasmas||[]).length > 0) mostrarErrorTab('fantasmas', document.getElementById('tabFan'));
+        else mostrarErrorTab('sin_promesa', document.getElementById('tabPro'));
+
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-radar me-2"></i> Escanear';
+        status.innerHTML = `<span class="text-danger"><i class="fas fa-times-circle me-1"></i>Error de red: ${esc(e.message)}</span>`;
+    }
+}
+
+function mostrarErrorTab(tipo, btn) {
+    _tabActiva = tipo;
+    document.querySelectorAll('.error-tabs .etab').forEach(b => {
+        b.classList.remove('active-dup','active-fan','active-pro');
+    });
+    if (tipo === 'duplicados')  btn.classList.add('active-dup');
+    if (tipo === 'fantasmas')   btn.classList.add('active-fan');
+    if (tipo === 'sin_promesa') btn.classList.add('active-pro');
+
+    const contenedor = document.getElementById('scannerResultados');
+    if (!_scanData) { contenedor.innerHTML = ''; return; }
+
+    const items = _scanData[tipo] || [];
+    if (items.length === 0) {
+        contenedor.innerHTML = '<div class="scanner-empty"><i class="fas fa-check-circle fa-2x mb-2 d-block"></i>Sin errores en esta categoría.</div>';
+        return;
+    }
+
+    let html = '<div class="table-responsive"><table class="table table-dark table-hover mb-0"><thead><tr>';
+    if (tipo === 'duplicados') {
+        html += '<th>Cliente</th><th>Factura Original</th><th>Factura Duplicada</th><th>Monto Hija</th><th class="text-center">Acción</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach((d, i) => {
+            html += `<tr>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="badge bg-secondary">#${d.id_padre}</span><br><small>${esc(d.desc_padre)}</small></td>
+                <td><span class="badge bg-danger">#${d.id_hija}</span><br><small>${esc(d.desc_hija)}</small></td>
+                <td class="text-warning fw-bold">$${parseFloat(d.total_hija||0).toFixed(2)}</td>
+                <td class="text-center">
+                    <button class="btn-fix btn-fix-dup" id="btnfix-dup-${i}" onclick="repararError('duplicado',{id_hija:${d.id_hija}},this)">
+                        <i class="fas fa-trash-alt me-1"></i> Anular Duplicado
+                    </button>
+                </td>
+            </tr>`;
+        });
+    } else if (tipo === 'fantasmas') {
+        html += '<th>Cliente</th><th>Factura</th><th>Total</th><th>Ya Cobrado</th><th class="text-center">Acción</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach((d, i) => {
+            html += `<tr>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="badge bg-secondary">#${d.id}</span><br><small>${esc(d.desc)}</small></td>
+                <td class="text-white fw-bold">$${parseFloat(d.total||0).toFixed(2)}</td>
+                <td class="text-success">$${parseFloat(d.cobrado||0).toFixed(2)}</td>
+                <td class="text-center">
+                    <button class="btn-fix btn-fix-fan" id="btnfix-fan-${i}" onclick="repararError('fantasma',{id_factura:${d.id}},this)">
+                        <i class="fas fa-check me-1"></i> Marcar Pagada
+                    </button>
+                </td>
+            </tr>`;
+        });
+    } else {
+        html += '<th>Cliente</th><th>Factura Hija</th><th>Saldo Pendiente</th><th>Vence</th><th class="text-center">Acción</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach((d, i) => {
+            const hoy = new Date(); hoy.setDate(hoy.getDate() + 7);
+            const defFecha = hoy.toISOString().slice(0,10);
+            html += `<tr>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small class="text-muted">${esc(d.cliente)}</small></td>
+                <td><span class="badge" style="background:#6366f1;">#${d.id}</span><br><small>${esc(d.desc)}</small></td>
+                <td class="text-warning fw-bold">$${parseFloat(d.saldo||d.total||0).toFixed(2)}</td>
+                <td><small>${esc(d.fecha_venc||'—')}</small></td>
+                <td class="text-center">
+                    <div class="d-flex gap-1 align-items-center justify-content-center">
+                        <input type="date" id="fecha-pro-${i}" class="form-control form-control-sm bg-dark text-white border-secondary" style="width:140px;" value="${defFecha}">
+                        <button class="btn-fix btn-fix-pro" id="btnfix-pro-${i}" onclick="repararError('promesa',{id_factura:${d.id},fecha_el:'fecha-pro-${i}'},this)">
+                            <i class="fas fa-calendar-check me-1"></i> Aplicar Promesa
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+    }
+    html += '</tbody></table></div>';
+    contenedor.innerHTML = html;
+}
+
+async function repararError(tipo, data, btn) {
+    if (!confirm('¿Confirmas esta acción de reparación en WispHub?')) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    const fd = new FormData();
+    fd.append('accion', 'reparar_error');
+    fd.append('nodo', _scanNodo);
+    fd.append('tipo', tipo);
+
+    if (tipo === 'duplicado') fd.append('id_hija', data.id_hija);
+    if (tipo === 'fantasma')  fd.append('id_factura', data.id_factura);
+    if (tipo === 'promesa') {
+        fd.append('id_factura', data.id_factura);
+        fd.append('fecha_limite', document.getElementById(data.fecha_el).value);
+    }
+
+    try {
+        const r = await fetch('', { method: 'POST', body: fd });
+        const res = await r.json();
+        if (res.ok) {
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Reparado';
+            btn.style.background = 'rgba(16,185,129,.25)';
+            btn.style.color = '#10b981';
+            btn.closest('tr').style.opacity = '0.5';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-times me-1"></i> Error';
+            btn.title = JSON.stringify(res.detalle || res.error);
+        }
+    } catch(e) {
+        btn.disabled = false;
+        btn.innerHTML = 'Red error';
+    }
+}
 </script>
 </body>
 </html>
