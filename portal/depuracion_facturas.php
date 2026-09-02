@@ -467,13 +467,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         ]);
 
         try {
-            // 1. Servicios que YA tienen factura con vencimiento este mes
+            // 1. Servicios que YA tienen factura emitida en los últimos 35 días
             $facturados = [];
             $offset = 0; $limit = 100;
+            $mes_pasado = date('Y-m-d', strtotime('-35 days'));
+            $hoy = date('Y-m-d');
             while (true) {
                 $page_inv = $client->getInvoices([
-                    'fecha_vencimiento__range_0' => $primer_dia,
-                    'fecha_vencimiento__range_1' => $ultimo_dia,
+                    'fecha_emision__range_0' => $mes_pasado,
+                    'fecha_emision__range_1' => $hoy,
                     'limit' => $limit, 'offset' => $offset,
                 ]);
                 foreach ($page_inv as $inv) {
@@ -495,9 +497,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
 
             // 2. Todos los clientes activos y su clasificación
             $todos_activos = [];
-            $page = 1;
+            $offset_cli = 0;
             while (true) {
-                $res = $client->listClients(['estado' => 1, 'limit' => 100, 'page' => $page]);
+                $res = $client->listClients(['estado' => 1, 'limit' => 100, 'offset' => $offset_cli]);
                 if ($res['status'] !== 200) {
                     $error = "Error al obtener clientes: " . ($res['error'] ?? 'Desconocido');
                     break;
@@ -515,10 +517,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                         $todos_activos[] = $c;
                     }
                 }
-                $cp = $res['data']['current_page'] ?? 1;
-                $lp = $res['data']['last_page']    ?? 1;
-                if ($cp >= $lp) break;
-                $page++;
+                if (count($clients) < 100) break;
+                $offset_cli += 100;
             }
 
             if (!$error) $resultados = $todos_activos;
