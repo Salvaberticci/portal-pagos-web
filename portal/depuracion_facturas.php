@@ -603,7 +603,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold px-4" id="tab-escaner-btn" data-bs-toggle="pill" data-bs-target="#tab-escaner" type="button" role="tab" aria-selected="false">
+            <button class="nav-link fw-bold px-4" id="tab-escaner-btn" data-bs-toggle="pill" data-bs-target="#tab-errores" type="button" role="tab" aria-selected="false">
                 <i class="fas fa-bug me-2"></i> Escáner de Errores de Abono
             </button>
         </li>
@@ -851,10 +851,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
         </div>
     </div>
 </div> <!-- Este div cierra el modalConfirm -->
-
-        </div> <!-- Fin TAB 2 -->
-    </div> <!-- Fin tab-content -->
-</div> <!-- Fin container principal -->
 
 <script src="../js/bootstrap.bundle.min.js"></script>
 <script>
