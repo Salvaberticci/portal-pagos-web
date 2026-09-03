@@ -29,6 +29,7 @@ if ($accion === 'escanear_errores') {
     $duplicados = []; // Patron 1: padre + hija ambas pendientes
     $fantasmas   = []; // Patron 2: cobrado >= total pero estado Pendiente
     $sin_promesa = []; // Patron 3: factura hija sin promesa de pago
+    $picos       = []; // Patron 4: residuo minúsculo <= 1.00
 
     // Obtener TODAS las facturas pendientes del mes actual paginando
     $todas_pendientes = [];
@@ -150,6 +151,23 @@ if ($accion === 'escanear_errores') {
                 ];
             }
         }
+
+        // Patron 4: Picos (residuos mínimos)
+        // Saldo <= 1.00 pero mayor a 0, y en estado pendiente
+        if ($saldo_inv > 0 && $saldo_inv <= 1.00 && in_array($estado, ['pendiente de pago', 'pendiente', 'vencida', 'vencido'])) {
+            // Excluimos si es un fantasma, ya que los fantasmas se manejan aparte
+            if (!$es_residuo_real) {
+                $picos[] = [
+                    'id'      => $id,
+                    'cliente' => $cliente,
+                    'nombre'  => $nombre_cliente,
+                    'total'   => $total,
+                    'cobrado' => $cobrado,
+                    'saldo'   => $saldo_inv,
+                    'desc'    => $desc_art ?: ("Factura #$id"),
+                ];
+            }
+        }
     }
 
     echo json_encode([
@@ -157,6 +175,7 @@ if ($accion === 'escanear_errores') {
         'duplicados'  => $duplicados,
         'fantasmas'   => $fantasmas,
         'sin_promesa' => $sin_promesa,
+        'picos'       => $picos,
         'total_escaneadas' => count($todas_pendientes),
     ]);
     exit;
@@ -268,6 +287,48 @@ if ($accion === 'reparar_error') {
     }
 
     echo json_encode(['ok' => false, 'error' => 'Tipo de reparación desconocido']);
+    exit;
+}
+
+// ── Limpiar Pico ─────────────────────────────────────────────────────────────
+if ($accion === 'limpiar_pico') {
+    header('Content-Type: application/json; charset=utf-8');
+    $id_factura = $_POST['id_factura'] ?? '';
+    $nodo_ajax  = $_POST['nodo'] ?? '';
+    $monto      = floatval($_POST['monto'] ?? 0);
+
+    if (!$id_factura || !$nodo_ajax || $monto <= 0) {
+        echo json_encode(['ok' => false, 'error' => 'Datos inválidos']);
+        exit;
+    }
+    $accountMap = ['jalisco' => 'jalisco', 'sitelco' => 'sitelco', 'pampanito' => 'pampanito'];
+    $ref = $accountMap[$nodo_ajax] ?? '';
+    if (!$ref) { echo json_encode(['ok' => false, 'error' => 'Nodo inválido']); exit; }
+
+    $creds = $WISPHUB_ACCOUNTS[$ref];
+    $client = new \Services\WispHubClient([
+        'base_url'   => $creds['base_url'],
+        'api_key'    => $creds['api_key'],
+        'verify_ssl' => $creds['verify_ssl'] ?? false,
+    ]);
+
+    try {
+        $payResult = $client->request('POST', "facturas/{$id_factura}/registrar-pago/", [
+            'forma_pago'    => intval($creds['forma_pago_operacion_bancaria'] ?? 45181),
+            'accion'        => 1, // ACCION_PAGAR
+            'fecha_pago'    => date('Y-m-d'),
+            'referencia'    => 'Ajuste de sistema por pico/redondeo',
+            'total_cobrado' => $monto,
+        ]);
+
+        if (in_array($payResult['status'] ?? 0, [200, 201])) {
+            echo json_encode(['ok' => true, 'mensaje' => 'Pico limpiado exitosamente']);
+        } else {
+            echo json_encode(['ok' => false, 'error' => 'Error API', 'details' => $payResult]);
+        }
+    } catch (\Exception $e) {
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
+    }
     exit;
 }
 
@@ -805,6 +866,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
                     <button class="etab active-pro" onclick="mostrarErrorTab('sin_promesa', this)" id="tabPro">
                         <i class="fas fa-calendar-times me-1"></i> Sin Promesa <span class="badge" style="background:#6366f1;color:#fff;" id="cntPro">0</span>
                     </button>
+                    <button class="etab" onclick="mostrarErrorTab('picos', this)" id="tabPic" style="color:#0ea5e9;border-color:rgba(14,165,233,0.35);background:rgba(14,165,233,0.18);">
+                        <i class="fas fa-compress-arrows-alt me-1"></i> Picos <span class="badge bg-info ms-1" id="cntPic">0</span>
+                    </button>
                 </div>
                 
                 <div id="scannerResultados"></div>
@@ -1111,13 +1175,14 @@ async function escanearErrores() {
         }
 
         _scanData = res;
-        const total = (res.duplicados||[]).length + (res.fantasmas||[]).length + (res.sin_promesa||[]).length;
+        const total = (res.duplicados||[]).length + (res.fantasmas||[]).length + (res.sin_promesa||[]).length + (res.picos||[]).length;
         status.innerHTML = `<i class="fas fa-check-circle me-1 text-success"></i> Escaneadas <strong>${res.total_escaneadas}</strong> facturas pendientes. <strong>${total}</strong> error(es) detectado(s).`;
 
         // Actualizar contadores tabs
         document.getElementById('cntDup').textContent = (res.duplicados||[]).length;
         document.getElementById('cntFan').textContent = (res.fantasmas||[]).length;
         document.getElementById('cntPro').textContent = (res.sin_promesa||[]).length;
+        document.getElementById('cntPic').textContent = (res.picos||[]).length;
 
         if (total === 0) {
             document.getElementById('scannerResultados').innerHTML =
@@ -1130,7 +1195,8 @@ async function escanearErrores() {
         // Mostrar primera tab con errores
         if ((res.duplicados||[]).length > 0) mostrarErrorTab('duplicados', document.getElementById('tabDup'));
         else if ((res.fantasmas||[]).length > 0) mostrarErrorTab('fantasmas', document.getElementById('tabFan'));
-        else mostrarErrorTab('sin_promesa', document.getElementById('tabPro'));
+        else if ((res.sin_promesa||[]).length > 0) mostrarErrorTab('sin_promesa', document.getElementById('tabPro'));
+        else mostrarErrorTab('picos', document.getElementById('tabPic'));
 
     } catch(e) {
         btn.disabled = false;
@@ -1142,11 +1208,12 @@ async function escanearErrores() {
 function mostrarErrorTab(tipo, btn) {
     _tabActiva = tipo;
     document.querySelectorAll('.error-tabs .etab').forEach(b => {
-        b.classList.remove('active-dup','active-fan','active-pro');
+        b.classList.remove('active-dup','active-fan','active-pro','active-pic');
     });
     if (tipo === 'duplicados')  btn.classList.add('active-dup');
     if (tipo === 'fantasmas')   btn.classList.add('active-fan');
     if (tipo === 'sin_promesa') btn.classList.add('active-pro');
+    if (tipo === 'picos')       btn.classList.add('active-pic');
 
     const contenedor = document.getElementById('scannerResultados');
     if (!_scanData) { contenedor.innerHTML = ''; return; }
@@ -1186,6 +1253,23 @@ function mostrarErrorTab(tipo, btn) {
                 <td class="text-center">
                     <button class="btn-fix btn-fix-fan" id="btnfix-fan-${i}" onclick="repararError('fantasma',{id_factura:${d.id},total:${d.total||0}},this)">
                         <i class="fas fa-check me-1"></i> Marcar Pagada
+                    </button>
+                </td>
+            </tr>`;
+        });
+    } else if (tipo === 'picos') {
+        html += '<th>Cliente</th><th>Factura</th><th>Total</th><th>Cobrado</th><th>Pico (Saldo)</th><th class="text-center">Acción</th>';
+        html += '</tr></thead><tbody>';
+        items.forEach((d, i) => {
+            html += `<tr>
+                <td><span class="fw-bold text-primary">${esc(d.nombre||d.cliente)}</span><br><small style="color:#e2e8f0;">${esc(d.cliente)}</small></td>
+                <td><span class="badge bg-info">#${d.id}</span><br><small>${esc(d.desc)}</small></td>
+                <td class="text-white fw-bold">$${parseFloat(d.total||0).toFixed(2)}</td>
+                <td class="text-success">$${parseFloat(d.cobrado||0).toFixed(2)}</td>
+                <td class="text-info fw-bold">$${parseFloat(d.saldo||0).toFixed(2)}</td>
+                <td class="text-center">
+                    <button class="btn-fix" style="background:rgba(14,165,233,.15);color:#0ea5e9;border:1px solid rgba(14,165,233,.3);" onclick="limpiarPico(${d.id}, ${d.saldo}, this)">
+                        <i class="fas fa-broom me-1"></i> Limpiar Pico
                     </button>
                 </td>
             </tr>`;
@@ -1250,6 +1334,39 @@ async function repararError(tipo, data, btn) {
     } catch(e) {
         btn.disabled = false;
         btn.innerHTML = 'Red error';
+    }
+}
+
+async function limpiarPico(idFac, monto, btn) {
+    if (!confirm(`¿Registrar un pago de ajuste por $${monto} para limpiar el pico de la factura #${idFac}?`)) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    try {
+        const fd = new FormData();
+        fd.append('accion', 'limpiar_pico');
+        fd.append('nodo', _scanNodo);
+        fd.append('id_factura', idFac);
+        fd.append('monto', monto);
+        
+        const req = await fetch('', { method: 'POST', body: fd });
+        const res = await req.json();
+        
+        if (res.ok) {
+            btn.innerHTML = '<i class="fas fa-check"></i> Limpiado';
+            btn.classList.add('btn-success');
+            btn.style.color = '#10b981';
+            btn.style.background = 'rgba(16,185,129,.25)';
+            btn.style.border = 'none';
+            btn.closest('tr').style.opacity = '0.5';
+        } else {
+            alert('Error: ' + JSON.stringify(res.error || res.details));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-broom me-1"></i> Limpiar Pico';
+        }
+    } catch(e) {
+        alert('Error: ' + e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-broom me-1"></i> Limpiar Pico';
     }
 }
 </script>
