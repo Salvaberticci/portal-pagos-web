@@ -598,7 +598,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $nodo) {
     <!-- Menú de Pestañas Principales -->
     <ul class="nav nav-pills justify-content-center mb-4" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold px-4" id="tab-conciliacion-btn" data-bs-toggle="pill" data-bs-tar    <div class="tab-content" id="mainTabsContent">
+            <button class="nav-link active fw-bold px-4" id="tab-conciliacion-btn" data-bs-toggle="pill" data-bs-target="#tab-conciliacion" type="button" role="tab" aria-selected="true">
+                <i class="fas fa-search me-2"></i> Conciliación
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold px-4" id="tab-escaner-btn" data-bs-toggle="pill" data-bs-target="#tab-escaner" type="button" role="tab" aria-selected="false">
+                <i class="fas fa-bug me-2"></i> Escáner de Errores de Abono
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="mainTabsContent">
         
         <!-- ================= TAB 1: CONCILIACIÓN ================= -->
         <div class="tab-pane fade show active" id="tab-conciliacion" role="tabpanel">
