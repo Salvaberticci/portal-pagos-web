@@ -129,7 +129,8 @@ if ($accion === 'escanear_errores') {
 
 
         // Patron 3: Abono sin promesa — factura hija sin fecha de promesa
-        if ($es_hija) {
+        // Solo aplica si el saldo real pendiente es mayor a $1.00 (de lo contrario es un pico o fantasma)
+        if ($es_hija && $saldo_inv > 1.00) {
             $tiene_promesa = !empty($inv['fecha_promesa']) || !empty($inv['promesa_pago']);
             // Si WispHub no expone el campo, consultamos detalle
             if (!$tiene_promesa) {
