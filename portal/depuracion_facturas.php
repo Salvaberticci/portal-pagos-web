@@ -321,7 +321,7 @@ if ($accion === 'limpiar_pico') {
         $payResult = $client->request('POST', "facturas/{$id_factura}/registrar-pago/", [
             'forma_pago'    => intval($creds['forma_pago_operacion_bancaria'] ?? 45181),
             'accion'        => 1, // ACCION_PAGAR
-            'fecha_pago'    => date('Y-m-d'),
+            'fecha_pago'    => date('Y-m-d H:i'), // Formato requerido por WispHub
             'referencia'    => 'Ajuste de sistema por pico/redondeo',
             'total_cobrado' => $monto,
         ]);
