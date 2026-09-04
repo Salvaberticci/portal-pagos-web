@@ -51,7 +51,7 @@ class WispHubClient
      * Realiza una petici├│n HTTP a la API de WispHub.
      * Incluye rate limiting b├ísico (200ms entre requests).
      */
-    private function request(string $method, string $uri, array $data = [], ?float $timeout = null): array
+    public function request(string $method, string $uri, array $data = [], ?float $timeout = null): array
     {
         // Per-request cache: deduplica llamadas GET id├®nticas en el mismo proceso
         $cacheKey = '';
