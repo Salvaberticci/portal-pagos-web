@@ -1364,7 +1364,8 @@ async function limpiarPico(idFac, monto, btn) {
             btn.style.border = 'none';
             btn.closest('tr').style.opacity = '0.5';
         } else {
-            alert('Error: ' + JSON.stringify(res.error || res.details));
+            const errMsg = res.details ? JSON.stringify(res.details) : res.error;
+            alert('Error: ' + errMsg);
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-broom me-1"></i> Limpiar Pico';
         }
