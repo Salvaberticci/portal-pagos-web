@@ -64,6 +64,10 @@ if ($accion === 'escanear_errores') {
         $id      = $inv['id_factura'] ?? $inv['id'] ?? 0;
         $total   = floatval($inv['total'] ?? 0);
         $cobrado = floatval($inv['total_cobrado'] ?? 0);
+
+        if ($total <= 0) {
+            continue; // Ignorar Notas de Crédito (totales negativos) o facturas vacías
+        }
         $estado  = strtolower($inv['estado'] ?? '');
         $ref_inv = trim($inv['referencia'] ?? '');
         $cliente = $inv['cliente'] ?? '';
